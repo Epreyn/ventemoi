@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:google_places_flutter/model/place_type.dart';
+import 'package:ventemoi/firebase_options.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 
@@ -130,7 +131,7 @@ class ProfileScreen extends StatelessWidget {
                                           cc.personalAddressController,
                                       language: 'fr',
                                       googleAPIKey:
-                                          "AIzaSyBjIe-jG5V0Tuq7fG77zZZmG-NxdJSFeQM",
+                                          DefaultFirebaseOptions.googleKeyAPI,
                                       inputDecoration: InputDecoration(
                                         hintText: "Entrez une adresse...",
                                         border: OutlineInputBorder(),

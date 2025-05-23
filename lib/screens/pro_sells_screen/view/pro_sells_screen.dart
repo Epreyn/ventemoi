@@ -3,10 +3,7 @@ import 'package:get/get.dart';
 
 // Imports internes
 import '../../../core/classes/unique_controllers.dart';
-import '../../../features/custom_app_bar/view/custom_app_bar.dart';
-import '../../../features/custom_app_bar/widgets/custom_app_bar_actions.dart';
-import '../../../features/custom_bottom_app_bar/view/custom_bottom_app_bar.dart';
-import '../../../features/custom_profile_leading/view/custom_profile_leading.dart';
+
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/pro_sells_screen_controller.dart';
 

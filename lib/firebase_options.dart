@@ -52,6 +52,8 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const String googleKeyAPI = "AIzaSyBjIe-jG5V0Tuq7fG77zZZmG-NxdJSFeQM";
+
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: "AIzaSyCLtq6TokZ9Th7W8nQ0g74qFihq8dqznY4",
     authDomain: "vente-moi.firebaseapp.com",
