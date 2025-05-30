@@ -5,7 +5,6 @@ abstract class Routes {
   static const register = RoutePaths.register;
   static const password = RoutePaths.password;
   static const shopEstablishment = RoutePaths.shopEstablishment;
-  static const enterprisesList = RoutePaths.enterprisesList;
   static const clientHistory = RoutePaths.clientHistory;
   static const proEstablishmentProfile = RoutePaths.proEstablishmentProfile;
   static const proSells = RoutePaths.proSells;
@@ -30,7 +29,6 @@ abstract class RoutePaths {
   static const password = '/password';
   static const register = '/register';
   static const shopEstablishment = '/shop-establishment';
-  static const enterprisesList = '/enterprises-list';
   static const clientHistory = '/client-history';
   static const proEstablishmentProfile = '/pro-establishment-profile';
   static const proSells = '/pro-sells';

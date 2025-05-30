@@ -12,24 +12,34 @@ import '../../../core/models/establishement.dart';
 import '../../../core/models/establishment_category.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 
-class ShopEstablishmentScreenController extends GetxController with ControllerMixin {
-  // Onglet 0 => Boutiques, 1 => Associations
+class ShopEstablishmentScreenController extends GetxController
+    with ControllerMixin {
+  /// 0 => Boutiques, 1 => Associations, 2 => Entreprises
   RxInt selectedTabIndex = 0.obs;
 
   // Streams
   StreamSubscription<List<Establishment>>? _estabSub;
   StreamSubscription<int>? _buyerPointsSub;
 
-  // TOUTES les establishments (boutiques + associations confondues)
+  // TOUTES les establishments
   RxList<Establishment> allEstablishments = <Establishment>[].obs;
   // Après filtrage
   RxList<Establishment> displayedEstablishments = <Establishment>[].obs;
 
+  // Catégories pour Boutiques/Associations
   RxMap<String, String> categoriesMap = <String, String>{}.obs;
+  // Catégories d'entreprises
+  RxMap<String, String> enterpriseCategoriesMap = <String, String>{}.obs;
 
-  // Filtre multi-catégories
+  // Filtre multi-catégories (pour boutiques/assos)
   RxString searchText = ''.obs;
   RxSet<String> selectedCatIds = <String>{}.obs;
+
+  // Filtre pour entreprises (si vous voulez un second set distinct)
+  // Mais vous pouvez réutiliser les mêmes searchText + selectedCatIds
+  // => ci-dessous un exemple
+  RxString enterpriseSearchText = ''.obs;
+  RxSet<String> selectedEnterpriseCatIds = <String>{}.obs;
 
   // Points user
   RxInt buyerPoints = 0.obs;
@@ -42,11 +52,10 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
   final int maxCouponsAllowed = 4;
   final int pointPerCoupon = 50;
 
-  String pageTitle = 'Boutique Établissements'.toUpperCase();
+  String pageTitle = 'Établissements'.toUpperCase();
   String customBottomAppBarTag = 'shop-establishment-bottom-app-bar';
 
-  // Pour stocker userId -> userTypeName (ex: "Association" ou "Boutique") afin d'éviter
-  // de refaire 2 fetchs (users + user_types) lors du filtrage
+  /// userId -> userTypeName ( "Boutique" / "Association" / "Entreprise" / "INVISIBLE" )
   final Map<String, String> userTypeNameCache = {};
 
   @override
@@ -54,11 +63,14 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
     super.onInit();
 
     // 1) Charger la liste d'établissements
-    _estabSub = _getEstablishmentStream().listen((list) {
+    _estabSub = _getEstablishmentStream().listen((list) async {
       allEstablishments.value = list;
-      // Charger les catégories
-      _loadCategories(list);
-      // Filtrage
+
+      // Charger les 2 types de catégories
+      await _loadCategoriesForBoutiques(list);
+      await _loadCategoriesForEnterprises(list);
+
+      // Filtrer
       filterEstablishments();
     });
 
@@ -70,10 +82,16 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
       });
     }
 
-    // 3) Watchers => refiltre
+    // watchers => refiltre
     ever(selectedTabIndex, (_) => filterEstablishments());
+
+    // watchers pour boutiques/assos
     ever(searchText, (_) => filterEstablishments());
     ever(selectedCatIds, (_) => filterEstablishments());
+
+    // watchers pour entreprises
+    ever(enterpriseSearchText, (_) => filterEstablishments());
+    ever(selectedEnterpriseCatIds, (_) => filterEstablishments());
   }
 
   @override
@@ -86,12 +104,13 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
   // ----------------------------------------------------------------
   // Streams
   // ----------------------------------------------------------------
-  /// On récupère TOUTES les establishments, et on charge userDoc + user_typeDoc
-  /// pour stocker userId -> userTypeName dans userTypeNameCache.
-  /// On ne *filtre pas encore* par Association/Boutique ici : on prend tout,
-  /// et on fera la distinction plus tard dans `filterEstablishments()`.
+
   Stream<List<Establishment>> _getEstablishmentStream() async* {
-    final snapStream = UniquesControllers().data.firebaseFirestore.collection('establishments').snapshots();
+    final snapStream = UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('establishments')
+        .snapshots();
 
     await for (final snap in snapStream) {
       if (snap.docs.isEmpty) {
@@ -102,16 +121,14 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
       final docs = snap.docs.map((d) => Establishment.fromDocument(d)).toList();
       final results = <Establishment>[];
 
-      // On va fetch tous les userDocs correspondants *une fois* => userId -> userData
-      // Au lieu de fetch doc par doc, on utilise un batch approach (whereIn),
-      // si le nombre de userIds <= 10. Sinon on segmente.
-      final userIds = docs.map((e) => e.userId).toSet().where((id) => id.isNotEmpty).toList();
+      // userDocs => savoir typeName + isVisible
+      final userIds =
+          docs.map((e) => e.userId).toSet().where((e) => e.isNotEmpty).toList();
       if (userIds.isEmpty) {
-        yield <Establishment>[]; // personne
+        yield <Establishment>[];
         continue;
       }
 
-      // On scinde éventuellement en paquets de 10 (limite Firestore), omis ici pour la démo
       final usersSnap = await UniquesControllers()
           .data
           .firebaseFirestore
@@ -119,21 +136,18 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
           .where(FieldPath.documentId, whereIn: userIds)
           .get();
 
-      // userId -> ( userData )
       final Map<String, Map<String, dynamic>> userMap = {};
       for (final d in usersSnap.docs) {
         userMap[d.id] = d.data();
       }
 
-      // On extraie user_type_ids
-      final typeIds = <String>{};
-      for (final uData in userMap.values) {
-        if ((uData['user_type_id'] ?? '').toString().isNotEmpty) {
-          typeIds.add(uData['user_type_id']);
-        }
+      // extraire user_type
+      final Set<String> typeIds = {};
+      for (final u in userMap.values) {
+        final tId = u['user_type_id'] ?? '';
+        if (tId.isNotEmpty) typeIds.add(tId);
       }
 
-      // On fetch user_types => doc par doc ou un batch with whereIn
       final userTypesSnap = await UniquesControllers()
           .data
           .firebaseFirestore
@@ -141,40 +155,39 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
           .where(FieldPath.documentId, whereIn: typeIds.toList())
           .get();
 
-      // typeId -> name
       final Map<String, String> typeNameMap = {};
-      for (final d in userTypesSnap.docs) {
-        final nm = d.data()['name'] ?? '';
-        typeNameMap[d.id] = nm;
+      for (final t in userTypesSnap.docs) {
+        final tData = t.data();
+        final nm = tData['name'] ?? '';
+        typeNameMap[t.id] = nm;
       }
 
-      // On remplit userTypeNameCache
+      // Remplir userTypeNameCache
       userTypeNameCache.clear();
       for (final entry in userMap.entries) {
-        final uId = entry.key;
+        final uid = entry.key;
         final data = entry.value;
+        final visible = data['isVisible'] == true;
         final tId = data['user_type_id'] ?? '';
         final tName = typeNameMap[tId] ?? '';
-        // isVisible => on check
-        if (data['isVisible'] == true) {
-          // on stocke
-          userTypeNameCache[uId] = tName;
+
+        if (!visible) {
+          userTypeNameCache[uid] = 'INVISIBLE';
         } else {
-          // user pas visible => on l'exclut d'office
-          userTypeNameCache[uId] = 'INVISIBLE';
+          userTypeNameCache[uid] =
+              tName; // "Boutique" / "Association" / "Entreprise"
         }
       }
 
-      // On repasse sur docs => on garde seulement si userId visible
+      // filtrer
       for (final est in docs) {
         final tName = userTypeNameCache[est.userId] ?? 'INVISIBLE';
-        if (tName == 'INVISIBLE') {
-          continue; // user non visible => skip
-        }
-        // On ajoute
+        if (tName == 'INVISIBLE') continue;
         results.add(est);
       }
 
+      // tri
+      results.sort((a, b) => a.name.compareTo(b.name));
       yield results;
     }
   }
@@ -194,16 +207,18 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
   }
 
   // ----------------------------------------------------------------
-  // Charger la map des catégories => cId -> catName
+  // Charger catégories : boutiques/assos
   // ----------------------------------------------------------------
-  Future<void> _loadCategories(List<Establishment> list) async {
-    final cids = <String>{};
-    for (final e in list) {
-      if (e.categoryId.isNotEmpty) {
-        cids.add(e.categoryId);
+  Future<void> _loadCategoriesForBoutiques(List<Establishment> list) async {
+    final catIds = <String>{};
+    for (final est in list) {
+      // On suppose : "categoryId" pour boutique/asso
+      if (est.categoryId.isNotEmpty) {
+        // Seules boutique/asso ont un categoryId
+        catIds.add(est.categoryId);
       }
     }
-    if (cids.isEmpty) {
+    if (catIds.isEmpty) {
       categoriesMap.clear();
       return;
     }
@@ -211,68 +226,129 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
         .data
         .firebaseFirestore
         .collection('categories')
-        .where(FieldPath.documentId, whereIn: cids.toList())
+        .where(FieldPath.documentId, whereIn: catIds.toList())
         .get();
 
     final map = <String, String>{};
     for (final d in snap.docs) {
-      final cat = EstablishmentCategory.fromDocument(d);
-      map[cat.id] = cat.name;
+      final data = d.data();
+      final nm = data['name'] ?? '';
+      map[d.id] = nm;
     }
     categoriesMap.value = map;
   }
 
   // ----------------------------------------------------------------
-  // Filtre final
+  // Charger catégories : entreprises
+  // ----------------------------------------------------------------
+  Future<void> _loadCategoriesForEnterprises(List<Establishment> list) async {
+    // On suppose : "enterpriseCategoryIds" pour entreprise
+    final catIds = <String>{};
+    for (final est in list) {
+      if (est.enterpriseCategoryIds != null) {
+        for (final c in est.enterpriseCategoryIds!) {
+          catIds.add(c);
+        }
+      }
+    }
+    if (catIds.isEmpty) {
+      enterpriseCategoriesMap.clear();
+      return;
+    }
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('enterprise_categories')
+        .where(FieldPath.documentId, whereIn: catIds.toList())
+        .get();
+
+    final map = <String, String>{};
+    for (final d in snap.docs) {
+      final data = d.data();
+      final nm = data['name'] ?? '';
+      map[d.id] = nm;
+    }
+    enterpriseCategoriesMap.value = map;
+  }
+
+  // ----------------------------------------------------------------
+  // Filtrage
   // ----------------------------------------------------------------
   void filterEstablishments() {
-    final raw = allEstablishments;
-    final tab = selectedTabIndex.value; // 0 => boutique, 1 => association
-    final lowerSearch = searchText.value.trim().toLowerCase();
-    final selCats = selectedCatIds;
+    final tab = selectedTabIndex.value;
+    // On regarde si on est sur onglet 2 (Entreprises)
+    final lowerSearch =
+        (tab == 2 ? enterpriseSearchText.value : searchText.value)
+            .trim()
+            .toLowerCase();
 
-    final res = <Establishment>[];
+    final raw = allEstablishments;
+    final result = <Establishment>[];
 
     for (final e in raw) {
-      // Vérif type => userId -> userTypeName (via userTypeNameCache)
+      // Récupérer typeName => "Boutique"/"Association"/"Entreprise"/"INVISIBLE"
       final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
-      if (tName == 'INVISIBLE') continue; // déjà skip
-
-      final isAssoc = (tName == 'Association');
       final isBoutique = (tName == 'Boutique');
+      final isAsso = (tName == 'Association');
+      final isEnt = (tName == 'Entreprise');
 
-      // 1) tab
-      if (tab == 0 && !isBoutique) continue;
-      if (tab == 1 && !isAssoc) continue;
+      // Filtrer par tab
+      if (tab == 0 && !isBoutique) continue; // Boutiques seulement
+      if (tab == 1 && !isAsso) continue; // Asso seulement
+      if (tab == 2 && !isEnt) continue; // Entreprises seulement
 
-      // 2) search
+      // Filtre par recherche
       if (lowerSearch.isNotEmpty) {
-        final n = e.name.toLowerCase();
-        final d = e.description.toLowerCase();
-        if (!n.contains(lowerSearch) && !d.contains(lowerSearch)) {
+        final nameLower = e.name.toLowerCase();
+        final descLower = e.description.toLowerCase();
+        if (!nameLower.contains(lowerSearch) &&
+            !descLower.contains(lowerSearch)) {
           continue;
         }
       }
 
-      // 3) cat
-      if (selCats.isNotEmpty && !selCats.contains(e.categoryId)) {
-        continue;
+      // Filtre par catégorie
+      if (tab == 2) {
+        // => entreprises => e.enterpriseCategoryIds
+        if (selectedEnterpriseCatIds.isNotEmpty) {
+          final eCats = e.enterpriseCategoryIds ?? [];
+          final hasIntersection = eCats.any(
+            (cid) => selectedEnterpriseCatIds.contains(cid),
+          );
+          if (!hasIntersection) continue;
+        }
+      } else {
+        // => boutiques/assos => e.categoryId
+        if (selectedCatIds.isNotEmpty) {
+          if (!selectedCatIds.contains(e.categoryId)) {
+            continue;
+          }
+        }
       }
 
-      res.add(e);
+      // On garde
+      result.add(e);
     }
 
-    // Tri par nom
-    res.sort((a, b) => a.name.compareTo(b.name));
-    displayedEstablishments.value = res;
+    displayedEstablishments.value = result;
   }
 
-  // setter search
-  void setSearchText(String txt) => searchText.value = txt;
+  // ----------------------------------------------------------------
+  // Setters de search
+  // ----------------------------------------------------------------
+  void setSearchText(String val) {
+    final tab = selectedTabIndex.value;
+    if (tab == 2) {
+      enterpriseSearchText.value = val;
+    } else {
+      searchText.value = val;
+    }
+  }
 
   // ----------------------------------------------------------------
-  // Acheteur
+  // Achat / Don identique
   // ----------------------------------------------------------------
+
   RxBool isBuying = false.obs;
 
   void buyEstablishment(Establishment e) {
@@ -280,7 +356,6 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
     couponsToBuy.value = 1;
     donationCtrl.clear();
 
-    // userId -> userTypeName
     final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
     final isAssoc = (tName == 'Association');
     final title = isAssoc ? 'Donner à ${e.name}' : 'Acheter à ${e.name}';
@@ -297,58 +372,54 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
   @override
   Widget alertDialogContent() {
     final e = selectedEstab.value;
-    if (e == null) {
-      return const Text('Aucun établissement sélectionné');
-    }
-    // userId -> userTypeName
+    if (e == null) return const Text('Aucun établissement sélectionné');
+
     final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
     final isAssoc = (tName == 'Association');
 
     if (isAssoc) {
-      // Don
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Combien de points voulez-vous donner ?'),
+          const Text('Combien de points donner ?'),
           const CustomSpace(heightMultiplier: 1),
           TextField(
             controller: donationCtrl,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              labelText: 'Points',
               border: OutlineInputBorder(),
+              labelText: 'Points',
             ),
           ),
         ],
       );
     } else {
-      // Boutique => coupons
-      return Obx(() {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  onPressed: canDecrement ? () => couponsToBuy.value-- : null,
-                  icon: const Icon(Icons.remove),
-                ),
-                Text(
-                  '${couponsToBuy.value}',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  onPressed: canIncrement ? () => couponsToBuy.value++ : null,
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            const CustomSpace(heightMultiplier: 1),
-            Text('Coût : $costInPoints point(s)'),
-          ],
-        );
-      });
+      // Boutique => nb bons
+      return Obx(() => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: canDecrement ? () => couponsToBuy.value-- : null,
+                    icon: const Icon(Icons.remove),
+                  ),
+                  Text(
+                    '${couponsToBuy.value}',
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: canIncrement ? () => couponsToBuy.value++ : null,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              const CustomSpace(heightMultiplier: 1),
+              Text('Coût : $costInPoints point(s)'),
+            ],
+          ));
     }
   }
 
@@ -389,7 +460,11 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
         // 2) Créer doc "purchases" (ou "donations", selon vos noms)
         //    - isReclaimed = true
         //    - reclamationPassword = ''
-        final docRef = UniquesControllers().data.firebaseFirestore.collection('purchases').doc();
+        final docRef = UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('purchases')
+            .doc();
 
         await docRef.set({
           'buyer_id': uid,
@@ -406,8 +481,10 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
               false,
             );
 
-        final buyerEmail = UniquesControllers().data.firebaseAuth.currentUser?.email ?? '';
-        final buyerName = '???'; // À récupérer depuis doc user ou firebaseAuth.currentUser
+        final buyerEmail =
+            UniquesControllers().data.firebaseAuth.currentUser?.email ?? '';
+        final buyerName =
+            '???'; // À récupérer depuis doc user ou firebaseAuth.currentUser
         final sellerEmail = await _fetchUserEmail(e.userId);
         final sellerName = e.name; // ex. le champ "name" de l’établissement
 
@@ -494,7 +571,11 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
         // 5) Créer doc "purchases"
         //    - isReclaimed = false (car c’est un bon cadeau non récupéré)
         //    - reclamationPassword = code
-        final purchasesRef = UniquesControllers().data.firebaseFirestore.collection('purchases').doc();
+        final purchasesRef = UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('purchases')
+            .doc();
 
         await purchasesRef.set({
           'buyer_id': uid,
@@ -511,7 +592,8 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
               false,
             );
 
-        final buyerEmail = UniquesControllers().data.firebaseAuth.currentUser?.email ?? '';
+        final buyerEmail =
+            UniquesControllers().data.firebaseAuth.currentUser?.email ?? '';
         final buyerName = '???';
         final sellerEmail = await _fetchUserEmail(e.userId);
         final sellerName = e.name;
@@ -590,59 +672,105 @@ class ShopEstablishmentScreenController extends GetxController with ControllerMi
   // BOTTOM SHEET : Filtres
   // ----------------------------------------------------------------
   RxSet<String> localSelectedCatIds = <String>{}.obs;
+  RxSet<String> localSelectedEnterpriseCatIds = <String>{}.obs;
 
   @override
   void variablesToResetToBottomSheet() {
-    localSelectedCatIds.value = Set.from(selectedCatIds);
+    final tab = selectedTabIndex.value;
+    if (tab == 0 || tab == 1) {
+      localSelectedCatIds.value = Set.from(selectedCatIds);
+    } else {
+      localSelectedEnterpriseCatIds.value = Set.from(selectedEnterpriseCatIds);
+    }
   }
 
   @override
   List<Widget> bottomSheetChildren() {
     return [
-      _buildCatFilterChips(),
+      Obx(() => _buildCatFilterChips()), // Important de mettre un Obx
     ];
   }
 
   Widget _buildCatFilterChips() {
-    if (categoriesMap.isEmpty) {
-      return const Text('Aucune catégorie disponible');
-    }
-    final setSel = localSelectedCatIds;
-    final map = categoriesMap;
+    final tab = selectedTabIndex.value;
 
-    return Obx(
-      () => Wrap(
+    if (tab == 2) {
+      // ----- ONGLET ENTREPRISES -----
+      if (enterpriseCategoriesMap.isEmpty) {
+        return const Text('Aucune catégorie d’entreprise disponible');
+      }
+      return Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: map.entries.map((e) {
-          final id = e.key;
-          final name = e.value;
-          final selected = setSel.contains(id);
+        children: enterpriseCategoriesMap.entries.map((e) {
+          final catId = e.key;
+          final catName = e.value;
+          final isSelected = localSelectedEnterpriseCatIds.contains(catId);
           return FilterChip(
-            label: Text(name),
-            selected: selected,
-            onSelected: (val) {
+            label: Text(catName),
+            selected: isSelected,
+            onSelected: (bool val) {
               if (val) {
-                setSel.add(id);
+                localSelectedEnterpriseCatIds.add(catId);
               } else {
-                setSel.remove(id);
+                localSelectedEnterpriseCatIds.remove(catId);
               }
             },
           );
         }).toList(),
-      ),
-    );
+      );
+    } else {
+      // ----- ONGLET BOUTIQUE/ASSO (0 ou 1) -----
+      if (categoriesMap.isEmpty) {
+        return const Text('Aucune catégorie disponible');
+      }
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: categoriesMap.entries.map((e) {
+          final catId = e.key;
+          final catName = e.value;
+          final isSelected = localSelectedCatIds.contains(catId);
+          return FilterChip(
+            label: Text(catName),
+            selected: isSelected,
+            onSelected: (bool val) {
+              if (val) {
+                localSelectedCatIds.add(catId);
+              } else {
+                localSelectedCatIds.remove(catId);
+              }
+            },
+          );
+        }).toList(),
+      );
+    }
   }
 
   @override
   Future<void> actionBottomSheet() async {
     Get.back();
-    selectedCatIds.value = Set.from(localSelectedCatIds);
+
+    final tab = selectedTabIndex.value;
+    if (tab == 2) {
+      // onglet entreprises => on applique localSelectedEnterpriseCatIds
+      selectedEnterpriseCatIds.value = Set.from(localSelectedEnterpriseCatIds);
+    } else {
+      // onglet boutiques/assos => on applique localSelectedCatIds
+      selectedCatIds.value = Set.from(localSelectedCatIds);
+    }
+
+    // Refiltrage
     filterEstablishments();
   }
 
   Future<String> _fetchUserEmail(String userId) async {
-    final snap = await UniquesControllers().data.firebaseFirestore.collection('users').doc(userId).get();
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(userId)
+        .get();
     if (!snap.exists) return '';
     final data = snap.data()!;
     return data['email'] ?? '';

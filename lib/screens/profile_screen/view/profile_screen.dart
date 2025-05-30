@@ -143,23 +143,8 @@ class ProfileScreen extends StatelessWidget {
                                         'fr'
                                       ], // Limite la recherche aux adresses en France [oai_citation:6‡tuto-flutter.fr](https://tuto-flutter.fr/coder-avec-flutter/google-maps/barre-de-recherche#:~:text=%2A%20%60countries%3A%20%5B,son%20ID%20et%20sa%20description)
                                       placeType: PlaceType
-                                          .geocode, // Filtre pour ne rechercher que des adresses (géocodes)
-                                      isLatLngRequired:
-                                          true, // Demande au plugin de récupérer lat & lng pour chaque résultat [oai_citation:7‡tuto-flutter.fr](https://tuto-flutter.fr/coder-avec-flutter/google-maps/barre-de-recherche#:~:text=%2A%20%60countries%3A%20%5B,son%20ID%20et%20sa%20description)
-                                      getPlaceDetailWithLatLng: (prediction) {
-                                        // Ces champs peuvent être des String
-                                        final latString = prediction.lat ?? '0';
-                                        final lngString = prediction.lng ?? '0';
+                                          .address, // Filtre pour ne rechercher que des adresses (géocodes)
 
-                                        // On parse en double
-                                        final lat =
-                                            double.tryParse(latString) ?? 0.0;
-                                        final lng =
-                                            double.tryParse(lngString) ?? 0.0;
-
-                                        cc.personalLat.value = lat;
-                                        cc.personalLng.value = lng;
-                                      },
                                       itemClick: (prediction) {
                                         // Ce callback est appelé au moment du clic sur une suggestion
                                         cc.personalAddressController.text =

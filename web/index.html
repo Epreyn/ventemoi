@@ -3,54 +3,41 @@
     <head>
         <base href="/" />
         <meta charset="UTF-8" />
-
         <title>Vente Moi</title>
 
+        <!-- Mieux pour SEO / Internationalisation -->
         <meta name="google" content="notranslate" />
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+        <!-- Paramètres pour Flutter Web -->
         <meta
-            flt-viewport=""
             name="viewport"
             content="width=device-width, user-scalable=no, maximum-scale=1.0"
         />
 
+        <!-- Preconnect si on veut charger des fonts externes, images Firestore, etc. -->
         <link rel="preconnect" href="https://fonts.gstatic.com" />
         <link rel="preconnect" href="https://www.gstatic.com" />
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
 
+        <!-- Manifest PWA -->
         <link rel="manifest" href="manifest.json" />
         <link rel="icon" type="image/png" href="icons/Icon-192.png" />
         <meta name="generator" content="Flutter" />
 
-        <script defer src="main.dart.js" type="application/javascript"></script>
-
+        <!-- Script Google Maps (avec Places) -->
         <script
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBjIe-jG5V0Tuq7fG77zZZmG-NxdJSFeQM&libraries=places&callback=initMap"
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLEUR2PbirD85Te-jmSNYSFz-O7cW9a-Q&libraries=places"
             async
             defer
         ></script>
+
+        <!-- Script principal Flutter, on le met en defer -->
+        <script src="main.dart.js" type="application/javascript" defer></script>
     </head>
     <body>
-        <noscript
-            >Ce site requiert JavaScript pour fonctionner
-            correctement.</noscript
-        >
-
-        <!-- ... -->
-        <input
-            id="my-autocomplete"
-            type="text"
-            placeholder="Saisir une adresse"
-            style="position: absolute; top: 50px; left: 50px; width: 300px"
-        />
-
-        <script
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBjIe-jG5V0Tuq7fG77zZZmG-NxdJSFeQM&libraries=places"
-            async
-            defer
-        ></script>
-        <script src="my_map_script.js"></script>
-
-        <script defer src="main.dart.js" type="application/javascript"></script>
+        <noscript>
+            Ce site requiert JavaScript pour fonctionner correctement.
+        </noscript>
     </body>
 </html>

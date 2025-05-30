@@ -10,22 +10,19 @@ class ShopEstablishmentSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomCardAnimation(
-      index: 0,
-      child: Padding(
-        padding: EdgeInsets.all(UniquesControllers().data.baseSpace),
-        child: TextField(
-          decoration: InputDecoration(
-            hintText: 'Rechercher un établissement',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(90),
-            ),
+    return Padding(
+      padding: EdgeInsets.all(UniquesControllers().data.baseSpace),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: 'Rechercher un établissement',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(90),
           ),
-          onChanged: (value) {
-            controller.setSearchText(value);
-          },
         ),
+        onChanged: (value) {
+          controller.setSearchText(value);
+        },
       ),
     );
   }

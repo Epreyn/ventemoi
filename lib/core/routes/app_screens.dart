@@ -3,7 +3,6 @@ import 'package:ventemoi/screens/admin_commissions_screen/view/admin_commissions
 import 'package:ventemoi/screens/admin_establishments_screen/view/admin_establishments_screen.dart';
 import 'package:ventemoi/screens/admin_points_requests_screen/view/admin_points_requests_screen.dart';
 import 'package:ventemoi/screens/admin_sells_screen/view/admin_sells_screen.dart';
-import 'package:ventemoi/screens/enterprises_list_screen/view/enterprises_list_screen.dart';
 import 'package:ventemoi/screens/sponsorship_screen/view/sponsorship_screen.dart';
 
 import '../../screens/admin_categories_screen/view/admin_categories_screen.dart';
@@ -43,10 +42,6 @@ class AppScreens {
     GetPage(
       name: RoutePaths.shopEstablishment,
       page: () => const ShopEstablishmentScreen(),
-    ),
-    GetPage(
-      name: RoutePaths.enterprisesList,
-      page: () => const EnterprisesListScreen(),
     ),
     GetPage(
       name: RoutePaths.clientHistory,

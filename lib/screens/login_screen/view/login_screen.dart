@@ -173,7 +173,7 @@ class LoginScreen extends StatelessWidget {
             alignment: Alignment.bottomRight,
             child: Padding(
               padding: EdgeInsets.all(8.0),
-              child: Text('1.3.1'),
+              child: Text('1.3.2'),
             ),
           )
         ],

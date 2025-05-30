@@ -4,16 +4,17 @@ import 'package:get/get.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
 import '../../../core/models/establishment_category.dart';
-import '../../../features/custom_app_bar/view/custom_app_bar.dart';
-import '../../../features/custom_app_bar/widgets/custom_app_bar_actions.dart';
-import '../../../features/custom_bottom_app_bar/view/custom_bottom_app_bar.dart';
+
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_dropdown_stream_builder/view/custom_dropdown_stream_builder.dart';
-import '../../../features/custom_profile_leading/view/custom_profile_leading.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/pro_establishment_profile_screen_controller.dart';
+
+import 'package:google_places_flutter/google_places_flutter.dart';
+import 'package:google_places_flutter/model/place_type.dart';
+import 'package:ventemoi/firebase_options.dart';
 
 class ProEstablishmentProfileScreen extends StatelessWidget {
   const ProEstablishmentProfileScreen({super.key});
@@ -148,11 +149,33 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                         // Adresse
                         CustomCardAnimation(
                           index: 6,
-                          child: CustomTextFormField(
-                            tag: ec.addressTag,
-                            labelText: ec.addressLabel,
-                            controller: ec.addressCtrl,
+                          child: GooglePlaceAutoCompleteTextField(
+                            textEditingController: ec.addressCtrl,
+                            language: 'fr',
+                            googleAPIKey: DefaultFirebaseOptions.googleKeyAPI,
+                            inputDecoration: InputDecoration(
+                              hintText: "Entrez une adresse...",
+                              border: OutlineInputBorder(),
+                              suffixIcon: Icon(Icons.search),
+                            ),
+                            debounceTime: 800,
+                            countries: ['fr'],
+                            placeType: PlaceType.address,
+                            itemClick: (prediction) {
+                              ec.addressCtrl.text =
+                                  prediction.description ?? '';
+                              ec.addressCtrl.selection =
+                                  TextSelection.fromPosition(
+                                TextPosition(
+                                    offset: ec.addressCtrl.text.length),
+                              );
+                            },
                           ),
+                          // child: CustomTextFormField(
+                          //   tag: ec.addressTag,
+                          //   labelText: ec.addressLabel,
+                          //   controller: ec.addressCtrl,
+                          // ),
                         ),
                         const CustomSpace(heightMultiplier: 2),
 
