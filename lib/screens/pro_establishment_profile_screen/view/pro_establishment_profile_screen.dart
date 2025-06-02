@@ -7,6 +7,8 @@ import '../../../core/models/establishment_category.dart';
 
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_dropdown_stream_builder/view/custom_dropdown_stream_builder.dart';
+import '../../../features/custom_places_autocompletion/view/custom_places_autocompletion.dart'
+    show CustomPlacesAutocomplete;
 import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
@@ -139,31 +141,49 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                         const CustomSpace(heightMultiplier: 2),
 
                         // Adresse
+
                         CustomCardAnimation(
                           index: 6,
-                          child: GooglePlaceAutoCompleteTextField(
-                            textEditingController: ec.addressCtrl,
-                            language: 'fr',
-                            googleAPIKey: DefaultFirebaseOptions.googleKeyAPI,
-                            inputDecoration: InputDecoration(
-                              hintText: "Entrez une adresse...",
-                              border: OutlineInputBorder(),
-                              suffixIcon: Icon(Icons.search),
-                            ),
-                            debounceTime: 800,
+                          child: CustomPlacesAutocomplete(
+                            controller: ec.addressCtrl,
+                            apiKey: DefaultFirebaseOptions.googleKeyAPI,
+                            hintText: "Adresse de l'établissement...",
                             countries: ['fr'],
-                            placeType: PlaceType.address,
-                            itemClick: (prediction) {
-                              ec.addressCtrl.text =
-                                  prediction.description ?? '';
-                              ec.addressCtrl.selection =
-                                  TextSelection.fromPosition(
-                                TextPosition(
-                                    offset: ec.addressCtrl.text.length),
-                              );
-                            },
+                            decoration: InputDecoration(
+                              labelText: ec.addressLabel,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(90),
+                              ),
+                              prefixIcon: Icon(Icons.business),
+                            ),
                           ),
                         ),
+
+                        // CustomCardAnimation(
+                        //   index: 6,
+                        //   child: GooglePlaceAutoCompleteTextField(
+                        //     textEditingController: ec.addressCtrl,
+                        //     language: 'fr',
+                        //     googleAPIKey: DefaultFirebaseOptions.googleKeyAPI,
+                        //     inputDecoration: InputDecoration(
+                        //       hintText: "Entrez une adresse...",
+                        //       border: OutlineInputBorder(),
+                        //       suffixIcon: Icon(Icons.search),
+                        //     ),
+                        //     debounceTime: 800,
+                        //     countries: ['fr'],
+                        //     placeType: PlaceType.address,
+                        //     itemClick: (prediction) {
+                        //       ec.addressCtrl.text =
+                        //           prediction.description ?? '';
+                        //       ec.addressCtrl.selection =
+                        //           TextSelection.fromPosition(
+                        //         TextPosition(
+                        //             offset: ec.addressCtrl.text.length),
+                        //       );
+                        //     },
+                        //   ),
+                        // ),
                         const CustomSpace(heightMultiplier: 2),
 
                         // Email
