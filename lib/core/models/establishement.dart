@@ -16,6 +16,7 @@ class Establishment implements Nameable {
   final String bannerUrl;
   final String categoryId;
   final List<String>? enterpriseCategoryIds;
+  final int enterpriseCategorySlots; // NOUVEAU : nombre de slots de catégories
 
   final String videoUrl;
   final bool hasAcceptedContract;
@@ -32,6 +33,7 @@ class Establishment implements Nameable {
     required this.bannerUrl,
     required this.categoryId,
     required this.enterpriseCategoryIds,
+    required this.enterpriseCategorySlots, // NOUVEAU
     required this.videoUrl,
     required this.hasAcceptedContract,
   });
@@ -52,6 +54,8 @@ class Establishment implements Nameable {
       bannerUrl: data['banner_url'] ?? '',
       categoryId: data['category_id'] ?? '',
       enterpriseCategoryIds: rawECats?.map((e) => e.toString()).toList(),
+      enterpriseCategorySlots:
+          data['enterprise_category_slots'] ?? 2, // Par défaut 2
       videoUrl: data['video_url'] ?? '',
       hasAcceptedContract: data['has_accepted_contract'] ?? false,
     );

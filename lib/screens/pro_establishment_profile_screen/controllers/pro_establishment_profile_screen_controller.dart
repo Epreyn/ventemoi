@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
@@ -15,7 +16,8 @@ import '../../../core/models/establishment_category.dart';
 import '../../../core/models/user_type.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 
-class ProEstablishmentProfileScreenController extends GetxController with ControllerMixin {
+class ProEstablishmentProfileScreenController extends GetxController
+    with ControllerMixin {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
   String customBottomAppBarTag = 'pro-establishment-form-bottom-app-bar';
@@ -59,9 +61,13 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   double categoryMaxHeight = 50.0;
   Rx<EstablishmentCategory?> currentCategory = Rx<EstablishmentCategory?>(null);
 
-  // Catégories multiples (si userType == 'Entreprise')
-  RxList<String> enterpriseCatsIds = <String>[].obs;
-  final int maxEnterpriseCats = 2;
+  // NOUVEAU : Catégories sélectionnées dans les dropdowns
+  RxList<Rx<EnterpriseCategory?>> selectedEnterpriseCategories =
+      <Rx<EnterpriseCategory?>>[].obs;
+  RxInt enterpriseCategorySlots = 2.obs; // Nombre de slots disponibles
+
+  // Prix pour un slot supplémentaire (en centimes pour Stripe)
+  final int additionalSlotPrice = 5000; // 50€
 
   // Bannière / Logo
   RxString bannerUrl = ''.obs;
@@ -77,8 +83,8 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   // ID doc de l'établissement
   String? establishmentDocId;
 
-  // // Détection du userType => si 'Entreprise', on active le multi-cat
-  // Rx<UserType?> currentUserType = Rx<UserType?>(null);
+  // Détection du userType
+  Rx<UserType?> currentUserType = Rx<UserType?>(null);
 
   // Booléen : a-t-il accepté le contrat ?
   RxBool hasAcceptedContract = false.obs;
@@ -105,6 +111,43 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   }
 
   // ------------------------------------------------
+  // Initialiser les dropdowns de catégories
+  // ------------------------------------------------
+  void _initializeCategoryDropdowns(
+      int slots, List<String>? existingCategoryIds) {
+    selectedEnterpriseCategories.clear();
+
+    // Créer les dropdowns en fonction du nombre de slots
+    for (int i = 0; i < slots; i++) {
+      selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
+    }
+
+    // Remplir avec les catégories existantes
+    if (existingCategoryIds != null) {
+      for (int i = 0; i < existingCategoryIds.length && i < slots; i++) {
+        // On récupérera la catégorie par son ID plus tard
+        _loadCategoryById(existingCategoryIds[i], i);
+      }
+    }
+  }
+
+  Future<void> _loadCategoryById(String catId, int index) async {
+    if (catId.isEmpty) return;
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('enterprise_categories')
+        .doc(catId)
+        .get();
+    if (snap.exists) {
+      final cat = EnterpriseCategory.fromDocument(snap);
+      if (index < selectedEnterpriseCategories.length) {
+        selectedEnterpriseCategories[index].value = cat;
+      }
+    }
+  }
+
+  // ------------------------------------------------
   // Streams
   // ------------------------------------------------
   Stream<Map<String, dynamic>?> getEstablishmentDocStream() {
@@ -127,6 +170,16 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
       final bool accepted = data['has_accepted_contract'] ?? false;
       hasAcceptedContract.value = accepted;
 
+      // NOUVEAU : Lire le nombre de slots
+      final slots = data['enterprise_category_slots'] ?? 2;
+      enterpriseCategorySlots.value = slots;
+
+      // Initialiser les dropdowns
+      final List<dynamic>? entCats =
+          data['enterprise_categories'] as List<dynamic>?;
+      final catIds = entCats?.map((e) => e.toString()).toList();
+      _initializeCategoryDropdowns(slots, catIds);
+
       return data;
     });
   }
@@ -137,7 +190,8 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
         .firebaseFirestore
         .collection('categories')
         .snapshots()
-        .map((q) => q.docs.map((d) => EstablishmentCategory.fromDocument(d)).toList());
+        .map((q) =>
+            q.docs.map((d) => EstablishmentCategory.fromDocument(d)).toList());
   }
 
   Stream<List<EnterpriseCategory>> getEnterpriseCategoriesStream() {
@@ -146,24 +200,40 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
         .firebaseFirestore
         .collection('enterprise_categories')
         .snapshots()
-        .map((q) => q.docs.map((d) => EnterpriseCategory.fromDocument(d)).toList());
+        .map((q) =>
+            q.docs.map((d) => EnterpriseCategory.fromDocument(d)).toList());
   }
 
   Future<EstablishmentCategory?> getCategoryById(String catId) async {
     if (catId.isEmpty) return null;
-    final snap = await UniquesControllers().data.firebaseFirestore.collection('categories').doc(catId).get();
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('categories')
+        .doc(catId)
+        .get();
     if (!snap.exists) return null;
     return EstablishmentCategory.fromDocument(snap);
   }
 
   Future<UserType?> getUserTypeByUserId(String userId) async {
-    final snapUser = await UniquesControllers().data.firebaseFirestore.collection('users').doc(userId).get();
+    final snapUser = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(userId)
+        .get();
     if (!snapUser.exists) return null;
     final userData = snapUser.data()!;
     final userTypeId = userData['user_type_id'] ?? '';
     if (userTypeId.isEmpty) return null;
 
-    final snapType = await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(userTypeId).get();
+    final snapType = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .doc(userTypeId)
+        .get();
     if (!snapType.exists) return null;
     return UserType.fromDocument(snapType);
   }
@@ -172,7 +242,8 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   // Pick banner / logo
   // ------------------------------------------------
   Future<void> pickBanner() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.image, allowMultiple: false);
     if (result == null || result.files.isEmpty) return;
     final picked = result.files.first;
 
@@ -188,7 +259,8 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   }
 
   Future<void> pickLogo() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.image, allowMultiple: false);
     if (result == null || result.files.isEmpty) return;
     final picked = result.files.first;
 
@@ -201,6 +273,56 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
       logoFile.value = null;
       logoBytes.value = picked.bytes;
     }
+  }
+
+  // ------------------------------------------------
+  // Ajouter une catégorie (paiement Stripe)
+  // ------------------------------------------------
+  Future<void> addCategorySlot() async {
+    UniquesControllers().data.isInAsyncCall.value = true;
+
+    try {
+      // TODO: Intégrer Stripe ici
+      // Pour l'instant, on simule le paiement réussi
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Ajouter un nouveau slot
+      enterpriseCategorySlots.value++;
+      selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
+
+      // Mettre à jour Firebase
+      if (establishmentDocId != null) {
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(establishmentDocId)
+            .update({
+          'enterprise_category_slots': enterpriseCategorySlots.value,
+        });
+      }
+
+      UniquesControllers().data.snackbar(
+          'Succès', 'Nouveau slot de catégorie ajouté avec succès', false);
+    } catch (e) {
+      UniquesControllers().data.snackbar('Erreur', e.toString(), true);
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  // ------------------------------------------------
+  // Obtenir les catégories sélectionnées
+  // ------------------------------------------------
+  List<String> getSelectedCategoryIds() {
+    final ids = <String>[];
+    for (final catObs in selectedEnterpriseCategories) {
+      final cat = catObs.value;
+      if (cat != null) {
+        ids.add(cat.id);
+      }
+    }
+    return ids;
   }
 
   // ------------------------------------------------
@@ -231,7 +353,7 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
     try {
       establishmentDocId ??= await _createEstablishmentDocIfNeeded(uid);
 
-      // 1) On lit l’ancienne valeur "has_accepted_contract" (avant update)
+      // 1) On lit l'ancienne valeur "has_accepted_contract" (avant update)
       bool oldHasAccepted = false;
       if (establishmentDocId != null) {
         final oldDocSnap = await UniquesControllers()
@@ -264,15 +386,16 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
         'video_url': videoCtrl.text.trim(),
         'category_id': currentCategory.value?.id ?? '',
         'enterprise_categories': [],
-        // Contrat accepté => toujours `true` si l’utilisateur a coché la case
+        'enterprise_category_slots': enterpriseCategorySlots.value, // NOUVEAU
+        // Contrat accepté => toujours `true` si l'utilisateur a coché la case
         'has_accepted_contract': true,
       };
 
       if (userType != null && userType.name == 'Entreprise') {
-        dataToUpdate['enterprise_categories'] = enterpriseCatsIds.toList();
+        dataToUpdate['enterprise_categories'] = getSelectedCategoryIds();
       }
 
-      // 4) On met à jour l’établissement
+      // 4) On met à jour l'établissement
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -280,10 +403,10 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
           .doc(establishmentDocId)
           .update(dataToUpdate);
 
-      // 5) Si l’ancien doc avait has_accepted_contract = false
-      //    et maintenant c’est true => on applique la récompense.
+      // 5) Si l'ancien doc avait has_accepted_contract = false
+      //    et maintenant c'est true => on applique la récompense.
       if (!oldHasAccepted) {
-        // => c’est la 1ère fois qu’il accepte le contrat => on regarde le parrainage
+        // => c'est la 1ère fois qu'il accepte le contrat => on regarde le parrainage
         await _handleSponsorshipRewardIfAny(uid, emailCtrl.text.trim());
       }
 
@@ -292,17 +415,20 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
       isPickedLogo.value = false;
 
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Succès', 'Fiche mise à jour avec succès', false);
+      UniquesControllers()
+          .data
+          .snackbar('Succès', 'Fiche mise à jour avec succès', false);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     }
   }
 
-  Future<void> _handleSponsorshipRewardIfAny(String uid, String userEmail) async {
+  Future<void> _handleSponsorshipRewardIfAny(
+      String uid, String userEmail) async {
     if (userEmail.isEmpty) return;
 
-    // 1) Chercher s’il existe un doc "sponsorship" qui contient userEmail
+    // 1) Chercher s'il existe un doc "sponsorship" qui contient userEmail
     final snap = await UniquesControllers()
         .data
         .firebaseFirestore
@@ -314,7 +440,7 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
       return;
     }
 
-    // Supposez qu’il n’y ait qu’un seul parrain => on prend le premier doc
+    // Supposez qu'il n'y ait qu'un seul parrain => on prend le premier doc
     final sponsorshipDoc = snap.docs.first;
     final sponsorData = sponsorshipDoc.data();
     final sponsorUid = sponsorData['user_id'] ?? '';
@@ -333,7 +459,12 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
 
     if (sponsorWalletSnap.docs.isEmpty) {
       // Créer un wallet si besoin
-      await UniquesControllers().data.firebaseFirestore.collection('wallets').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .doc()
+          .set({
         'user_id': sponsorUid,
         'points': 50,
         'coupons': 0,
@@ -346,7 +477,12 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
     }
 
     // 3) Envoyer un mail au sponsor => "Félicitations, vous gagnez 50 points"
-    final sponsorUserSnap = await UniquesControllers().data.firebaseFirestore.collection('users').doc(sponsorUid).get();
+    final sponsorUserSnap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(sponsorUid)
+        .get();
 
     if (sponsorUserSnap.exists) {
       final sponsorUserData = sponsorUserSnap.data()!;
@@ -355,7 +491,9 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
 
       if (sponsorEmail.isNotEmpty) {
         await sendSponsorshipMailAboutEnterprise(
-            sponsorName: sponsorName, sponsorEmail: sponsorEmail, userEmail: userEmail);
+            sponsorName: sponsorName,
+            sponsorEmail: sponsorEmail,
+            userEmail: userEmail);
       }
     }
   }
@@ -396,7 +534,9 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   @override
   Future<void> actionAlertDialog() async {
     if (!checkAccepted.value) {
-      UniquesControllers().data.snackbar('Erreur', 'Vous devez cocher la case pour accepter.', true);
+      UniquesControllers()
+          .data
+          .snackbar('Erreur', 'Vous devez cocher la case pour accepter.', true);
       return;
     }
 
@@ -409,7 +549,11 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
   Future<String> _createEstablishmentDocIfNeeded(String uid) async {
     if (establishmentDocId != null) return establishmentDocId!;
 
-    final docRef = await UniquesControllers().data.firebaseFirestore.collection('establishments').add({
+    final docRef = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('establishments')
+        .add({
       'user_id': uid,
       'name': '',
       'description': '',
@@ -420,6 +564,7 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
       'logo_url': '',
       'category_id': '',
       'enterprise_categories': [],
+      'enterprise_category_slots': 2, // NOUVEAU : 2 slots par défaut
       'video_url': '',
       'has_accepted_contract': false,
     });
@@ -451,14 +596,20 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
     try {
       if (bannerFile.value != null) {
         final fileName = p.basename(bannerFile.value!.path);
-        final ref = UniquesControllers().data.firebaseStorage.ref('banners/$uid/$fileName');
+        final ref = UniquesControllers()
+            .data
+            .firebaseStorage
+            .ref('banners/$uid/$fileName');
         final task = ref.putFile(bannerFile.value!);
         await task.whenComplete(() async {
           url = await ref.getDownloadURL();
         });
       } else if (bannerBytes.value != null) {
         final fileName = 'banner_${bannerBytes.hashCode}.png';
-        final ref = UniquesControllers().data.firebaseStorage.ref('banners/$uid/$fileName');
+        final ref = UniquesControllers()
+            .data
+            .firebaseStorage
+            .ref('banners/$uid/$fileName');
         final task = ref.putData(bannerBytes.value!);
         await task.whenComplete(() async {
           url = await ref.getDownloadURL();
@@ -475,14 +626,20 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
     try {
       if (logoFile.value != null) {
         final fileName = p.basename(logoFile.value!.path);
-        final ref = UniquesControllers().data.firebaseStorage.ref('logos/$uid/$fileName');
+        final ref = UniquesControllers()
+            .data
+            .firebaseStorage
+            .ref('logos/$uid/$fileName');
         final task = ref.putFile(logoFile.value!);
         await task.whenComplete(() async {
           url = await ref.getDownloadURL();
         });
       } else if (logoBytes.value != null) {
         final fileName = 'logo_${logoBytes.hashCode}.png';
-        final ref = UniquesControllers().data.firebaseStorage.ref('logos/$uid/$fileName');
+        final ref = UniquesControllers()
+            .data
+            .firebaseStorage
+            .ref('logos/$uid/$fileName');
         final task = ref.putData(logoBytes.value!);
         await task.whenComplete(() async {
           url = await ref.getDownloadURL();
@@ -587,7 +744,8 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
           height: size,
           width: maxFormWidth,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
+            borderRadius:
+                BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
             image: image,
           ),
         ),
@@ -598,7 +756,8 @@ class ProEstablishmentProfileScreenController extends GetxController with Contro
           height: size,
           width: size,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
+            borderRadius:
+                BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
             image: image,
           ),
         ),
