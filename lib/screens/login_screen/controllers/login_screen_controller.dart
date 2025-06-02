@@ -4,6 +4,7 @@ import 'package:ventemoi/core/theme/custom_theme.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../onboarding_screen/controllers/onboarding_screen_controller.dart';
 
 class LoginScreenController extends GetxController {
   String pageTitle = 'Connexion';
@@ -54,9 +55,14 @@ class LoginScreenController extends GetxController {
       UniquesControllers().data.isInAsyncCall.value = true;
 
       UniquesControllers().getStorage.write('email', emailController.text);
-      UniquesControllers().getStorage.write('password', passwordController.text);
+      UniquesControllers()
+          .getStorage
+          .write('password', passwordController.text);
 
-      final userCredential = await UniquesControllers().data.firebaseAuth.signInWithEmailAndPassword(
+      final userCredential = await UniquesControllers()
+          .data
+          .firebaseAuth
+          .signInWithEmailAndPassword(
             email: emailController.text,
             password: passwordController.text,
           );
@@ -64,11 +70,17 @@ class LoginScreenController extends GetxController {
       final uid = userCredential.user!.uid;
       UniquesControllers().getStorage.write('currentUserUID', uid);
 
-      final doc = await UniquesControllers().data.firebaseFirestore.collection('users').doc(uid).get();
+      final doc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .get();
       UniquesControllers().data.isInAsyncCall.value = false;
 
       if (!doc.exists) {
-        UniquesControllers().data.snackbar('Erreur', 'Utilisateur introuvable dans la base de données.', true);
+        UniquesControllers().data.snackbar(
+            'Erreur', 'Utilisateur introuvable dans la base de données.', true);
         return;
       }
 
@@ -85,9 +97,22 @@ class LoginScreenController extends GetxController {
         return;
       }
 
+      // NOUVEAU: Vérifier si l'onboarding doit être affiché
+      final shouldShowOnboarding =
+          await OnboardingScreenController.shouldShowOnboarding();
+      if (shouldShowOnboarding) {
+        Get.toNamed(Routes.onboarding);
+        return;
+      }
+
+      // Suite du code existant pour la redirection normale...
       final userTypeID = data['user_type_id'] as String?;
-      final userTypeDoc =
-          await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(userTypeID).get();
+      final userTypeDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(userTypeID)
+          .get();
       final userType = userTypeDoc.data()!['name'] as String;
 
       switch (userType) {
@@ -112,7 +137,9 @@ class LoginScreenController extends GetxController {
       }
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Erreur lors de la connexion', e.toString(), true);
+      UniquesControllers()
+          .data
+          .snackbar('Erreur lors de la connexion', e.toString(), true);
     }
   }
 
@@ -120,6 +147,7 @@ class LoginScreenController extends GetxController {
   void onReady() {
     super.onReady();
     emailController.text = UniquesControllers().getStorage.read('email') ?? '';
-    passwordController.text = UniquesControllers().getStorage.read('password') ?? '';
+    passwordController.text =
+        UniquesControllers().getStorage.read('password') ?? '';
   }
 }

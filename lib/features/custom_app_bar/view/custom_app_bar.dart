@@ -28,23 +28,26 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leadingWidth: leadingWidgetNumber == null
           ? UniquesControllers().data.baseAppBarHeight
           : UniquesControllers().data.baseAppBarHeight * leadingWidgetNumber!,
-      leading: CustomAnimation(
-        duration: UniquesControllers().data.baseAnimationDuration,
-        delay: UniquesControllers().data.baseAnimationDuration,
-        curve: Curves.easeOutQuart,
-        xStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
-        isOpacity: true,
-        child: leading ?? Container(),
-      ),
-      title: CustomAnimation(
-        duration: UniquesControllers().data.baseAnimationDuration,
-        delay: UniquesControllers().data.baseAnimationDuration,
-        curve: Curves.easeOutQuart,
-        yStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
-        isOpacity: true,
-        child: title ?? Container(),
-      ),
-      // actions: actions,
+      leading: leading != null
+          ? CustomAnimation(
+              duration: UniquesControllers().data.baseAnimationDuration,
+              delay: UniquesControllers().data.baseAnimationDuration,
+              curve: Curves.easeOutQuart,
+              xStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
+              isOpacity: true,
+              child: leading!,
+            )
+          : null,
+      title: title != null
+          ? CustomAnimation(
+              duration: UniquesControllers().data.baseAnimationDuration,
+              delay: UniquesControllers().data.baseAnimationDuration,
+              curve: Curves.easeOutQuart,
+              yStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
+              isOpacity: true,
+              child: title!,
+            )
+          : null,
       actions: actions?.map((action) {
         var index = actions!.indexOf(action) + 1;
         return CustomAnimation(
@@ -56,7 +59,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: action,
         );
       }).toList(),
-      //backgroundColor: CustomColors.lightBlue,
     );
   }
 }

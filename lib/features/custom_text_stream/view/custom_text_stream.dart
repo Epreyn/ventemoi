@@ -41,6 +41,11 @@ class CustomTextStream extends StatelessWidget {
       controller.documentIdRx.value = documentId!;
     }
 
+    // Get screen width for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+
     return Obx(() {
       final text = controller.textValue.value;
 
@@ -51,42 +56,82 @@ class CustomTextStream extends StatelessWidget {
       }
 
       if (text.isEmpty) {
-        return const Row(
+        return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            CustomSpace(widthMultiplier: 2),
-            Text('Entrez votre nom dans votre profil.'),
+            const CustomSpace(widthMultiplier: 2),
+            Flexible(
+              child: Text(
+                isSmallScreen
+                    ? 'Entrez votre nom'
+                    : 'Entrez votre nom dans votre profil.',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
           ],
         );
       }
 
       if (text.startsWith('Erreur:')) {
-        return Text(text);
+        return Text(
+          text,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        );
       }
 
       if (text == 'Document introuvable.') {
-        return const Text('Document introuvable.');
+        return const Text(
+          'Document introuvable.',
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        );
+      }
+
+      // Calculate responsive font size
+      double responsiveFontSize;
+      if (isTitle ?? false) {
+        if (isSmallScreen) {
+          responsiveFontSize =
+              UniquesControllers().data.baseSpace * 2; // Smaller on mobile
+        } else if (isMediumScreen) {
+          responsiveFontSize = UniquesControllers().data.baseSpace * 2.3;
+        } else {
+          responsiveFontSize = UniquesControllers().data.baseSpace * 2.5;
+        }
+      } else {
+        responsiveFontSize = UniquesControllers().data.baseSpace * 1.8;
       }
 
       return (isTitle ?? false)
-          ? Center(
-              child: Row(
-                children: [
-                  const CustomSpace(widthMultiplier: 2),
-                  Text(
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CustomSpace(widthMultiplier: 2),
+                Flexible(
+                  child: Text(
                     text,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                     style: TextStyle(
-                      //color: CustomColors.caribbeanCurrent,
-
                       fontWeight: FontWeight.w500,
                       letterSpacing: UniquesControllers().data.baseSpace / 4,
                       wordSpacing: UniquesControllers().data.baseSpace / 2,
-                      fontSize: UniquesControllers().data.baseSpace * 2.5,
+                      fontSize: responsiveFontSize,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             )
-          : Text(text);
+          : Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: responsiveFontSize,
+              ),
+            );
     });
   }
 }

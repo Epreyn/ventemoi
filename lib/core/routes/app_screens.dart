@@ -12,6 +12,7 @@ import '../../screens/admin_user_types_screen/view/admin_user_types_screen.dart'
 import '../../screens/admin_users_screen/view/admin_users_screen.dart';
 import '../../screens/client_history_screen/view/client_history_screen.dart';
 import '../../screens/login_screen/view/login_screen.dart';
+import '../../screens/onboarding_screen/view/onboarding_screen.dart';
 import '../../screens/password_screen/view/password_screen.dart';
 import '../../screens/pro_establishment_profile_screen/view/pro_establishment_profile_screen.dart';
 import '../../screens/pro_points_screen/view/pro_points_screen.dart';
@@ -102,6 +103,10 @@ class AppScreens {
     GetPage(
       name: RoutePaths.adminCommissions,
       page: () => const AdminCommissionsScreen(),
+    ),
+    GetPage(
+      name: RoutePaths.onboarding,
+      page: () => const OnboardingScreen(),
     ),
   ];
 }

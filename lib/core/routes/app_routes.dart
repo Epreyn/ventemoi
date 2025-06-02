@@ -20,6 +20,7 @@ abstract class Routes {
   static const adminCategories = RoutePaths.adminCategories;
   static const adminEnterpriseCategories = RoutePaths.adminEnterpriseCategories;
   static const adminCommissions = RoutePaths.adminCommissions;
+  static const onboarding = RoutePaths.onboarding;
 }
 
 abstract class RoutePaths {
@@ -44,4 +45,5 @@ abstract class RoutePaths {
   static const adminCategories = '/admin-categories';
   static const adminEnterpriseCategories = '/admin-enterprise-categories';
   static const adminCommissions = '/admin-commissions';
+  static const onboarding = '/onboarding';
 }

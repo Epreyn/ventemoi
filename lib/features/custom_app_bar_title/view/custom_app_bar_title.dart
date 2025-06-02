@@ -13,18 +13,37 @@ class CustomAppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen width for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+
+    // Calculate responsive font size
+    double responsiveFontSize;
+    if (isSmallScreen) {
+      responsiveFontSize =
+          UniquesControllers().data.baseSpace * 2; // Smaller on mobile
+    } else if (isMediumScreen) {
+      responsiveFontSize = UniquesControllers().data.baseSpace * 2.3;
+    } else {
+      responsiveFontSize = UniquesControllers().data.baseSpace * 2.5;
+    }
+
     return Center(
       child: Row(
         children: [
-          const CustomSpace(widthMultiplier: 2),
-          Text(
-            title,
-            style: TextStyle(
-              //color: CustomColors.caribbeanCurrent,
-              fontWeight: FontWeight.w500,
-              letterSpacing: UniquesControllers().data.baseSpace / 4,
-              wordSpacing: UniquesControllers().data.baseSpace / 2,
-              fontSize: UniquesControllers().data.baseSpace * 2.5,
+          CustomSpace(widthMultiplier: isSmallScreen ? 1 : 2),
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                letterSpacing: UniquesControllers().data.baseSpace / 4,
+                wordSpacing: UniquesControllers().data.baseSpace / 2,
+                fontSize: responsiveFontSize,
+              ),
             ),
           ),
         ],

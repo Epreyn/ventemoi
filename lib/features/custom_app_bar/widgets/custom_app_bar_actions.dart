@@ -16,6 +16,20 @@ class CustomAppBarActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final cc = Get.put(CustomAppBarActionsController());
 
+    // Get screen width for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isMediumScreen = screenWidth >= 600 && screenWidth < 900;
+
+    // Responsive font sizes
+    final largeFontSize = isSmallScreen
+        ? UniquesControllers().data.baseSpace * 1.5 // Smaller on mobile
+        : UniquesControllers().data.baseSpace * 2;
+
+    final smallFontSize = isSmallScreen
+        ? UniquesControllers().data.baseSpace * 1.2
+        : UniquesControllers().data.baseSpace * 1.5;
+
     return Obx(() {
       final real = cc.realPoints.value;
       final pending = cc.pendingPoints.value;
@@ -27,94 +41,110 @@ class CustomAppBarActions extends StatelessWidget {
       final isAdmin = cc.isAdmin.value;
 
       return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isBoutique) ...[
-                Text(
-                  '$coupons Bons',
-                  style: TextStyle(
-                    fontSize: UniquesControllers().data.baseSpace * 2,
-                    fontWeight: FontWeight.bold,
+          // Boutique info
+          if (isBoutique)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$coupons Bons',
+                    style: TextStyle(
+                      fontSize: largeFontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 // couponsPending
                 Visibility(
                   visible: (couponsPending > 0),
-                  child: Text(
-                    '$couponsPending bons en attente',
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 1.5,
-                      fontStyle: FontStyle.italic,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      isSmallScreen
+                          ? '$couponsPending en attente' // Shorter text on mobile
+                          : '$couponsPending bons en attente',
+                      style: TextStyle(
+                        fontSize: smallFontSize,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ),
               ],
-            ],
-          ),
+            ),
+
           if (isBoutique) const CustomSpace(widthMultiplier: 2),
-          if (isBoutique)
+
+          // Separator - only show on larger screens
+          if (isBoutique && !isSmallScreen)
             Text(
               '|',
               style: TextStyle(
-                fontSize: UniquesControllers().data.baseSpace * 2,
+                fontSize: largeFontSize,
                 fontStyle: FontStyle.italic,
               ),
             ),
-          if (isBoutique) const CustomSpace(widthMultiplier: 2),
+
+          if (isBoutique && !isSmallScreen)
+            const CustomSpace(widthMultiplier: 2),
+
+          // Points info (for non-admin users)
           if (!isAdmin)
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Affichage "Points" (pour tout le monde)
-                Text(
-                  '$real Points',
-                  style: TextStyle(
-                    fontSize: UniquesControllers().data.baseSpace * 2,
-                    fontWeight: FontWeight.bold,
+                // Points display
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$real Points',
+                    style: TextStyle(
+                      fontSize: largeFontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                // Affichage "Points en attente" (pour tout le monde)
+                // Pending points
                 Visibility(
                   visible: (pending > 0),
-                  child: Text(
-                    '$pending points en attente',
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 1.5,
-                      fontStyle: FontStyle.italic,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      isSmallScreen
+                          ? '$pending en attente' // Shorter text on mobile
+                          : '$pending points en attente',
+                      style: TextStyle(
+                        fontSize: smallFontSize,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
+
           const CustomSpace(widthMultiplier: 2),
+
+          // Menu button
           CustomIconButton(
             tag: UniqueKey().toString(),
             iconData: Icons.menu,
             backgroundColor: CustomTheme.lightScheme().primary,
+            buttonSize: isSmallScreen ? 36 : null, // Smaller button on mobile
             onPressed: () {
               if (scaffoldKey != null) scaffoldKey?.currentState?.openDrawer();
             },
           ),
-          // CustomIconButton(
-          //   tag: UniqueKey().toString(),
-          //   iconData: Icons.logout,
-          //   backgroundColor: CustomTheme.lightScheme().primary,
-          //   onPressed: cc.logout,
-          // ),
-          // SizedBox(
-          //   width: UniquesControllers().data.baseSpace * 25,
-          //   height: UniquesControllers().data.baseSpace * 5,
-          //   child: CustomFABButton(
-          //     tag: UniqueKey().toString(),
-          //     text: 'Déconnexion',
-          //     iconData: Icons.logout,
-          //     onPressed: cc.logout,
-          //   ),
-          // ),
+
           const CustomSpace(widthMultiplier: 2),
         ],
       );

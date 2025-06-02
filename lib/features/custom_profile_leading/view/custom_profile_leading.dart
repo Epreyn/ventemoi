@@ -16,18 +16,31 @@ class CustomProfileLeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen width for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
+    // Responsive avatar radius
+    final responsiveAvatarRadius = isSmallScreen
+        ? avatarRadius * 0.8 // 80% size on small screens
+        : avatarRadius;
+
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         const CustomSpace(widthMultiplier: 2),
         CustomProfileLeadingAvatarStream(
           userId: userId,
-          avatarRadius: avatarRadius,
+          avatarRadius: responsiveAvatarRadius,
         ),
-        CustomTextStream(
-          collectionName: 'users',
-          documentId: userId,
-          fieldToDisplay: 'name',
-          isTitle: true,
+        // Show name with flexible sizing
+        Flexible(
+          child: CustomTextStream(
+            collectionName: 'users',
+            documentId: userId,
+            fieldToDisplay: 'name',
+            isTitle: true,
+          ),
         ),
       ],
     );
