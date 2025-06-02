@@ -34,7 +34,8 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   TextInputAction emailTextInputAction = TextInputAction.next;
   TextInputType emailInputType = TextInputType.emailAddress;
   IconData emailIconData = Icons.email_outlined;
-  String emailValidatorPattern = r'^.+@[a-zA-Z]+\.{1}[a-zA-Z]+(\.{0,1}[a-zA-Z]+)$';
+  String emailValidatorPattern =
+      r'^.+@[a-zA-Z]+\.{1}[a-zA-Z]+(\.{0,1}[a-zA-Z]+)$';
   TextEditingController emailController = TextEditingController();
 
   String passwordTag = 'register-password';
@@ -73,7 +74,8 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   }
 
   bool checkPasswordConfirmation() {
-    return passwordController.text.trim() == confirmPasswordController.text.trim();
+    return passwordController.text.trim() ==
+        confirmPasswordController.text.trim();
   }
 
   Future<void> register() async {
@@ -83,7 +85,10 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
 
-      final userCredential = await UniquesControllers().data.firebaseAuth.createUserWithEmailAndPassword(
+      final userCredential = await UniquesControllers()
+          .data
+          .firebaseAuth
+          .createUserWithEmailAndPassword(
             email: emailController.text.trim(),
             password: passwordController.text.trim(),
           );
@@ -96,10 +101,13 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       String imageUrl = '';
       if (UniquesControllers().data.isPickedFile.value) {
         if (UniquesControllers().data.profileImageFile.value != null) {
-          imageUrl = await uploadProfileImage(UniquesControllers().data.profileImageFile.value!, user.uid);
+          imageUrl = await uploadProfileImage(
+              UniquesControllers().data.profileImageFile.value!, user.uid);
         } else if (UniquesControllers().data.profileImageBytes.value != null) {
           imageUrl = await uploadProfileImageWeb(
-              UniquesControllers().data.profileImageBytes.value!, profileImageName.value, user.uid);
+              UniquesControllers().data.profileImageBytes.value!,
+              profileImageName.value,
+              user.uid);
         }
       }
 
@@ -112,9 +120,19 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         'isEnable': true,
       };
 
-      await UniquesControllers().data.firebaseFirestore.collection('users').doc(user.uid).set(userData);
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(user.uid)
+          .set(userData);
 
-      await UniquesControllers().data.firebaseFirestore.collection('wallets').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .doc()
+          .set({
         'user_id': user.uid,
         'points': 0,
         'coupons': 0,
@@ -126,7 +144,12 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       });
 
       if (currentUserType.value?.name != 'Particulier') {
-        await UniquesControllers().data.firebaseFirestore.collection('establishments').doc().set({
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc()
+            .set({
           'name': '',
           'user_id': user.uid,
           'description': '',
@@ -137,18 +160,26 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           'banner_url': '',
           'category_id': '',
           'enterprise_categories': [],
+          'enterprise_category_slots': 2, // Valeur par défaut
           'video_url': '',
           'has_accepted_contract': false,
         });
       }
 
-      await UniquesControllers().data.firebaseFirestore.collection('sponsorships').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .doc()
+          .set({
         'user_id': user.uid,
         'sponsoredEmails': [],
       });
 
       UniquesControllers().getStorage.write('email', emailController.text);
-      UniquesControllers().getStorage.write('password', passwordController.text);
+      UniquesControllers()
+          .getStorage
+          .write('password', passwordController.text);
 
       UniquesControllers().data.isInAsyncCall.value = false;
 
@@ -162,7 +193,9 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           );
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Erreur lors de l\'inscription', e.toString(), true);
+      UniquesControllers()
+          .data
+          .snackbar('Erreur lors de l\'inscription', e.toString(), true);
     }
   }
 
@@ -172,7 +205,8 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       final fileName = p.basename(file.path);
       final dest = 'avatars/$uid/$fileName';
 
-      final task = UniquesControllers().data.firebaseStorage.ref(dest).putFile(file);
+      final task =
+          UniquesControllers().data.firebaseStorage.ref(dest).putFile(file);
       await task.whenComplete(() async {
         imageUrl = await task.snapshot.ref.getDownloadURL();
       });
@@ -182,16 +216,20 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     return imageUrl;
   }
 
-  Future<String> uploadProfileImageWeb(Uint8List bytes, String fileName, String uid) async {
+  Future<String> uploadProfileImageWeb(
+      Uint8List bytes, String fileName, String uid) async {
     String imageUrl = '';
     try {
       final dest = 'avatars/$uid/$fileName';
-      final task = UniquesControllers().data.firebaseStorage.ref(dest).putData(bytes);
+      final task =
+          UniquesControllers().data.firebaseStorage.ref(dest).putData(bytes);
       await task.whenComplete(() async {
         imageUrl = await task.snapshot.ref.getDownloadURL();
       });
     } catch (e) {
-      UniquesControllers().data.snackbar('Erreur image Web', e.toString(), true);
+      UniquesControllers()
+          .data
+          .snackbar('Erreur image Web', e.toString(), true);
     }
     return imageUrl;
   }

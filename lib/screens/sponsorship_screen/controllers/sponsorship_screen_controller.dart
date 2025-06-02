@@ -105,7 +105,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         // Mais on peut quand même l'ajouter à la liste sponsor... (à vous de choisir la logique)
         // Ex. on l'ajoute quand même dans sponsoredEmails
         //  => Si vous voulez interdire le parrainage d'un user existant, décommentez ci-dessous:
-        UniquesControllers().data.snackbar('Erreur', 'Cet utilisateur existe déjà.', true);
+        UniquesControllers()
+            .data
+            .snackbar('Erreur', 'Cet utilisateur existe déjà.', true);
         return;
 
         // Sinon, on peut l'ajouter à la liste
@@ -122,7 +124,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
 
         // 4) Envoyer le mail d’information =>
         //    "Vous avez été parrainé par X, vous allez recevoir un lien etc."
-        final whoDidCreateEmail = UniquesControllers().data.firebaseAuth.currentUser?.email ?? 'Un Parrain';
+        final whoDidCreateEmail =
+            UniquesControllers().data.firebaseAuth.currentUser?.email ??
+                'Un Parrain';
         await sendWelcomeEmailForCreatedUser(
           toEmail: emailToSponsor,
           whoDidCreate: whoDidCreateEmail,
@@ -146,10 +150,12 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
 
   Future<String> createUserWithoutSwitchingSession(String email) async {
     var tmpPass = UniqueKey().toString();
-    final secondaryApp = await Firebase.initializeApp(name: 'SecondaryApp', options: Firebase.app().options);
+    final secondaryApp = await Firebase.initializeApp(
+        name: 'SecondaryApp', options: Firebase.app().options);
     final secondAuth = FirebaseAuth.instanceFor(app: secondaryApp);
     try {
-      final userCred = await secondAuth.createUserWithEmailAndPassword(email: email, password: tmpPass);
+      final userCred = await secondAuth.createUserWithEmailAndPassword(
+          email: email, password: tmpPass);
       final newUid = userCred.user?.uid;
       if (newUid == null) {
         throw Exception("Impossible de créer l'utilisateur secondaire");
@@ -167,7 +173,12 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
       final partId = userTypeIdParticulier.docs.first.id;
 
       // On crée la doc user
-      await UniquesControllers().data.firebaseFirestore.collection('users').doc(newUid).set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(newUid)
+          .set({
         'name': '',
         'email': email,
         'user_type_id': partId,
@@ -176,19 +187,31 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         'isVisible': true,
       });
       // On crée la doc wallet
-      await UniquesControllers().data.firebaseFirestore.collection('wallets').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .doc()
+          .set({
         'user_id': newUid,
         'points': 0,
         'coupons': 0,
         'bank_details': null,
       });
       // On crée doc sponsorship (si besoin)
-      await UniquesControllers().data.firebaseFirestore.collection('sponsorships').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .doc()
+          .set({
         'user_id': newUid,
         'sponsoredEmails': [],
       });
 
-      final whoCreated = UniquesControllers().data.firebaseAuth.currentUser?.email ?? 'un administrateur';
+      final whoCreated =
+          UniquesControllers().data.firebaseAuth.currentUser?.email ??
+              'un administrateur';
 
       await sendWelcomeEmailForCreatedUser(
         toEmail: email,
@@ -206,9 +229,14 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
   Future<void> _addSponsoredEmailToList(String email) async {
     if (sponsorshipDocId == null) {
       // Il n'y a pas encore de doc => on la crée
-      final newRef = UniquesControllers().data.firebaseFirestore.collection('sponsorships').doc();
+      final newRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .doc();
       sponsorshipDocId = newRef.id;
-      final sponsorUid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      final sponsorUid =
+          UniquesControllers().data.firebaseAuth.currentUser?.uid;
 
       await newRef.set({
         'user_id': sponsorUid,
@@ -216,7 +244,12 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
       });
     } else {
       // On update
-      await UniquesControllers().data.firebaseFirestore.collection('sponsorships').doc(sponsorshipDocId!).update({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .doc(sponsorshipDocId!)
+          .update({
         'sponsored_emails': FieldValue.arrayUnion([email]),
       });
     }

@@ -60,14 +60,6 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                 ec.currentCategory.value = cat;
               });
             }
-
-            // Catégories multiples (entreprise)
-            final List<dynamic>? entCats =
-                data['enterprise_categories'] as List<dynamic>?;
-            if (entCats != null) {
-              final strList = entCats.map((e) => e.toString()).toList();
-              ec.enterpriseCatsIds.value = strList;
-            }
           }
 
           return Center(
@@ -171,11 +163,6 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                               );
                             },
                           ),
-                          // child: CustomTextFormField(
-                          //   tag: ec.addressTag,
-                          //   labelText: ec.addressLabel,
-                          //   controller: ec.addressCtrl,
-                          // ),
                         ),
                         const CustomSpace(heightMultiplier: 2),
 
@@ -221,12 +208,12 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                             final userType = ec.currentUserType.value;
                             if (userType != null &&
                                 userType.name == 'Entreprise') {
-                              // Checklist multiple
+                              // Dropdowns multiples pour les entreprises
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Catégories (max ${ec.maxEnterpriseCats})',
+                                    'Catégories (${ec.enterpriseCategorySlots.value} slots disponibles)',
                                     style: TextStyle(
                                       fontSize:
                                           UniquesControllers().data.baseSpace *
@@ -234,12 +221,21 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const CustomSpace(heightMultiplier: 1),
+                                  const CustomSpace(heightMultiplier: 2),
                                   _buildEnterpriseMultipleSelection(ec),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: ec.addCategorySlot,
+                                      icon: const Icon(Icons.add),
+                                      label:
+                                          const Text('Ajouter une catégorie'),
+                                    ),
+                                  ),
                                 ],
                               );
                             } else {
-                              // Dropdown "category"
+                              // Dropdown unique pour les autres types
                               return CustomDropdownStreamBuilder<
                                   EstablishmentCategory>(
                                 tag: ec.categoryTag,
@@ -256,7 +252,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                           }),
                         ),
 
-                        const CustomSpace(heightMultiplier: 4),
+                        const CustomSpace(heightMultiplier: 8),
                       ],
                     ),
                   ),
@@ -269,49 +265,34 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
     );
   }
 
-  /// Construit la checklist multiple pour les "enterprise_categories"
+  /// Construit les dropdowns multiples pour les "enterprise_categories"
   Widget _buildEnterpriseMultipleSelection(
       ProEstablishmentProfileScreenController ec) {
-    return StreamBuilder<List<EnterpriseCategory>>(
-      stream: ec.getEnterpriseCategoriesStream(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Text('Chargement...');
-        }
-        final list = snap.data!;
-        if (list.isEmpty) {
-          return const Text('Aucune catégorie entreprise disponible');
-        }
-
-        return Column(
-          children: List.generate(list.length, (i) {
-            final entCat = list[i];
-            return Obx(() {
-              final isSelected = ec.enterpriseCatsIds.contains(entCat.id);
-              return CheckboxListTile(
-                title: Text(entCat.name),
-                value: isSelected,
-                onChanged: (val) {
-                  if (val == true) {
-                    // On veut cocher => vérifier max 2
-                    if (ec.enterpriseCatsIds.length >= ec.maxEnterpriseCats) {
-                      UniquesControllers().data.snackbar(
-                            'Limite atteinte',
-                            'Vous ne pouvez pas sélectionner plus de 2 catégories',
-                            true,
-                          );
-                      return;
+    return Column(
+      children: [
+        // Afficher les dropdowns en fonction du nombre de slots
+        ...List.generate(ec.enterpriseCategorySlots.value, (index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: Obx(() => CustomDropdownStreamBuilder<EnterpriseCategory>(
+                  tag: 'enterprise_category_$index',
+                  stream: ec.getEnterpriseCategoriesStream(),
+                  initialItem: index < ec.selectedEnterpriseCategories.length
+                      ? ec.selectedEnterpriseCategories[index]
+                      : Rx<EnterpriseCategory?>(null),
+                  labelText: 'Catégorie ${index + 1}',
+                  maxWith: ec.categoryMaxWidth,
+                  maxHeight: ec.categoryMaxHeight,
+                  noInitialItem: true,
+                  onChanged: (EnterpriseCategory? cat) {
+                    if (index < ec.selectedEnterpriseCategories.length) {
+                      ec.selectedEnterpriseCategories[index].value = cat;
                     }
-                    ec.enterpriseCatsIds.add(entCat.id);
-                  } else {
-                    ec.enterpriseCatsIds.remove(entCat.id);
-                  }
-                },
-              );
-            });
-          }),
-        );
-      },
+                  },
+                )),
+          );
+        }),
+      ],
     );
   }
 }

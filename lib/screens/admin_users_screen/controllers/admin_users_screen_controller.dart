@@ -404,6 +404,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
           'banner_url': '',
           'category_id': '',
           'enterprise_categories': [],
+          'enterprise_category_slots': 2, // Valeur par défaut
           'video_url': '',
           'has_accepted_contract': false,
         });
