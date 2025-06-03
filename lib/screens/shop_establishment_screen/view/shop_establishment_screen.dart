@@ -82,7 +82,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
                 padding: EdgeInsets.all(UniquesControllers().data.baseSpace),
                 child: TextField(
                   decoration: const InputDecoration(
-                    hintText: 'Rechercher une entreprise',
+                    hintText: 'Rechercher un établissement',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(90)),
