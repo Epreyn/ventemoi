@@ -13,9 +13,6 @@ import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/pro_establishment_profile_screen_controller.dart';
-
-import 'package:google_places_flutter/google_places_flutter.dart';
-import 'package:google_places_flutter/model/place_type.dart';
 import 'package:ventemoi/firebase_options.dart';
 
 class ProEstablishmentProfileScreen extends StatelessWidget {

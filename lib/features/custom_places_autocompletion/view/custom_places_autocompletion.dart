@@ -31,10 +31,10 @@ class CustomPlacesAutocomplete extends StatefulWidget {
 
 class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
   final FocusNode _focusNode = FocusNode();
-  OverlayEntry? _overlayEntry;
   List<PlacePrediction> _predictions = [];
   Timer? _debounce;
   bool _isLoading = false;
+  bool _showSuggestions = false;
 
   @override
   void initState() {
@@ -42,7 +42,12 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
     widget.controller.addListener(_onSearchChanged);
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
-        _removeOverlay();
+        // Délai pour permettre de cliquer sur une suggestion
+        Future.delayed(Duration(milliseconds: 200), () {
+          if (mounted) {
+            setState(() => _showSuggestions = false);
+          }
+        });
       }
     });
   }
@@ -52,7 +57,6 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
     widget.controller.removeListener(_onSearchChanged);
     _focusNode.dispose();
     _debounce?.cancel();
-    _removeOverlay();
     super.dispose();
   }
 
@@ -63,7 +67,10 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
           widget.controller.text.length > 2) {
         _getPlacePredictions(widget.controller.text);
       } else {
-        _removeOverlay();
+        setState(() {
+          _predictions = [];
+          _showSuggestions = false;
+        });
       }
     });
   }
@@ -75,27 +82,27 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
       List<PlacePrediction> predictions = [];
 
       if (kIsWeb) {
-        // Pour Flutter Web, utiliser la méthode JavaScript
         predictions = await _getPlacePredictionsWeb(input);
       } else {
-        // Pour mobile, utiliser l'API HTTP directement
         predictions = await _getPlacePredictionsMobile(input);
       }
 
-      setState(() {
-        _predictions = predictions;
-        _isLoading = false;
-      });
-
-      if (_predictions.isNotEmpty) {
-        _showOverlay();
-      } else {
-        _removeOverlay();
+      if (mounted) {
+        setState(() {
+          _predictions = predictions;
+          _isLoading = false;
+          _showSuggestions = predictions.isNotEmpty && _focusNode.hasFocus;
+        });
       }
     } catch (e) {
       print('Error getting predictions: $e');
-      setState(() => _isLoading = false);
-      _removeOverlay();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _predictions = [];
+          _showSuggestions = false;
+        });
+      }
     }
   }
 
@@ -128,184 +135,131 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
     }
   }
 
-  // Méthode pour Web utilisant une approche différente
+  // Méthode pour Web
   Future<List<PlacePrediction>> _getPlacePredictionsWeb(String input) async {
-    // Pour le web, nous devons utiliser une solution différente
-    // Option 1: Utiliser votre propre serveur proxy
-    // Option 2: Utiliser Firebase Cloud Functions
-    // Option 3: Utiliser une API alternative comme Nominatim
+    try {
+      final baseUrl = 'https://nominatim.openstreetmap.org/search';
+      final params = {
+        'q': input,
+        'format': 'json',
+        'addressdetails': '1',
+        'limit': '5',
+        'countrycodes': widget.countries?.join(',') ?? 'fr',
+      };
 
-    // Exemple avec Nominatim (OpenStreetMap) - gratuit et sans CORS
-    final baseUrl = 'https://nominatim.openstreetmap.org/search';
-    final params = {
-      'q': input,
-      'format': 'json',
-      'addressdetails': '1',
-      'limit': '5',
-      'countrycodes': widget.countries?.join(',') ?? 'fr',
-    };
+      final uri = Uri.parse(baseUrl).replace(queryParameters: params);
+      print('Nominatim URL: $uri');
 
-    final uri = Uri.parse(baseUrl).replace(queryParameters: params);
-    final response = await http.get(
-      uri,
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'VenteMoi/1.0', // Requis par Nominatim
-      },
-    );
+      final response = await http.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'VenteMoi/1.0',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body) as List;
-      return data
-          .map((item) => PlacePrediction(
-                placeId: item['place_id'].toString(),
-                description: item['display_name'] ?? '',
-                mainText: _extractMainText(item),
-                secondaryText: _extractSecondaryText(item),
-              ))
-          .toList();
-    } else {
-      throw Exception('Failed to load predictions');
+      print('Response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data is List && data.isNotEmpty) {
+          return data
+              .map((item) => PlacePrediction(
+                    placeId: item['place_id']?.toString() ?? '',
+                    description: item['display_name'] ?? '',
+                    mainText: _extractMainText(item),
+                    secondaryText: _extractSecondaryText(item),
+                  ))
+              .toList();
+        } else {
+          print('No results found for: $input');
+          return [];
+        }
+      } else {
+        print('Error response: ${response.body}');
+        throw Exception('Failed to load predictions: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error in _getPlacePredictionsWeb: $e');
+      rethrow;
     }
   }
 
   String _extractMainText(Map<String, dynamic> item) {
+    final displayName = item['display_name'] ?? '';
+    if (displayName.isNotEmpty) {
+      final parts = displayName.split(',');
+      if (parts.isNotEmpty) {
+        return parts[0].trim();
+      }
+    }
+
     final address = item['address'] ?? {};
     final parts = <String>[];
 
-    if (address['house_number'] != null) parts.add(address['house_number']);
-    if (address['road'] != null) parts.add(address['road']);
-    if (parts.isEmpty && address['city'] != null) parts.add(address['city']);
+    if (address['house_number'] != null) {
+      parts.add(address['house_number'].toString());
+    }
+    if (address['road'] != null) {
+      parts.add(address['road'].toString());
+    }
+    if (parts.isEmpty) {
+      if (address['city'] != null) {
+        parts.add(address['city'].toString());
+      } else if (address['town'] != null) {
+        parts.add(address['town'].toString());
+      } else if (address['village'] != null) {
+        parts.add(address['village'].toString());
+      }
+    }
 
-    return parts.join(' ');
+    return parts.join(' ').trim();
   }
 
   String _extractSecondaryText(Map<String, dynamic> item) {
+    final displayName = item['display_name'] ?? '';
+    if (displayName.isNotEmpty) {
+      final parts = displayName.split(',');
+      if (parts.length > 1) {
+        return parts.sublist(1).join(',').trim();
+      }
+    }
+
     final address = item['address'] ?? {};
     final parts = <String>[];
 
-    if (address['postcode'] != null) parts.add(address['postcode']);
-    if (address['city'] != null) parts.add(address['city']);
-    if (address['country'] != null) parts.add(address['country']);
+    if (address['postcode'] != null) {
+      parts.add(address['postcode'].toString());
+    }
 
-    return parts.join(', ');
+    if (address['city'] != null) {
+      parts.add(address['city'].toString());
+    } else if (address['town'] != null) {
+      parts.add(address['town'].toString());
+    } else if (address['village'] != null) {
+      parts.add(address['village'].toString());
+    }
+
+    if (address['state'] != null) {
+      parts.add(address['state'].toString());
+    }
+
+    if (address['country'] != null) {
+      parts.add(address['country'].toString());
+    }
+
+    return parts.join(', ').trim();
   }
 
-  void _showOverlay() {
-    _removeOverlay();
-
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
-    final offset = renderBox.localToGlobal(Offset.zero);
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: offset.dx,
-        top: offset.dy + size.height + 5,
-        width: size.width,
-        child: Material(
-          elevation: 4,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            constraints: BoxConstraints(maxHeight: 200),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: _isLoading
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: _predictions.length,
-                    itemBuilder: (context, index) {
-                      final prediction = _predictions[index];
-                      return InkWell(
-                        onTap: () {
-                          widget.controller.text = prediction.description;
-                          widget.controller.selection =
-                              TextSelection.fromPosition(
-                            TextPosition(offset: prediction.description.length),
-                          );
-                          widget.onSelected?.call(prediction);
-                          _removeOverlay();
-                          FocusScope.of(context).unfocus();
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.grey.shade200,
-                                width: index == _predictions.length - 1 ? 0 : 1,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.location_on_outlined,
-                                color: Colors.grey[600],
-                                size: 20,
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      prediction.mainText.isNotEmpty
-                                          ? prediction.mainText
-                                          : prediction.description
-                                              .split(',')
-                                              .first,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (prediction.secondaryText.isNotEmpty)
-                                      Text(
-                                        prediction.secondaryText,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ),
-      ),
+  void _selectPrediction(PlacePrediction prediction) {
+    widget.controller.text = prediction.description;
+    widget.controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: prediction.description.length),
     );
-
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    _predictions = [];
+    widget.onSelected?.call(prediction);
+    setState(() => _showSuggestions = false);
+    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -328,11 +282,19 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
                         icon: Icon(Icons.clear),
                         onPressed: () {
                           widget.controller.clear();
-                          _removeOverlay();
+                          setState(() {
+                            _predictions = [];
+                            _showSuggestions = false;
+                          });
                         },
                       )
                     : null,
               ),
+          onTap: () {
+            if (_predictions.isNotEmpty) {
+              setState(() => _showSuggestions = true);
+            }
+          },
         ),
         if (kIsWeb)
           Padding(
@@ -345,6 +307,113 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
                 fontStyle: FontStyle.italic,
               ),
             ),
+          ),
+
+        // Liste des suggestions
+        if (_showSuggestions || _isLoading)
+          Container(
+            margin: EdgeInsets.only(top: 4),
+            constraints: BoxConstraints(maxHeight: 200),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: _isLoading
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _predictions.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Center(
+                          child: Text(
+                            'Aucun résultat trouvé',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: _predictions.length,
+                        itemBuilder: (context, index) {
+                          final prediction = _predictions[index];
+                          return InkWell(
+                            onTap: () => _selectPrediction(prediction),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey.shade200,
+                                    width: index == _predictions.length - 1
+                                        ? 0
+                                        : 1,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_outlined,
+                                    color: Colors.grey[600],
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          prediction.mainText.isNotEmpty
+                                              ? prediction.mainText
+                                              : prediction.description
+                                                  .split(',')
+                                                  .first,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (prediction.secondaryText.isNotEmpty)
+                                          Text(
+                                            prediction.secondaryText,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
       ],
     );
@@ -380,10 +449,8 @@ extension PlaceDetails on CustomPlacesAutocomplete {
   static Future<PlaceDetail?> getPlaceDetails(
       String placeId, String apiKey) async {
     if (kIsWeb) {
-      // Pour le web, utiliser Nominatim
       return _getPlaceDetailsWeb(placeId);
     } else {
-      // Pour mobile, utiliser Google
       return _getPlaceDetailsMobile(placeId, apiKey);
     }
   }

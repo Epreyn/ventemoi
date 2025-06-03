@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_places_flutter/google_places_flutter.dart';
-import 'package:google_places_flutter/model/place_type.dart';
+
 import 'package:ventemoi/firebase_options.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
+import '../../../features/custom_places_autocompletion/view/custom_places_autocompletion.dart';
 import '../../../features/custom_profile_image_picker/view/custom_profile_image_picker.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
@@ -126,40 +126,55 @@ class ProfileScreen extends StatelessWidget {
                                 if (userType == 'Particulier') ...[
                                   CustomCardAnimation(
                                     index: 4,
-                                    child: GooglePlaceAutoCompleteTextField(
-                                      textEditingController:
-                                          cc.personalAddressController,
-                                      language: 'fr',
-                                      googleAPIKey:
+                                    child: CustomPlacesAutocomplete(
+                                      controller: cc.personalAddressController,
+                                      apiKey:
                                           DefaultFirebaseOptions.googleKeyAPI,
-                                      inputDecoration: InputDecoration(
-                                        hintText: "Entrez une adresse...",
-                                        border: OutlineInputBorder(),
-                                        suffixIcon: Icon(Icons.search),
+                                      hintText: "Entrez une adresse...",
+                                      countries: ['fr'],
+                                      decoration: InputDecoration(
+                                        labelText: 'Adresse',
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(90),
+                                        ),
+                                        prefixIcon: Icon(Icons.home),
                                       ),
-                                      debounceTime:
-                                          800, // Temps de latence (ms) avant la requête (pour éviter trop d'appels)
-                                      countries: [
-                                        'fr'
-                                      ], // Limite la recherche aux adresses en France [oai_citation:6‡tuto-flutter.fr](https://tuto-flutter.fr/coder-avec-flutter/google-maps/barre-de-recherche#:~:text=%2A%20%60countries%3A%20%5B,son%20ID%20et%20sa%20description)
-                                      placeType: PlaceType
-                                          .address, // Filtre pour ne rechercher que des adresses (géocodes)
-
-                                      itemClick: (prediction) {
-                                        // Ce callback est appelé au moment du clic sur une suggestion
-                                        cc.personalAddressController.text =
-                                            prediction.description ?? '';
-                                        cc.personalAddressController.selection =
-                                            TextSelection.fromPosition(
-                                          TextPosition(
-                                              offset: cc
-                                                  .personalAddressController
-                                                  .text
-                                                  .length),
-                                        );
-                                        // Une fois l'adresse insérée dans le champ, le getPlaceDetailWithLatLng est aussi déclenché si isLatLngRequired=true
-                                      },
                                     ),
+                                    // child: GooglePlaceAutoCompleteTextField(
+                                    //   textEditingController:
+                                    //       cc.personalAddressController,
+                                    //   language: 'fr',
+                                    //   googleAPIKey:
+                                    //       DefaultFirebaseOptions.googleKeyAPI,
+                                    //   inputDecoration: InputDecoration(
+                                    //     hintText: "Entrez une adresse...",
+                                    //     border: OutlineInputBorder(),
+                                    //     suffixIcon: Icon(Icons.search),
+                                    //   ),
+                                    //   debounceTime:
+                                    //       800, // Temps de latence (ms) avant la requête (pour éviter trop d'appels)
+                                    //   countries: [
+                                    //     'fr'
+                                    //   ], // Limite la recherche aux adresses en France [oai_citation:6‡tuto-flutter.fr](https://tuto-flutter.fr/coder-avec-flutter/google-maps/barre-de-recherche#:~:text=%2A%20%60countries%3A%20%5B,son%20ID%20et%20sa%20description)
+                                    //   placeType: PlaceType
+                                    //       .address, // Filtre pour ne rechercher que des adresses (géocodes)
+
+                                    //   itemClick: (prediction) {
+                                    //     // Ce callback est appelé au moment du clic sur une suggestion
+                                    //     cc.personalAddressController.text =
+                                    //         prediction.description ?? '';
+                                    //     cc.personalAddressController.selection =
+                                    //         TextSelection.fromPosition(
+                                    //       TextPosition(
+                                    //           offset: cc
+                                    //               .personalAddressController
+                                    //               .text
+                                    //               .length),
+                                    //     );
+                                    //     // Une fois l'adresse insérée dans le champ, le getPlaceDetailWithLatLng est aussi déclenché si isLatLngRequired=true
+                                    //   },
+                                    // ),
                                     // child: CustomTextFormField(
                                     //   tag: 'personal-address-field',
                                     //   controller: cc.personalAddressController,

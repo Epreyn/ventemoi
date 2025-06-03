@@ -24,8 +24,6 @@ dependencies:
   cloud_firestore:
   firebase_storage:
 
-  google_places_flutter:
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
