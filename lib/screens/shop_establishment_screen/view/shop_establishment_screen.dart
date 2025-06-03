@@ -1,14 +1,17 @@
-// Ce fichier remplace complètement votre fichier actuel
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart'; // À ajouter dans pubspec.yaml
+import 'package:shimmer/shimmer.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
+import '../../../features/custom_app_bar/view/custom_app_bar.dart';
+import '../../../features/custom_app_bar_title/view/custom_app_bar_title.dart';
+import '../../../features/custom_profile_leading/view/custom_profile_leading.dart';
 import '../controllers/shop_establishment_screen_controller.dart';
-import '../widgets/modern_establishment_card.dart'; // Nouveau widget
-import '../widgets/empty_state_widget.dart'; // Nouveau widget
+import '../widgets/shop_establishment_card.dart'; // Utiliser l'existant
+import '../widgets/enterprise_establishment_card.dart'; // Adapter au nouveau style
+import '../widgets/empty_state_widget.dart';
 
 class ShopEstablishmentScreen extends StatelessWidget {
   const ShopEstablishmentScreen({Key? key}) : super(key: key);
@@ -18,11 +21,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
     final cc = Get.put(ShopEstablishmentScreenController());
 
     return ScreenLayout(
+      appBar: _buildModernAppBar(cc), // Nouveau app bar moderne
       noFAB: true,
       body: Column(
         children: [
-          // Sections 1 et 2 du code vont ici
-          _buildUserHeader(cc),
           _buildSearchBar(cc),
           _buildModernTabs(cc),
           Expanded(
@@ -33,67 +35,113 @@ class ShopEstablishmentScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserHeader(ShopEstablishmentScreenController cc) {
-    return Container(
-      padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-      decoration: BoxDecoration(
-        color: CustomTheme.lightScheme().primary.withOpacity(0.05),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Avatar utilisateur
-          StreamBuilder<String>(
-            stream: _getUserImageStream(),
-            builder: (context, snapshot) {
-              return CircleAvatar(
-                radius: 24,
-                backgroundImage:
-                    snapshot.hasData ? NetworkImage(snapshot.data!) : null,
-                child: !snapshot.hasData
-                    ? Icon(Icons.person, color: Colors.white)
-                    : null,
-              );
-            },
+  // Nouveau AppBar moderne avec drawer
+  PreferredSizeWidget _buildModernAppBar(ShopEstablishmentScreenController cc) {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(80),
+      child: Container(
+        decoration: BoxDecoration(
+          color: CustomTheme.lightScheme().primary.withOpacity(0.05),
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(24),
+            bottomRight: Radius.circular(24),
           ),
-          const SizedBox(width: 12),
-
-          // Nom et type
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: UniquesControllers().data.baseSpace * 2,
+              vertical: UniquesControllers().data.baseSpace,
+            ),
+            child: Row(
               children: [
-                Text(
-                  'Bonjour,',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
                 StreamBuilder<String>(
-                  stream: _getUserNameStream(),
+                  stream: _getUserImageStream(),
                   builder: (context, snapshot) {
-                    return Text(
-                      snapshot.data ?? 'Utilisateur',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    return CircleAvatar(
+                      radius: 24,
+                      backgroundImage: snapshot.hasData
+                          ? NetworkImage(snapshot.data!)
+                          : null,
+                      child: !snapshot.hasData
+                          ? Icon(Icons.person, color: Colors.white)
+                          : null,
                     );
                   },
+                ),
+                const SizedBox(width: 12),
+
+                // Nom et titre
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Bonjour,',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      StreamBuilder<String>(
+                        stream: _getUserNameStream(),
+                        builder: (context, snapshot) {
+                          return Text(
+                            snapshot.data ?? 'Utilisateur',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Widget points animé
+                Obx(() => _buildPointsWidget(cc.buyerPoints.value)),
+
+                // Menu drawer
+                const SizedBox(width: 12),
+                Builder(
+                  builder: (context) => IconButton(
+                    icon: Container(
+                      padding:
+                          EdgeInsets.all(UniquesControllers().data.baseSpace),
+                      decoration: BoxDecoration(
+                        color: CustomTheme.lightScheme().primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.menu,
+                        color: Colors.white,
+                      ),
+                    ),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                  ),
                 ),
               ],
             ),
           ),
-
-          // Widget points animé
-          Obx(() => _buildPointsWidget(cc.buyerPoints.value)),
-        ],
+        ),
       ),
     );
+  }
+
+  // Ajouter ces méthodes helper
+  Stream<String> _getUserImageStream() {
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((snap) => snap.data()?['image_url'] ?? '');
   }
 
   Widget _buildPointsWidget(int points) {
@@ -172,7 +220,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icône de recherche
           Padding(
             padding: const EdgeInsets.only(left: 16),
             child: Icon(
@@ -180,8 +227,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
               color: Colors.grey[600],
             ),
           ),
-
-          // Champ de recherche
           Expanded(
             child: TextField(
               decoration: InputDecoration(
@@ -193,8 +238,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
               onChanged: cc.setSearchText,
             ),
           ),
-
-          // Bouton filtre avec badge
           Obx(() {
             final filterCount = cc.selectedTabIndex.value == 2
                 ? cc.selectedEnterpriseCatIds.length
@@ -234,7 +277,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
               ],
             );
           }),
-
           const SizedBox(width: 8),
         ],
       ),
@@ -253,7 +295,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Indicateur animé
           Obx(() => AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOutExpo,
@@ -277,8 +318,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
                   ),
                 ),
               )),
-
-          // Boutons des onglets
           Row(
             children: [
               _buildTabButton(cc, 0, 'Boutiques', Icons.store),
@@ -335,15 +374,19 @@ class ShopEstablishmentScreen extends StatelessWidget {
     );
   }
 
+  // BottomSheet compact pour les filtres
   void _showFilterBottomSheet(ShopEstablishmentScreenController cc) {
     Get.bottomSheet(
       Container(
+        constraints: BoxConstraints(
+          maxHeight: Get.height * 0.6, // Maximum 60% de la hauteur
+        ),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min, // Important pour taille minimale
           children: [
             // Handle
             Container(
@@ -358,13 +401,13 @@ class ShopEstablishmentScreen extends StatelessWidget {
 
             // Titre
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
                 children: [
                   const Text(
                     'Filtrer par catégorie',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -381,7 +424,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
             ),
 
             // Catégories en chips
-            Expanded(
+            Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Obx(() => Wrap(
@@ -402,9 +445,9 @@ class ShopEstablishmentScreen extends StatelessWidget {
                     Get.back();
                   },
                   style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 56),
+                    minimumSize: const Size(double.infinity, 48),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(24),
                     ),
                   ),
                   child: const Text(
@@ -424,33 +467,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
     );
   }
 
-  // Animation de chargement skeleton
-  Widget _buildSkeletonLoader() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 200,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // Transition entre états
   Widget _buildContent(ShopEstablishmentScreenController cc) {
     return Obx(() {
       if (cc.allEstablishments.isEmpty) {
@@ -460,7 +476,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
       final establishments = cc.displayedEstablishments;
 
       if (establishments.isEmpty) {
-        return _buildEmptyState();
+        return const EmptyStateWidget();
       }
 
       return AnimatedSwitcher(
@@ -470,39 +486,12 @@ class ShopEstablishmentScreen extends StatelessWidget {
     });
   }
 
-  // Ajouter ces méthodes helper
-  Stream<String> _getUserImageStream() {
-    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
-
-    return UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((snap) => snap.data()?['image_url'] ?? '');
-  }
-
-  Stream<String> _getUserNameStream() {
-    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
-
-    return UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((snap) => snap.data()?['name'] ?? 'Utilisateur');
-  }
-
   Widget _buildGrid(List establishments, ShopEstablishmentScreenController cc) {
     return GridView.builder(
       padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 400,
-        childAspectRatio: 0.8,
+        childAspectRatio: 0.75,
         crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
         mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
       ),
@@ -511,13 +500,22 @@ class ShopEstablishmentScreen extends StatelessWidget {
         final establishment = establishments[index];
         final tabIndex = cc.selectedTabIndex.value;
 
-        return ModernEstablishmentCard(
-          establishment: establishment,
-          onTap: () =>
-              tabIndex == 2 ? null : cc.buyEstablishment(establishment),
-          index: index,
-          isEnterprise: tabIndex == 2,
-        );
+        // Utiliser les widgets existants
+        if (tabIndex == 2) {
+          // Entreprises
+          return EnterpriseEstablishmentCard(
+            establishment: establishment,
+            index: index,
+            enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+          );
+        } else {
+          // Boutiques et Associations
+          return ShopEstablishmentCard(
+            establishment: establishment,
+            onBuy: () => cc.buyEstablishment(establishment),
+            index: index,
+          );
+        }
       },
     );
   }
@@ -547,7 +545,43 @@ class ShopEstablishmentScreen extends StatelessWidget {
     }).toList();
   }
 
-  Widget _buildEmptyState() {
-    return EmptyStateWidget(); // Défini plus bas
+  Widget _buildSkeletonLoader() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 400,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(
+                UniquesControllers().data.baseSpace * 2,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Stream<String> _getUserNameStream() {
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
+
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((snap) => snap.data()?['name'] ?? 'Utilisateur');
   }
 }
