@@ -487,35 +487,55 @@ class ShopEstablishmentScreen extends StatelessWidget {
   }
 
   Widget _buildGrid(List establishments, ShopEstablishmentScreenController cc) {
-    return GridView.builder(
-      padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 400,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
-        mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
-      ),
-      itemCount: establishments.length,
-      itemBuilder: (context, index) {
-        final establishment = establishments[index];
-        final tabIndex = cc.selectedTabIndex.value;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Largeur maximale d'une carte
+        const double maxCardWidth = 500.0;
+        // Largeur minimale d'une carte (seuil pour passer à 2 colonnes)
+        const double minCardWidth = 400.0;
 
-        // Utiliser les widgets existants
-        if (tabIndex == 2) {
-          // Entreprises
-          return EnterpriseEstablishmentCard(
-            establishment: establishment,
-            index: index,
-            enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
-          );
-        } else {
-          // Boutiques et Associations
-          return ShopEstablishmentCard(
-            establishment: establishment,
-            onBuy: () => cc.buyEstablishment(establishment),
-            index: index,
-          );
+        // Calculer le nombre de colonnes optimal
+        int crossAxisCount = 1;
+        if (constraints.maxWidth > minCardWidth * 1.5) {
+          crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
+          // S'assurer que les cartes ne dépassent pas la largeur max
+          final cardWidth = constraints.maxWidth / crossAxisCount;
+          if (cardWidth > maxCardWidth) {
+            crossAxisCount = (constraints.maxWidth / maxCardWidth).ceil();
+          }
         }
+
+        return GridView.builder(
+          padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 0.75,
+            crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
+            mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
+          ),
+          itemCount: establishments.length,
+          itemBuilder: (context, index) {
+            final establishment = establishments[index];
+            final tabIndex = cc.selectedTabIndex.value;
+
+            // Utiliser les widgets existants
+            if (tabIndex == 2) {
+              // Entreprises
+              return EnterpriseEstablishmentCard(
+                establishment: establishment,
+                index: index,
+                enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+              );
+            } else {
+              // Boutiques et Associations
+              return ShopEstablishmentCard(
+                establishment: establishment,
+                onBuy: () => cc.buyEstablishment(establishment),
+                index: index,
+              );
+            }
+          },
+        );
       },
     );
   }
