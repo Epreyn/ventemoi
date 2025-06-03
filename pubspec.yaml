@@ -24,6 +24,8 @@ dependencies:
   cloud_firestore:
   firebase_storage:
 
+  shimmer:
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
