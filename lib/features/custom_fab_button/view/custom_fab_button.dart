@@ -1,52 +1,73 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:ventemoi/core/classes/unique_controllers.dart';
 
-import '../controllers/custom_fab_button_controller.dart';
+import '../../../core/classes/unique_controllers.dart';
+import '../../../core/theme/custom_theme.dart';
 
 class CustomFABButton extends StatelessWidget {
   final String tag;
   final String text;
-  final Color? color;
-  final Color? textColor;
   final IconData? iconData;
-  final Function() onPressed;
+  final VoidCallback? onPressed;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final double? width;
 
   const CustomFABButton({
     super.key,
     required this.tag,
     required this.text,
-    this.color,
-    this.textColor,
     this.iconData,
-    required this.onPressed,
+    this.onPressed,
+    this.backgroundColor,
+    this.foregroundColor,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
-    final CustomFABButtonController cc = Get.put(
-      CustomFABButtonController(),
-      tag: tag,
-    );
+    final bgColor = backgroundColor ?? CustomTheme.lightScheme().primary;
+    final fgColor = foregroundColor ?? CustomTheme.lightScheme().onPrimary;
 
-    return FloatingActionButton.extended(
-      heroTag: tag,
-      elevation: 0,
-      focusElevation: 0,
-      hoverElevation: 0,
-      highlightElevation: 0,
-      extendedPadding: EdgeInsets.symmetric(
-        horizontal: UniquesControllers().data.baseSpace * 15,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          UniquesControllers().data.baseSpace * 10,
+    return SizedBox(
+      width: width ?? UniquesControllers().data.baseMaxWidth,
+      height: 56,
+      child: Material(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(28),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: UniquesControllers().data.baseSpace * 3,
+              vertical: UniquesControllers().data.baseSpace * 2,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (iconData != null) ...[
+                  Icon(
+                    iconData,
+                    color: fgColor,
+                    size: 24,
+                  ),
+                  SizedBox(width: UniquesControllers().data.baseSpace),
+                ],
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: fgColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      backgroundColor: color,
-      onPressed: onPressed,
-      label: Text(text, style: TextStyle(color: textColor)),
-      icon: iconData != null ? Icon(iconData) : null,
     );
   }
 }

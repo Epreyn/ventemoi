@@ -55,20 +55,22 @@ class LoginScreen extends StatelessWidget {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // Cercles pulsants autour du container
+                            // Cercles pulsants autour du container - EFFET INFINI
                             ...List.generate(3, (index) {
                               return PulsingBorder(
                                 baseWidth: isTablet ? 500 : 400,
-                                baseHeight: 650,
-                                expandScale: 1.0 +
-                                    (index * 0.15), // Expansion progressive
-                                delay: index * 0.4,
-                                opacity:
-                                    (0.15 - (index * 0.04)).clamp(0.0, 1.0),
+                                baseHeight:
+                                    580, // Hauteur réduite pour correspondre à la nouvelle carte
+                                expandScale:
+                                    1.15, // Toujours la même expansion finale
+                                delay: index *
+                                    1.0, // Espacement temporel entre les cercles
+                                opacity: 0.3, // Opacité constante
+                                strokeWidth: 2.0, // Épaisseur constante
                               );
                             }),
 
-                            // Container glassmorphique principal
+                            // Container glassmorphique principal - BLUR RÉDUIT
                             Container(
                               constraints: BoxConstraints(
                                 maxWidth: isTablet ? 500 : 400,
@@ -78,39 +80,46 @@ class LoginScreen extends StatelessWidget {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
+                                    Colors.white
+                                        .withOpacity(0.35), // Plus opaque
                                     Colors.white.withOpacity(0.25),
-                                    Colors.white.withOpacity(0.15),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(30),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: Colors.white
+                                      .withOpacity(0.5), // Bordure plus visible
                                   width: 2,
                                 ),
                                 boxShadow: [
+                                  // Ombre orange plus subtile
                                   BoxShadow(
                                     color: CustomTheme.lightScheme()
                                         .primary
-                                        .withOpacity(0.15),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
+                                        .withOpacity(
+                                            0.15), // Réduit de 0.25 à 0.15
+                                    blurRadius: 30, // Réduit de 40 à 30
+                                    spreadRadius: 5, // Réduit de 10 à 5
                                   ),
+                                  // Ombre noire plus subtile
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(28),
                                 child: BackdropFilter(
-                                  filter:
-                                      ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                                  filter: ImageFilter.blur(
+                                      sigmaX: 8,
+                                      sigmaY: 8), // Blur réduit de 15 à 8
                                   child: Container(
                                     padding: const EdgeInsets.all(32),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.1),
+                                      color: Colors.white.withOpacity(
+                                          0.15), // Légèrement plus opaque
                                       borderRadius: BorderRadius.circular(28),
                                     ),
                                     child: _buildLoginForm(cc, context),
@@ -186,71 +195,71 @@ class LoginScreen extends StatelessWidget {
             index: 1,
             child: Column(
               children: [
-                // Logo
-                Container(
-                  width: 80,
-                  height: 80,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.9),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            CustomTheme.lightScheme().primary.withOpacity(0.2),
-                        blurRadius: 20,
-                        spreadRadius: 5,
+                // Stack pour superposer le logo et le texte
+                Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none, // Permet au logo de dépasser
+                  children: [
+                    // Logo en arrière-plan avec opacité
+                    Positioned(
+                      top: -20,
+                      child: Opacity(
+                        opacity: 0.15,
+                        child: SizedBox(
+                          width: 140,
+                          height: 140,
+                          child: const CustomLogo(),
+                        ),
                       ),
-                    ],
-                  ),
-                  child: const CustomLogo(),
-                ),
-                const SizedBox(height: 20),
+                    ),
 
-                // Titre principal
-                ShaderMask(
-                  shaderCallback: (bounds) => LinearGradient(
-                    colors: [
-                      CustomTheme.lightScheme().primary,
-                      CustomTheme.lightScheme().primary.withOpacity(0.8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ).createShader(bounds),
-                  child: const Text(
-                    'VENTE MOI',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 4,
-                      color: Colors.white,
-                      height: 1,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                    // Contenu principal
+                    Column(
+                      children: [
+                        const SizedBox(height: 20),
 
-                // Sous-titre
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: CustomTheme.lightScheme().primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                      width: 1,
+                        // Titre principal en noir
+                        const Text(
+                          'VENTE MOI',
+                          style: TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 4,
+                            color: Colors.black, // Changé en noir
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Sous-titre
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: CustomTheme.lightScheme()
+                                .primary
+                                .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: CustomTheme.lightScheme()
+                                  .primary
+                                  .withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            'Le Don des Affaires',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: CustomTheme.lightScheme().primary,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  child: Text(
-                    'Le Don des Affaires',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: CustomTheme.lightScheme().primary,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2,
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -351,6 +360,7 @@ class LoginScreen extends StatelessWidget {
               iconData: cc.registerIconData,
               onPressed: cc.registerScreenOnPressed,
               backgroundColor: Colors.grey[900],
+              foregroundColor: Colors.white,
             ),
           ),
         ],
@@ -359,13 +369,14 @@ class LoginScreen extends StatelessWidget {
   }
 }
 
-// Widget pour les bordures pulsantes autour du container
+// Widget pour les bordures pulsantes autour du container - AMÉLIORÉ
 class PulsingBorder extends StatefulWidget {
   final double baseWidth;
   final double baseHeight;
   final double expandScale;
   final double delay;
   final double opacity;
+  final double strokeWidth;
 
   const PulsingBorder({
     super.key,
@@ -374,6 +385,7 @@ class PulsingBorder extends StatefulWidget {
     required this.expandScale,
     required this.delay,
     required this.opacity,
+    this.strokeWidth = 2.0,
   });
 
   @override
@@ -383,33 +395,26 @@ class PulsingBorder extends StatefulWidget {
 class _PulsingBorderState extends State<PulsingBorder>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _opacityAnimation;
+  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 3),
       vsync: this,
     );
 
-    _scaleAnimation = Tween(
-      begin: 1.0,
-      end: widget.expandScale,
+    // Animation qui va de 0 à 1
+    _animation = Tween(
+      begin: 0.0,
+      end: 1.0,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeInOut,
+      curve: Curves.linear,
     ));
 
-    _opacityAnimation = Tween(
-      begin: widget.opacity,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-    ));
-
+    // Démarrer après le délai spécifié
     Future.delayed(Duration(milliseconds: (widget.delay * 1000).toInt()), () {
       if (mounted) {
         _controller.repeat();
@@ -426,28 +431,53 @@ class _PulsingBorderState extends State<PulsingBorder>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _controller,
+      animation: _animation,
       builder: (context, child) {
+        final progress = _animation.value;
+
+        // Calculer le scale en fonction de la progression
+        final scale = 0.98 + (widget.expandScale - 0.98) * progress;
+
+        // Calculer l'opacité pour créer un effet de fondu
+        double opacity;
+        if (progress < 0.1) {
+          // Apparition progressive (0% à 10%)
+          opacity = widget.opacity * (progress / 0.1);
+        } else if (progress > 0.7) {
+          // Disparition progressive (70% à 100%)
+          opacity = widget.opacity * ((1.0 - progress) / 0.3);
+        } else {
+          // Pleine opacité (10% à 70%)
+          opacity = widget.opacity;
+        }
+
         return Transform.scale(
-          scale: _scaleAnimation.value,
+          scale: scale,
           child: Container(
             width: widget.baseWidth,
             height: widget.baseHeight,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: CustomTheme.lightScheme()
-                    .primary
-                    .withOpacity(_opacityAnimation.value),
-                width: 2,
+                color: CustomTheme.lightScheme().primary.withOpacity(opacity),
+                width: widget.strokeWidth,
               ),
               boxShadow: [
+                // Ombre principale
                 BoxShadow(
                   color: CustomTheme.lightScheme()
                       .primary
-                      .withOpacity(_opacityAnimation.value * 0.3),
-                  blurRadius: 50 * _scaleAnimation.value,
-                  spreadRadius: 20 * _scaleAnimation.value,
+                      .withOpacity(opacity * 0.5),
+                  blurRadius: 30 * progress,
+                  spreadRadius: 10 * progress,
+                ),
+                // Ombre secondaire plus diffuse
+                BoxShadow(
+                  color: CustomTheme.lightScheme()
+                      .primary
+                      .withOpacity(opacity * 0.3),
+                  blurRadius: 60 * progress,
+                  spreadRadius: 20 * progress,
                 ),
               ],
             ),
