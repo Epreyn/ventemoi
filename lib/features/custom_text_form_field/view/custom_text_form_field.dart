@@ -1,32 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/theme/custom_theme.dart';
 import '../controllers/custom_text_form_field_controller.dart';
 
 class CustomTextFormField extends StatelessWidget {
   final String tag;
-
   final TextEditingController controller;
   final TextInputAction? textInputAction;
   final String labelText;
-  final String? hintText;
   final String? errorText;
   final IconData? iconData;
   final bool? isPassword;
   final TextInputType? keyboardType;
-
   final String? validatorPattern;
   final String? Function(String?)? validator;
   final bool? isNullable;
   final bool? enabled;
   final bool? isClickable;
-
   final int? minLines;
   final int? maxLines;
   final bool? unlimitedLines;
-
   final int? maxCharacters;
-
   final Function(String)? onChanged;
   final Function(String)? onFieldSubmitted;
 
@@ -36,7 +31,6 @@ class CustomTextFormField extends StatelessWidget {
     required this.controller,
     this.textInputAction,
     required this.labelText,
-    this.hintText,
     this.errorText,
     this.iconData,
     this.isPassword,
@@ -106,11 +100,24 @@ class CustomTextFormField extends StatelessWidget {
                 }
                 return null;
               },
+              style: TextStyle(
+                fontSize: 16,
+                color: enabled ?? true ? Colors.black87 : Colors.grey[600],
+              ),
               decoration: InputDecoration(
-                labelText:
-                    maxCharacters == null ? labelText : "$labelText (${cc.currentLength.value}/${maxCharacters!})",
-                hintText: hintText,
-                prefixIcon: iconData != null ? Icon(iconData) : null,
+                labelText: maxCharacters == null
+                    ? labelText
+                    : "$labelText (${cc.currentLength.value}/${maxCharacters!})",
+                labelStyle: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 16,
+                ),
+                prefixIcon: iconData != null
+                    ? Icon(
+                        iconData,
+                        color: CustomTheme.lightScheme().primary,
+                      )
+                    : null,
                 suffixIcon: (isPassword ?? false)
                     ? MouseRegion(
                         cursor: SystemMouseCursors.click,
@@ -119,15 +126,58 @@ class CustomTextFormField extends StatelessWidget {
                             cc.isObscure.value = !cc.isObscure.value;
                           },
                           child: Icon(
-                            cc.isObscure.value ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            cc.isObscure.value
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: Colors.grey[600],
                           ),
                         ),
                       )
                     : null,
                 floatingLabelBehavior: FloatingLabelBehavior.auto,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(90 / (maxLines ?? 1)),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
                 ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.grey[300]!,
+                    width: 1,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.grey[300]!,
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: CustomTheme.lightScheme().primary,
+                    width: 2,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: CustomTheme.lightScheme().error,
+                    width: 2,
+                  ),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: CustomTheme.lightScheme().error,
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: enabled ?? true
+                    ? Colors.white.withOpacity(0.8)
+                    : Colors.grey[100],
               ),
             ),
           ),
@@ -140,8 +190,6 @@ class CustomTextFormField extends StatelessWidget {
             ),
         ],
       ),
-      //   },
-      // ),
     );
   }
 }
