@@ -4,11 +4,11 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
-import 'package:ventemoi/screens/profile_screen/controllers/profile_screen_controller.dart';
 
 import 'core/routes/app_screens.dart';
 import 'core/theme/util.dart';
 
+import 'features/screen_layout/controllers/screen_layout_controller.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -19,6 +19,8 @@ void main() async {
   await GetStorage.init('Storage');
 
   await initializeDateFormatting('fr_FR', null);
+
+  Get.put(ScreenLayoutController(), permanent: true);
 
   runApp(const App());
 }

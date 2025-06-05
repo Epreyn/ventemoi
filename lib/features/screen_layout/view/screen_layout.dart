@@ -11,8 +11,9 @@ import '../../custom_app_bar/widgets/custom_app_bar_actions.dart';
 import '../../custom_card_animation/view/custom_card_animation.dart';
 import '../../custom_navigation_menu/view/custom_navigation_menu.dart';
 import '../../custom_profile_leading/view/custom_profile_leading.dart';
+import '../controllers/screen_layout_controller.dart';
 
-class ScreenLayout extends StatefulWidget {
+class ScreenLayout extends StatelessWidget {
   final bool? noAppBar;
   final PreferredSizeWidget? appBar;
   final Widget? bottomNavigationBar;
@@ -43,104 +44,56 @@ class ScreenLayout extends StatefulWidget {
   });
 
   @override
-  State<ScreenLayout> createState() => _ScreenLayoutState();
-}
-
-class _ScreenLayoutState extends State<ScreenLayout>
-    with TickerProviderStateMixin {
-  late AnimationController _waveController;
-  late AnimationController _particleController;
-  late AnimationController _pulseController;
-  late Animation<double> _waveAnimation;
-  late Animation<double> _particleAnimation;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Animation pour les vagues - plus rapide
-    _waveController = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    )..repeat();
-
-    _waveAnimation = CurvedAnimation(
-      parent: _waveController,
-      curve: Curves.easeInOut,
-    );
-
-    // Animation pour les particules - plus rapide
-    _particleController = AnimationController(
-      duration: const Duration(seconds: 10),
-      vsync: this,
-    )..repeat();
-
-    _particleAnimation = CurvedAnimation(
-      parent: _particleController,
-      curve: Curves.linear,
-    );
-
-    // Animation de pulsation pour les orbes
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _pulseAnimation = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _waveController.dispose();
-    _particleController.dispose();
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+    // Utiliser l'instance singleton au lieu de créer un nouveau contrôleur
+    final controller = ScreenLayoutController.instance;
 
     return Obx(
       () => GestureDetector(
         child: Stack(
           children: [
-            // 1) Background animé moderne plus visible
-            Positioned.fill(
-              child: AnimatedBackground(
-                waveAnimation: _waveAnimation,
-                particleAnimation: _particleAnimation,
-                pulseAnimation: _pulseAnimation,
-              ),
+            // 1) Background blanc
+            Container(
+              color: Colors.white,
             ),
 
-            // 2) Overlay semi-transparent ajusté pour plus de visibilité
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      CustomTheme.lightScheme().surface.withOpacity(0.7),
-                      CustomTheme.lightScheme().surface.withOpacity(0.85),
-                    ],
-                  ),
-                ),
-              ),
+            // 2) Vagues orange en haut
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Obx(() => CustomPaint(
+                    painter: TopWavesPainter(
+                      wave1Progress: controller.wave3Progress.value,
+                      wave2Progress: controller.wave4Progress.value,
+                      primaryColor: CustomTheme.lightScheme().primary,
+                    ),
+                    size: Size(MediaQuery.of(context).size.width, 200),
+                  )),
             ),
 
-            // 3) Scaffold principal
+            // 3) Vagues noires en bas
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Obx(() => CustomPaint(
+                    painter: BottomWavesPainter(
+                      wave1Progress: controller.wave1Progress.value,
+                      wave2Progress: controller.wave2Progress.value,
+                    ),
+                    size: Size(MediaQuery.of(context).size.width, 200),
+                  )),
+            ),
+
+            // 4) Scaffold principal
             Scaffold(
               key: scaffoldKey,
               backgroundColor: Colors.transparent,
-              appBar: (widget.noAppBar == true)
+              appBar: (noAppBar == true)
                   ? null
-                  : widget.appBar ??
+                  : appBar ??
                       CustomAppBar(
                         leadingWidgetNumber:
                             UniquesControllers().data.baseSpace,
@@ -155,27 +108,26 @@ class _ScreenLayoutState extends State<ScreenLayout>
                           CustomAppBarActions(scaffoldKey: scaffoldKey)
                         ],
                       ),
-              bottomNavigationBar: widget.bottomNavigationBar,
-              floatingActionButton: (widget.noFAB == true)
+              bottomNavigationBar: bottomNavigationBar,
+              floatingActionButton: (noFAB == true)
                   ? null
-                  : widget.floatingActionButton ??
+                  : floatingActionButton ??
                       CustomCardAnimation(
                         index: 0,
                         child: FloatingActionButton.extended(
                           heroTag: UniqueKey().toString(),
-                          icon: widget.fabIcon,
-                          label: widget.fabText ?? Text(''),
-                          onPressed: widget.fabOnPressed,
+                          icon: fabIcon,
+                          label: fabText ?? Text(''),
+                          onPressed: fabOnPressed,
                         ),
                       ),
-              floatingActionButtonLocation:
-                  widget.floatingActionButtonLocation ??
-                      FloatingActionButtonLocation.endFloat,
-              drawer: widget.drawer ?? CustomNavigationMenu(),
-              body: widget.body,
+              floatingActionButtonLocation: floatingActionButtonLocation ??
+                  FloatingActionButtonLocation.endFloat,
+              drawer: drawer ?? CustomNavigationMenu(),
+              body: body,
             ),
 
-            // 4) Loader overlay
+            // 5) Loader overlay
             if (UniquesControllers().data.isInAsyncCall.value)
               Positioned.fill(
                 child: Container(
@@ -190,336 +142,171 @@ class _ScreenLayoutState extends State<ScreenLayout>
   }
 }
 
-// Widget pour le background animé
-class AnimatedBackground extends StatelessWidget {
-  final Animation<double> waveAnimation;
-  final Animation<double> particleAnimation;
-  final Animation<double> pulseAnimation;
-
-  const AnimatedBackground({
-    Key? key,
-    required this.waveAnimation,
-    required this.particleAnimation,
-    required this.pulseAnimation,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Gradient de base plus vibrant
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                CustomTheme.lightScheme().primary.withOpacity(0.3),
-                CustomTheme.lightScheme().surface,
-                CustomTheme.lightScheme().secondary.withOpacity(0.2),
-                CustomTheme.lightScheme().tertiary.withOpacity(0.15),
-              ],
-              stops: const [0.0, 0.3, 0.7, 1.0],
-            ),
-          ),
-        ),
-
-        // Orbes lumineux animés
-        AnimatedBuilder(
-          animation: pulseAnimation,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: OrbPainter(
-                animationValue: pulseAnimation.value,
-                primaryColor: CustomTheme.lightScheme().primary,
-                secondaryColor: CustomTheme.lightScheme().secondary,
-              ),
-              size: Size.infinite,
-            );
-          },
-        ),
-
-        // Vagues animées plus visibles
-        AnimatedBuilder(
-          animation: waveAnimation,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: WavePainter(
-                animationValue: waveAnimation.value,
-                color: CustomTheme.lightScheme().primary.withOpacity(0.25),
-                waveHeight: 80,
-              ),
-              size: Size.infinite,
-            );
-          },
-        ),
-
-        // Deuxième couche de vagues
-        AnimatedBuilder(
-          animation: waveAnimation,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: WavePainter(
-                animationValue: waveAnimation.value + 0.3,
-                color: CustomTheme.lightScheme().secondary.withOpacity(0.15),
-                waveHeight: 60,
-                frequency: 1.5,
-              ),
-              size: Size.infinite,
-            );
-          },
-        ),
-
-        // Troisième couche de vagues
-        AnimatedBuilder(
-          animation: waveAnimation,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: WavePainter(
-                animationValue: waveAnimation.value + 0.6,
-                color: CustomTheme.lightScheme().tertiary.withOpacity(0.1),
-                waveHeight: 40,
-                frequency: 2,
-              ),
-              size: Size.infinite,
-            );
-          },
-        ),
-
-        // Particules flottantes plus nombreuses et visibles
-        AnimatedBuilder(
-          animation: particleAnimation,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: ParticlePainter(
-                animationValue: particleAnimation.value,
-                color: CustomTheme.lightScheme().primary.withOpacity(0.6),
-              ),
-              size: Size.infinite,
-            );
-          },
-        ),
-
-        // Motif géométrique plus visible
-        Positioned.fill(
-          child: CustomPaint(
-            painter: GeometricPatternPainter(
-              color: CustomTheme.lightScheme().primary.withOpacity(0.08),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Painter pour les orbes lumineux
-class OrbPainter extends CustomPainter {
-  final double animationValue;
+// Painter pour les vagues orange en haut
+class TopWavesPainter extends CustomPainter {
+  final double wave1Progress;
+  final double wave2Progress;
   final Color primaryColor;
-  final Color secondaryColor;
 
-  OrbPainter({
-    required this.animationValue,
+  TopWavesPainter({
+    required this.wave1Progress,
+    required this.wave2Progress,
     required this.primaryColor,
-    required this.secondaryColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Premier orbe
-    final orb1Center = Offset(
-      size.width * 0.2 + (math.sin(animationValue * math.pi * 2) * 50),
-      size.height * 0.3 + (math.cos(animationValue * math.pi * 2) * 30),
-    );
-
-    // Deuxième orbe
-    final orb2Center = Offset(
-      size.width * 0.8 - (math.sin(animationValue * math.pi * 2) * 40),
-      size.height * 0.7 - (math.cos(animationValue * math.pi * 2) * 50),
-    );
-
-    // Troisième orbe
-    final orb3Center = Offset(
-      size.width * 0.5 + (math.cos(animationValue * math.pi * 2) * 60),
-      size.height * 0.5 + (math.sin(animationValue * math.pi * 2) * 40),
-    );
-
-    _drawOrb(canvas, orb1Center, primaryColor, 150 + animationValue * 30);
-    _drawOrb(canvas, orb2Center, secondaryColor, 120 + animationValue * 20);
-    _drawOrb(canvas, orb3Center, primaryColor.withOpacity(0.3),
-        180 + animationValue * 40);
-  }
-
-  void _drawOrb(Canvas canvas, Offset center, Color color, double radius) {
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          color.withOpacity(0.3),
-          color.withOpacity(0.1),
-          color.withOpacity(0.0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawCircle(center, radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(OrbPainter oldDelegate) =>
-      animationValue != oldDelegate.animationValue;
-}
-
-// Painter pour les vagues
-class WavePainter extends CustomPainter {
-  final double animationValue;
-  final Color color;
-  final double waveHeight;
-  final double frequency;
-
-  WavePainter({
-    required this.animationValue,
-    required this.color,
-    this.waveHeight = 50,
-    this.frequency = 1,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
+    // Première vague orange avec phase décalée
+    final paint1 = Paint()
+      ..color = primaryColor.withOpacity(0.3)
       ..style = PaintingStyle.fill;
 
-    final path = Path();
-    path.moveTo(0, size.height * 0.6);
+    final path1 = Path();
+    path1.moveTo(0, 0);
 
     for (double i = 0; i <= size.width; i++) {
-      final y = size.height * 0.6 +
-          waveHeight *
-              math.sin((i / size.width * 2 * math.pi * frequency) +
-                  (animationValue * 2 * math.pi));
-      path.lineTo(i, y);
+      // Phase initiale de 0.3 pour cette vague
+      final phase = (wave1Progress + 0.3) * 2 * math.pi;
+      final y = 60 + 20 * math.sin((i / size.width * 4 * math.pi) + phase);
+      path1.lineTo(i, y);
     }
 
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
+    path1.lineTo(size.width, 0);
+    path1.close();
+    canvas.drawPath(path1, paint1);
 
-    canvas.drawPath(path, paint);
+    // Deuxième vague orange avec phase différente
+    final paint2 = Paint()
+      ..color = primaryColor.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+
+    final path2 = Path();
+    path2.moveTo(0, 0);
+
+    for (double i = 0; i <= size.width; i++) {
+      // Phase initiale de 0.7 pour cette vague
+      final phase = (wave2Progress + 0.7) * 2 * math.pi;
+      final y = 80 + 15 * math.sin((i / size.width * 3 * math.pi) + phase);
+      path2.lineTo(i, y);
+    }
+
+    path2.lineTo(size.width, 0);
+    path2.close();
+    canvas.drawPath(path2, paint2);
+
+    // Troisième vague orange avec mouvement inverse
+    final paint3 = Paint()
+      ..color = primaryColor.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+
+    final path3 = Path();
+    path3.moveTo(0, 0);
+
+    for (double i = 0; i <= size.width; i++) {
+      // Phase inversée et décalée de 0.5
+      final phase = -(wave1Progress + 0.5) * 2 * math.pi;
+      final y = 100 + 10 * math.sin((i / size.width * 5 * math.pi) + phase);
+      path3.lineTo(i, y);
+    }
+
+    path3.lineTo(size.width, 0);
+    path3.close();
+    canvas.drawPath(path3, paint3);
   }
 
   @override
-  bool shouldRepaint(WavePainter oldDelegate) =>
-      animationValue != oldDelegate.animationValue;
+  bool shouldRepaint(TopWavesPainter oldDelegate) =>
+      wave1Progress != oldDelegate.wave1Progress ||
+      wave2Progress != oldDelegate.wave2Progress;
 }
 
-// Painter pour les particules
-class ParticlePainter extends CustomPainter {
-  final double animationValue;
-  final Color color;
+// Painter pour les vagues noires en bas
+class BottomWavesPainter extends CustomPainter {
+  final double wave1Progress;
+  final double wave2Progress;
 
-  ParticlePainter({
-    required this.animationValue,
-    required this.color,
+  BottomWavesPainter({
+    required this.wave1Progress,
+    required this.wave2Progress,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
+    // Première vague noire avec phase 0
+    final paint1 = Paint()
+      ..color = Colors.black.withOpacity(0.8)
       ..style = PaintingStyle.fill;
 
-    final random = math.Random(42); // Seed fixe pour cohérence
+    final path1 = Path();
+    path1.moveTo(0, size.height);
 
-    // Plus de particules
-    for (int i = 0; i < 40; i++) {
-      final x = random.nextDouble() * size.width;
-      final baseY = random.nextDouble() * size.height;
-      final speed = 0.3 + random.nextDouble() * 0.7;
-      final radius = 3 + random.nextDouble() * 6;
-
-      final y = (baseY - animationValue * size.height * speed) % size.height;
-      final opacity = random.nextDouble() * 0.4 + 0.3;
-
-      // Effet de lueur
-      final glowPaint = Paint()
-        ..color = color.withOpacity(opacity * 0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-
-      canvas.drawCircle(
-        Offset(x, y),
-        radius * 2,
-        glowPaint,
-      );
-
-      canvas.drawCircle(
-        Offset(x, y),
-        radius,
-        paint..color = color.withOpacity(opacity),
-      );
+    for (double i = 0; i <= size.width; i++) {
+      final phase = wave1Progress * 2 * math.pi;
+      final y = 140 - 25 * math.sin((i / size.width * 3 * math.pi) + phase);
+      path1.lineTo(i, y);
     }
+
+    path1.lineTo(size.width, size.height);
+    path1.close();
+    canvas.drawPath(path1, paint1);
+
+    // Deuxième vague noire avec phase décalée de 0.4
+    final paint2 = Paint()
+      ..color = Colors.black.withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    final path2 = Path();
+    path2.moveTo(0, size.height);
+
+    for (double i = 0; i <= size.width; i++) {
+      final phase = -(wave2Progress + 0.4) * 2 * math.pi;
+      final y = 120 - 20 * math.sin((i / size.width * 4 * math.pi) + phase);
+      path2.lineTo(i, y);
+    }
+
+    path2.lineTo(size.width, size.height);
+    path2.close();
+    canvas.drawPath(path2, paint2);
+
+    // Troisième vague noire avec phase décalée de 0.2
+    final paint3 = Paint()
+      ..color = Colors.black.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+
+    final path3 = Path();
+    path3.moveTo(0, size.height);
+
+    for (double i = 0; i <= size.width; i++) {
+      final phase = (wave1Progress + 0.2) * 2 * math.pi;
+      final y = 100 - 15 * math.sin((i / size.width * 5 * math.pi) + phase);
+      path3.lineTo(i, y);
+    }
+
+    path3.lineTo(size.width, size.height);
+    path3.close();
+    canvas.drawPath(path3, paint3);
+
+    // Quatrième vague noire avec phase décalée de 0.8
+    final paint4 = Paint()
+      ..color = Colors.black.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    final path4 = Path();
+    path4.moveTo(0, size.height);
+
+    for (double i = 0; i <= size.width; i++) {
+      final phase = (wave2Progress + 0.8) * 2 * math.pi * 1.5;
+      final y = 80 - 10 * math.sin((i / size.width * 6 * math.pi) + phase);
+      path4.lineTo(i, y);
+    }
+
+    path4.lineTo(size.width, size.height);
+    path4.close();
+    canvas.drawPath(path4, paint4);
   }
 
   @override
-  bool shouldRepaint(ParticlePainter oldDelegate) =>
-      animationValue != oldDelegate.animationValue;
-}
-
-// Painter pour le motif géométrique
-class GeometricPatternPainter extends CustomPainter {
-  final Color color;
-
-  GeometricPatternPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    const spacing = 60.0;
-
-    // Grille hexagonale plus visible
-    for (double y = 0; y < size.height + spacing; y += spacing * 1.5) {
-      for (double x = 0; x < size.width + spacing; x += spacing) {
-        final offsetX =
-            (y / (spacing * 1.5)).floor() % 2 == 0 ? 0 : spacing / 2;
-        _drawHexagon(canvas, Offset(x + offsetX, y), spacing / 3, paint);
-      }
-    }
-
-    // Lignes de connexion
-    final linePaint = Paint()
-      ..color = color.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    for (double y = 0; y < size.height + spacing; y += spacing * 3) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y + 50),
-        linePaint,
-      );
-    }
-  }
-
-  void _drawHexagon(Canvas canvas, Offset center, double radius, Paint paint) {
-    final path = Path();
-    for (int i = 0; i < 6; i++) {
-      final angle = (math.pi / 3) * i;
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(GeometricPatternPainter oldDelegate) => false;
+  bool shouldRepaint(BottomWavesPainter oldDelegate) =>
+      wave1Progress != oldDelegate.wave1Progress ||
+      wave2Progress != oldDelegate.wave2Progress;
 }

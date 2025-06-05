@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'dart:math' as math;
 import 'package:ventemoi/core/classes/unique_controllers.dart';
 
 import '../../../core/theme/custom_theme.dart';
@@ -10,7 +9,6 @@ import '../../../features/custom_logo/view/custom_logo.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/login_screen_controller.dart';
-import '../models/particles.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -18,7 +16,6 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cc = Get.put(LoginScreenController(), tag: 'login_screen');
-    final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 600;
 
@@ -34,45 +31,6 @@ class LoginScreen extends StatelessWidget {
       noFAB: true,
       body: Stack(
         children: [
-          // Background animé avec gradient dynamique
-          Obx(() => AnimatedContainer(
-                duration: const Duration(seconds: 3),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment(
-                      math.cos(cc.backgroundAngle.value),
-                      math.sin(cc.backgroundAngle.value),
-                    ),
-                    end: Alignment(
-                      -math.cos(cc.backgroundAngle.value),
-                      -math.sin(cc.backgroundAngle.value),
-                    ),
-                    colors: [
-                      Colors.white,
-                      CustomTheme.lightScheme().primary.withOpacity(0.1),
-                      CustomTheme.lightScheme().primary.withOpacity(0.05),
-                      Colors.white,
-                    ],
-                    stops: const [0.0, 0.3, 0.7, 1.0],
-                  ),
-                ),
-              )),
-
-          // Particules flottantes
-          // Obx(() {
-          //   cc.particleUpdate.value; // Force rebuild
-          //   return CustomPaint(
-          //     painter: ParticlePainter(
-          //       particles: cc.particles,
-          //       color: CustomTheme.lightScheme().primary,
-          //     ),
-          //     size: Size(screenWidth, screenHeight),
-          //   );
-          // }),
-
-          // Formes géométriques animées
-          _buildAnimatedShapes(cc),
-
           // Contenu principal
           SafeArea(
             child: Center(
@@ -90,21 +48,12 @@ class LoginScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Logo et titre animés
-                        _buildAnimatedLogo(cc),
+                        // Logo et titre
+                        _buildLogo(cc),
                         const SizedBox(height: 60),
 
-                        // Formulaire animé
-                        Obx(() => AnimatedOpacity(
-                              opacity: cc.formOpacity.value,
-                              duration: const Duration(milliseconds: 800),
-                              child: AnimatedSlide(
-                                offset: Offset(0, cc.formSlideOffset.value),
-                                duration: const Duration(milliseconds: 800),
-                                curve: Curves.easeOutCubic,
-                                child: _buildLoginForm(cc),
-                              ),
-                            )),
+                        // Formulaire
+                        _buildLoginForm(cc),
                       ],
                     ),
                   ),
@@ -112,9 +61,6 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
           ),
-
-          // Effet de lumière animé
-          _buildLightEffect(cc, screenWidth, screenHeight),
 
           // Version en bas à droite
           const Positioned(
@@ -133,241 +79,119 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAnimatedShapes(LoginScreenController cc) {
-    return Obx(() => Stack(
-          children: [
-            // Cercle animé en haut à droite
-            AnimatedPositioned(
-              duration: const Duration(seconds: 3),
-              curve: Curves.easeInOut,
-              top: -100 + 20 * math.sin(cc.shapeAnimation.value),
-              right: -100 + 20 * math.cos(cc.shapeAnimation.value),
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      CustomTheme.lightScheme().primary.withOpacity(0.2),
-                      CustomTheme.lightScheme().primary.withOpacity(0.0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Forme organique animée
-            AnimatedPositioned(
-              duration: const Duration(seconds: 3),
-              curve: Curves.easeInOut,
-              bottom: -150,
-              left: -150,
-              child: Transform.rotate(
-                angle: cc.shapeAnimation.value * 0.5,
-                child: Container(
-                  width: 400,
-                  height: 400,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(150),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.orange.withOpacity(0.1),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Hexagone animé
-            Positioned(
-              top: Get.height * 0.3,
-              right: -50,
-              child: Transform.rotate(
-                angle: -cc.shapeAnimation.value,
-                child: ClipPath(
-                  clipper: HexagonClipper(),
-                  child: Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          CustomTheme.lightScheme().primary.withOpacity(0.15),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ));
-  }
-
-  Widget _buildLightEffect(
-      LoginScreenController cc, double screenWidth, double screenHeight) {
-    return Obx(() => AnimatedPositioned(
-          duration: const Duration(seconds: 2),
-          curve: Curves.easeInOut,
-          top: screenHeight * 0.2,
-          left: screenWidth * 0.5 + 100 * math.cos(cc.lightPosition.value * 2),
+  Widget _buildLogo(LoginScreenController cc) {
+    return Column(
+      children: [
+        // Logo avec ombre simple
+        CustomCardAnimation(
+          index: 0,
           child: Container(
-            width: 200,
-            height: 200,
+            width: 120,
+            height: 120,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.white.withOpacity(0.3),
-                  Colors.white.withOpacity(0.0),
-                ],
-              ),
-            ),
-          ),
-        ));
-  }
-
-  Widget _buildAnimatedLogo(LoginScreenController cc) {
-    return Obx(() => Transform.scale(
-          scale: cc.logoScale.value,
-          child: Transform.rotate(
-            angle: cc.logoRotation.value,
-            child: Column(
-              children: [
-                // Logo avec effet de pulsation
-                AnimatedContainer(
-                  duration: const Duration(seconds: 2),
-                  curve: Curves.easeInOut,
-                  width: 120 * cc.logoPulse.value,
-                  height: 120 * cc.logoPulse.value,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            CustomTheme.lightScheme().primary.withOpacity(0.3),
-                        blurRadius: 30,
-                        offset: const Offset(0, 15),
-                      ),
-                      BoxShadow(
-                        color: Colors.orange.withOpacity(0.2),
-                        blurRadius: 40,
-                        offset: const Offset(-10, -10),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: CustomLogo(),
-                  ),
-                ),
-                const SizedBox(height: 30),
-
-                // Titre avec animation de fade
-                AnimatedOpacity(
-                  opacity: cc.formOpacity.value,
-                  duration: const Duration(milliseconds: 800),
-                  child: Column(
-                    children: [
-                      ShaderMask(
-                        shaderCallback: (bounds) => LinearGradient(
-                          colors: [
-                            CustomTheme.lightScheme().primary,
-                            Colors.orange,
-                            CustomTheme.lightScheme().primary,
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                        ).createShader(bounds),
-                        child: Text(
-                          'VENTE MOI',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              CustomTheme.lightScheme()
-                                  .primary
-                                  .withOpacity(0.1),
-                              Colors.orange.withOpacity(0.1),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: CustomTheme.lightScheme()
-                                .primary
-                                .withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          'Le Don des Affaires',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: CustomTheme.lightScheme().primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: CustomTheme.lightScheme().primary.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
+            child: const Padding(
+              padding: EdgeInsets.all(20),
+              child: CustomLogo(),
+            ),
           ),
-        ));
+        ),
+        const SizedBox(height: 30),
+
+        // Titre
+        CustomCardAnimation(
+          index: 1,
+          child: Column(
+            children: [
+              Text(
+                'VENTE MOI',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: CustomTheme.lightScheme().primary,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Le Don des Affaires',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: CustomTheme.lightScheme().primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildLoginForm(LoginScreenController cc) {
     return Column(
       children: [
-        // Champ Email avec effet hover
-        _buildAnimatedTextField(
-          controller: cc.emailController,
-          label: cc.emailLabel,
-          icon: Icons.email_outlined,
-          keyboardType: cc.emailInputType,
-          textInputAction: cc.emailInputAction,
-          onFieldSubmitted: (_) => cc.login(),
-          delay: 100,
-          isPasswordField: false,
-          cc: cc,
+        // Champ Email
+        CustomCardAnimation(
+          index: 2,
+          child: _buildTextField(
+            controller: cc.emailController,
+            label: cc.emailLabel,
+            icon: Icons.email_outlined,
+            keyboardType: cc.emailInputType,
+            textInputAction: cc.emailInputAction,
+            onFieldSubmitted: (_) => cc.login(),
+          ),
         ),
         const SizedBox(height: 20),
 
         // Champ Mot de passe
-        _buildAnimatedTextField(
-          controller: cc.passwordController,
-          label: cc.passwordLabel,
-          icon: Icons.lock_outline,
-          isPasswordField: true,
-          keyboardType: cc.passwordInputType,
-          textInputAction: cc.passwordInputAction,
-          onFieldSubmitted: (_) => cc.login(),
-          delay: 200,
-          cc: cc,
+        CustomCardAnimation(
+          index: 3,
+          child: Obx(() => _buildTextField(
+                controller: cc.passwordController,
+                label: cc.passwordLabel,
+                icon: Icons.lock_outline,
+                isPasswordField: true,
+                obscureText: !cc.isPasswordVisible.value,
+                keyboardType: cc.passwordInputType,
+                textInputAction: cc.passwordInputAction,
+                onFieldSubmitted: (_) => cc.login(),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    cc.isPasswordVisible.value
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.grey[600],
+                  ),
+                  onPressed: cc.togglePasswordVisibility,
+                ),
+              )),
         ),
         const SizedBox(height: 16),
 
         // Mot de passe oublié
         CustomCardAnimation(
-          index: 3,
+          index: 4,
           child: Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -387,10 +211,10 @@ class LoginScreen extends StatelessWidget {
         ),
         const SizedBox(height: 40),
 
-        // Bouton de connexion avec effet 3D
+        // Bouton de connexion
         CustomCardAnimation(
-          index: 4,
-          child: _buildAnimatedButton(
+          index: 5,
+          child: _buildButton(
             text: cc.connectionLabel,
             onPressed: cc.login,
             isPrimary: true,
@@ -399,17 +223,42 @@ class LoginScreen extends StatelessWidget {
         ),
         const SizedBox(height: 30),
 
-        // Divider animé
+        // Divider
         CustomCardAnimation(
-          index: 5,
-          child: _buildAnimatedDivider(),
+          index: 6,
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 1,
+                  color: Colors.grey.withOpacity(0.3),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'OU',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  height: 1,
+                  color: Colors.grey.withOpacity(0.3),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 30),
 
         // Bouton d'inscription
         CustomCardAnimation(
-          index: 6,
-          child: _buildAnimatedButton(
+          index: 7,
+          child: _buildButton(
             text: cc.registerLabel,
             onPressed: cc.registerScreenOnPressed,
             isPrimary: false,
@@ -420,106 +269,72 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAnimatedTextField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
-    required LoginScreenController cc,
     TextInputType? keyboardType,
     TextInputAction? textInputAction,
     bool isPasswordField = false,
+    bool obscureText = false,
     Function(String)? onFieldSubmitted,
-    int delay = 0,
+    Widget? suffixIcon,
   }) {
-    return CustomCardAnimation(
-      index: delay ~/ 100,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.grey[50],
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 1,
         ),
-        child: Stack(
-          children: [
-            // Effet de gradient animé
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white,
-                      CustomTheme.lightScheme().primary.withOpacity(0.05),
-                      Colors.white,
-                    ],
-                  ),
-                ),
-              ),
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        obscureText: obscureText,
+        onFieldSubmitted: onFieldSubmitted,
+        style: const TextStyle(fontSize: 16),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(
+            icon,
+            color: CustomTheme.lightScheme().primary,
+          ),
+          suffixIcon: suffixIcon,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.transparent,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 18,
+          ),
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: CustomTheme.lightScheme().primary,
+              width: 2,
             ),
-
-            // Champ de texte
-            TextFormField(
-              controller: controller,
-              keyboardType: keyboardType,
-              textInputAction: textInputAction,
-              obscureText: isPasswordField && !cc.isPasswordVisible.value,
-              onFieldSubmitted: onFieldSubmitted,
-              style: const TextStyle(fontSize: 16),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-                prefixIcon: Icon(
-                  icon,
-                  color: CustomTheme.lightScheme().primary,
-                ),
-                suffixIcon: isPasswordField
-                    ? Obx(() => IconButton(
-                          icon: Icon(
-                            cc.isPasswordVisible.value
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey[600],
-                          ),
-                          onPressed: cc.togglePasswordVisibility,
-                        ))
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.transparent,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
-                floatingLabelBehavior: FloatingLabelBehavior.auto,
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: CustomTheme.lightScheme().primary,
-                    width: 2,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAnimatedButton({
+  Widget _buildButton({
     required String text,
     required VoidCallback onPressed,
     required bool isPrimary,
@@ -529,23 +344,15 @@ class LoginScreen extends StatelessWidget {
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        gradient: isPrimary
-            ? LinearGradient(
-                colors: [
-                  CustomTheme.lightScheme().primary,
-                  CustomTheme.lightScheme().primary.withOpacity(0.8),
-                ],
-              )
-            : null,
-        color: isPrimary ? null : Colors.grey[900],
+        color: isPrimary ? CustomTheme.lightScheme().primary : Colors.grey[900],
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color:
                 (isPrimary ? CustomTheme.lightScheme().primary : Colors.black)
-                    .withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+                    .withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -582,70 +389,4 @@ class LoginScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildAnimatedDivider() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Colors.grey.withOpacity(0.3),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'OU',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.grey.withOpacity(0.3),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Clipper pour forme hexagonale
-class HexagonClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    final w = size.width;
-    final h = size.height;
-
-    path.moveTo(w * 0.25, 0);
-    path.lineTo(w * 0.75, 0);
-    path.lineTo(w, h * 0.5);
-    path.lineTo(w * 0.75, h);
-    path.lineTo(w * 0.25, h);
-    path.lineTo(0, h * 0.5);
-    path.close();
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
