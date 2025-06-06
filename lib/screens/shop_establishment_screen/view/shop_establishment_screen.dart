@@ -6,11 +6,9 @@ import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
-import '../../../features/custom_app_bar_title/view/custom_app_bar_title.dart';
-import '../../../features/custom_profile_leading/view/custom_profile_leading.dart';
 import '../controllers/shop_establishment_screen_controller.dart';
-import '../widgets/shop_establishment_card.dart'; // Utiliser l'existant
-import '../widgets/enterprise_establishment_card.dart'; // Adapter au nouveau style
+import '../widgets/shop_establishment_card.dart';
+import '../widgets/enterprise_establishment_card.dart';
 import '../widgets/empty_state_widget.dart';
 
 class ShopEstablishmentScreen extends StatelessWidget {
@@ -21,7 +19,13 @@ class ShopEstablishmentScreen extends StatelessWidget {
     final cc = Get.put(ShopEstablishmentScreenController());
 
     return ScreenLayout(
-      appBar: _buildModernAppBar(cc), // Nouveau app bar moderne
+      appBar: CustomAppBar(
+        showUserInfo: true,
+        showPoints: true,
+        showDrawerButton: true,
+        modernStyle: true,
+        showGreeting: true,
+      ),
       noFAB: true,
       body: Column(
         children: [
@@ -29,171 +33,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
           _buildModernTabs(cc),
           Expanded(
             child: _buildContent(cc),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Nouveau AppBar moderne avec drawer
-  PreferredSizeWidget _buildModernAppBar(ShopEstablishmentScreenController cc) {
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(80),
-      child: Container(
-        decoration: BoxDecoration(
-          color: CustomTheme.lightScheme().primary.withOpacity(0.05),
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(24),
-            bottomRight: Radius.circular(24),
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: UniquesControllers().data.baseSpace * 2,
-              vertical: UniquesControllers().data.baseSpace,
-            ),
-            child: Row(
-              children: [
-                StreamBuilder<String>(
-                  stream: _getUserImageStream(),
-                  builder: (context, snapshot) {
-                    return CircleAvatar(
-                      radius: 24,
-                      backgroundImage: snapshot.hasData
-                          ? NetworkImage(snapshot.data!)
-                          : null,
-                      child: !snapshot.hasData
-                          ? Icon(Icons.person, color: Colors.white)
-                          : null,
-                    );
-                  },
-                ),
-                const SizedBox(width: 12),
-
-                // Nom et titre
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Bonjour,',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      StreamBuilder<String>(
-                        stream: _getUserNameStream(),
-                        builder: (context, snapshot) {
-                          return Text(
-                            snapshot.data ?? 'Utilisateur',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Widget points animé
-                Obx(() => _buildPointsWidget(cc.buyerPoints.value)),
-
-                // Menu drawer
-                const SizedBox(width: 12),
-                Builder(
-                  builder: (context) => IconButton(
-                    icon: Container(
-                      padding:
-                          EdgeInsets.all(UniquesControllers().data.baseSpace),
-                      decoration: BoxDecoration(
-                        color: CustomTheme.lightScheme().primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.menu,
-                        color: Colors.white,
-                      ),
-                    ),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Ajouter ces méthodes helper
-  Stream<String> _getUserImageStream() {
-    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
-
-    return UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((snap) => snap.data()?['image_url'] ?? '');
-  }
-
-  Widget _buildPointsWidget(int points) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: UniquesControllers().data.baseSpace * 2,
-        vertical: UniquesControllers().data.baseSpace,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            CustomTheme.lightScheme().primary,
-            CustomTheme.lightScheme().primary.withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.stars_rounded,
-            color: Colors.white,
-            size: 20,
-          ),
-          const SizedBox(width: 6),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Text(
-              '$points',
-              key: ValueKey(points),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'pts',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 12,
-            ),
           ),
         ],
       ),
@@ -374,96 +213,74 @@ class ShopEstablishmentScreen extends StatelessWidget {
     );
   }
 
-  // BottomSheet compact pour les filtres
   void _showFilterBottomSheet(ShopEstablishmentScreenController cc) {
-    Get.bottomSheet(
-      Container(
-        constraints: BoxConstraints(
-          maxHeight: Get.height * 0.6, // Maximum 60% de la hauteur
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Important pour taille minimale
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+    // Réinitialiser les sélections temporaires
+    cc.localSelectedCatIds.value = Set.from(cc.selectedCatIds);
+    cc.localSelectedEnterpriseCatIds.value =
+        Set.from(cc.selectedEnterpriseCatIds);
 
-            // Titre
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
-                children: [
-                  const Text(
-                    'Filtrer par catégorie',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      cc.selectedCatIds.clear();
-                      cc.selectedEnterpriseCatIds.clear();
-                    },
-                    child: const Text('Réinitialiser'),
-                  ),
-                ],
-              ),
-            ),
+    cc.openBottomSheet(
+      'Filtrer par catégorie',
+      subtitle: 'Sélectionnez une ou plusieurs catégories',
+      hasAction: true,
+      actionName: 'Appliquer les filtres',
+      actionIcon: Icons.filter_list,
+      primaryColor: CustomTheme.lightScheme().primary,
+      headerWidget: _buildFilterHeader(cc),
+      maxWidth: 600,
+    );
+  }
 
-            // Catégories en chips
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Obx(() => Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _buildCategoryChips(cc),
-                    )),
-              ),
-            ),
-
-            // Bouton appliquer
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: ElevatedButton(
-                  onPressed: () {
-                    cc.filterEstablishments();
-                    Get.back();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  child: const Text(
-                    'Appliquer les filtres',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+  Widget _buildFilterHeader(ShopEstablishmentScreenController cc) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            CustomTheme.lightScheme().primary.withOpacity(0.1),
+            CustomTheme.lightScheme().primary.withOpacity(0.05),
           ],
         ),
+        borderRadius: BorderRadius.circular(12),
       ),
-      isScrollControlled: true,
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 20,
+            color: CustomTheme.lightScheme().primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Obx(() {
+              final filterCount = cc.selectedTabIndex.value == 2
+                  ? cc.selectedEnterpriseCatIds.length
+                  : cc.selectedCatIds.length;
+
+              return Text(
+                filterCount > 0
+                    ? '$filterCount catégorie${filterCount > 1 ? 's' : ''} sélectionnée${filterCount > 1 ? 's' : ''}'
+                    : 'Aucune catégorie sélectionnée',
+                style: TextStyle(
+                  color: CustomTheme.lightScheme().primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              );
+            }),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              cc.localSelectedCatIds.clear();
+              cc.localSelectedEnterpriseCatIds.clear();
+            },
+            icon: const Icon(Icons.clear_all, size: 18),
+            label: const Text('Réinitialiser'),
+            style: TextButton.styleFrom(
+              foregroundColor: CustomTheme.lightScheme().primary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -489,16 +306,12 @@ class ShopEstablishmentScreen extends StatelessWidget {
   Widget _buildGrid(List establishments, ShopEstablishmentScreenController cc) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Largeur maximale d'une carte
         const double maxCardWidth = 500.0;
-        // Largeur minimale d'une carte (seuil pour passer à 2 colonnes)
         const double minCardWidth = 400.0;
 
-        // Calculer le nombre de colonnes optimal
         int crossAxisCount = 1;
         if (constraints.maxWidth > minCardWidth * 1.5) {
           crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
-          // S'assurer que les cartes ne dépassent pas la largeur max
           final cardWidth = constraints.maxWidth / crossAxisCount;
           if (cardWidth > maxCardWidth) {
             crossAxisCount = (constraints.maxWidth / maxCardWidth).ceil();
@@ -518,16 +331,13 @@ class ShopEstablishmentScreen extends StatelessWidget {
             final establishment = establishments[index];
             final tabIndex = cc.selectedTabIndex.value;
 
-            // Utiliser les widgets existants
             if (tabIndex == 2) {
-              // Entreprises
               return EnterpriseEstablishmentCard(
                 establishment: establishment,
                 index: index,
                 enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
               );
             } else {
-              // Boutiques et Associations
               return ShopEstablishmentCard(
                 establishment: establishment,
                 onBuy: () => cc.buyEstablishment(establishment),
@@ -544,23 +354,67 @@ class ShopEstablishmentScreen extends StatelessWidget {
     final isEnterprise = cc.selectedTabIndex.value == 2;
     final categories =
         isEnterprise ? cc.enterpriseCategoriesMap : cc.categoriesMap;
-    final selectedIds =
-        isEnterprise ? cc.selectedEnterpriseCatIds : cc.selectedCatIds;
+    final selectedIds = isEnterprise
+        ? cc.localSelectedEnterpriseCatIds
+        : cc.localSelectedCatIds;
+
+    if (categories.isEmpty) {
+      return [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            children: [
+              Icon(
+                Icons.category_outlined,
+                size: 48,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Aucune catégorie disponible',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
 
     return categories.entries.map((entry) {
       final isSelected = selectedIds.contains(entry.key);
-      return FilterChip(
-        label: Text(entry.value),
-        selected: isSelected,
-        onSelected: (selected) {
-          if (selected) {
-            selectedIds.add(entry.key);
-          } else {
-            selectedIds.remove(entry.key);
-          }
-        },
-        selectedColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
-        checkmarkColor: CustomTheme.lightScheme().primary,
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        child: FilterChip(
+          label: Text(entry.value),
+          selected: isSelected,
+          onSelected: (selected) {
+            if (selected) {
+              selectedIds.add(entry.key);
+            } else {
+              selectedIds.remove(entry.key);
+            }
+          },
+          avatar: isSelected
+              ? const Icon(Icons.check_circle, size: 18)
+              : Icon(
+                  Icons.circle_outlined,
+                  size: 18,
+                  color: Colors.grey[400],
+                ),
+          selectedColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
+          checkmarkColor: CustomTheme.lightScheme().primary,
+          backgroundColor: Colors.grey[100],
+          side: BorderSide(
+            color: isSelected
+                ? CustomTheme.lightScheme().primary
+                : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
       );
     }).toList();
   }
@@ -590,18 +444,5 @@ class ShopEstablishmentScreen extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Stream<String> _getUserNameStream() {
-    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
-
-    return UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((snap) => snap.data()?['name'] ?? 'Utilisateur');
   }
 }

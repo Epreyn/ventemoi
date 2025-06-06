@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 // Imports internes
@@ -10,6 +11,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/establishement.dart';
 import '../../../core/models/establishment_category.dart';
+import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 
 class ShopEstablishmentScreenController extends GetxController
@@ -358,8 +360,13 @@ class ShopEstablishmentScreenController extends GetxController
 
     final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
     final isAssoc = (tName == 'Association');
-    final title = isAssoc ? 'Donner à ${e.name}' : 'Acheter à ${e.name}';
-    openAlertDialog(title, confirmText: 'Valider');
+
+    openAlertDialog(
+      isAssoc ? 'Faire un don' : 'Acheter des bons',
+      confirmText: isAssoc ? 'Donner' : 'Acheter',
+      confirmColor: isAssoc ? Colors.green : CustomTheme.lightScheme().primary,
+      icon: isAssoc ? Icons.volunteer_activism : Icons.shopping_cart,
+    );
   }
 
   int get costInPoints => couponsToBuy.value * pointPerCoupon;
@@ -377,50 +384,359 @@ class ShopEstablishmentScreenController extends GetxController
     final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
     final isAssoc = (tName == 'Association');
 
-    if (isAssoc) {
-      return Column(
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 350),
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Combien de points donner ?'),
-          const CustomSpace(heightMultiplier: 1),
-          TextField(
-            controller: donationCtrl,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Points',
+          // Image de l'établissement
+          if (e.logoUrl.isNotEmpty || e.bannerUrl.isNotEmpty)
+            Container(
+              height: 120,
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                image: DecorationImage(
+                  image: NetworkImage(
+                      e.logoUrl.isNotEmpty ? e.logoUrl : e.bannerUrl),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.7),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(16),
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  e.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(1, 1),
+                        blurRadius: 3,
+                        color: Colors.black54,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // Solde actuel
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.account_balance_wallet,
+                  color: CustomTheme.lightScheme().primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Solde actuel : ',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                  ),
+                ),
+                Text(
+                  '${buyerPoints.value} points',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: CustomTheme.lightScheme().primary,
+                  ),
+                ),
+              ],
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          if (isAssoc) ...[
+            // Interface pour les dons
+            Column(
+              children: [
+                Text(
+                  'Montant du don',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Champ de saisie moderne
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(11),
+                            bottomLeft: Radius.circular(11),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.volunteer_activism,
+                          color: Colors.green,
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: donationCtrl,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '0',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                            ),
+                            suffixText: 'points',
+                            suffixStyle: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                            border: InputBorder.none,
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Suggestions de montants
+                Wrap(
+                  spacing: 8,
+                  children: [10, 25, 50, 100].map((amount) {
+                    return ActionChip(
+                      label: Text('$amount pts'),
+                      onPressed: () => donationCtrl.text = amount.toString(),
+                      backgroundColor: Colors.grey[100],
+                      labelStyle: TextStyle(
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ] else ...[
+            // Interface pour l'achat de bons
+            Column(
+              children: [
+                Text(
+                  'Nombre de bons',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Sélecteur de quantité moderne
+                Obx(() => Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Bouton moins
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: canDecrement
+                                      ? CustomTheme.lightScheme().primary
+                                      : Colors.grey[300],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  onPressed: canDecrement
+                                      ? () => couponsToBuy.value--
+                                      : null,
+                                  icon: const Icon(Icons.remove,
+                                      color: Colors.white),
+                                  iconSize: 20,
+                                ),
+                              ),
+
+                              // Quantité
+                              Container(
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 24),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '${couponsToBuy.value}',
+                                      style: const TextStyle(
+                                        fontSize: 48,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      couponsToBuy.value > 1 ? 'bons' : 'bon',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Bouton plus
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: canIncrement
+                                      ? CustomTheme.lightScheme().primary
+                                      : Colors.grey[300],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  onPressed: canIncrement
+                                      ? () => couponsToBuy.value++
+                                      : null,
+                                  icon: const Icon(Icons.add,
+                                      color: Colors.white),
+                                  iconSize: 20,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Prix total
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: CustomTheme.lightScheme()
+                                  .primary
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_cart,
+                                  size: 20,
+                                  color: CustomTheme.lightScheme().primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Total : ',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                Text(
+                                  '$costInPoints points',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: CustomTheme.lightScheme().primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Message d'erreur si pas assez de points
+                          if (costInPoints > buyerPoints.value) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 20,
+                                    color: Colors.red[700],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Points insuffisants',
+                                    style: TextStyle(
+                                      color: Colors.red[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )),
+
+                const SizedBox(height: 12),
+
+                // Information sur la limite
+                Text(
+                  'Maximum $maxCouponsAllowed bons par achat',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
-      );
-    } else {
-      // Boutique => nb bons
-      return Obx(() => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: canDecrement ? () => couponsToBuy.value-- : null,
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Text(
-                    '${couponsToBuy.value}',
-                    style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    onPressed: canIncrement ? () => couponsToBuy.value++ : null,
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
-              ),
-              const CustomSpace(heightMultiplier: 1),
-              Text('Coût : $costInPoints point(s)'),
-            ],
-          ));
-    }
+      ),
+    );
   }
 
   @override
@@ -671,6 +987,9 @@ class ShopEstablishmentScreenController extends GetxController
   // ----------------------------------------------------------------
   // BOTTOM SHEET : Filtres
   // ----------------------------------------------------------------
+  // Ajouter ces méthodes dans ShopEstablishmentScreenController
+
+  // Variables locales pour les filtres temporaires
   RxSet<String> localSelectedCatIds = <String>{}.obs;
   RxSet<String> localSelectedEnterpriseCatIds = <String>{}.obs;
 
@@ -687,81 +1006,357 @@ class ShopEstablishmentScreenController extends GetxController
   @override
   List<Widget> bottomSheetChildren() {
     return [
-      Obx(() => _buildCatFilterChips()), // Important de mettre un Obx
+      // Statistiques des catégories
+      Obx(() {
+        final tab = selectedTabIndex.value;
+        final categories = tab == 2 ? enterpriseCategoriesMap : categoriesMap;
+        final totalEstablishments = displayedEstablishments.length;
+
+        if (categories.isNotEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.blue.withOpacity(0.05),
+                  Colors.blue.withOpacity(0.02),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.blue.withOpacity(0.1),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.insights,
+                      color: Colors.blue[700],
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Statistiques',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$totalEstablishments établissement${totalEstablishments > 1 ? 's' : ''} trouvé${totalEstablishments > 1 ? 's' : ''}',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  '${categories.length} catégorie${categories.length > 1 ? 's' : ''} disponible${categories.length > 1 ? 's' : ''}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      }),
+
+      const SizedBox(height: 20),
+
+      // Section des catégories
+      Obx(() => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Titre de section
+              Row(
+                children: [
+                  Icon(
+                    Icons.category,
+                    size: 20,
+                    color: Colors.grey[700],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Catégories disponibles',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Chips de catégories avec design amélioré
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: _buildImprovedCategoryChips(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )),
+
+      const SizedBox(height: 20),
+
+      // Actions rapides
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.flash_on,
+                  color: CustomTheme.lightScheme().primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Actions rapides',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Sélectionner toutes les catégories
+                      final tab = selectedTabIndex.value;
+                      if (tab == 2) {
+                        localSelectedEnterpriseCatIds.value =
+                            Set.from(enterpriseCategoriesMap.keys);
+                      } else {
+                        localSelectedCatIds.value =
+                            Set.from(categoriesMap.keys);
+                      }
+                    },
+                    icon: const Icon(Icons.select_all, size: 18),
+                    label: const Text('Tout sélectionner'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: CustomTheme.lightScheme().primary,
+                      side: BorderSide(
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Inverser la sélection
+                      final tab = selectedTabIndex.value;
+                      if (tab == 2) {
+                        final allKeys = enterpriseCategoriesMap.keys.toSet();
+                        final currentSelection =
+                            localSelectedEnterpriseCatIds.toSet();
+                        localSelectedEnterpriseCatIds.value =
+                            allKeys.difference(currentSelection);
+                      } else {
+                        final allKeys = categoriesMap.keys.toSet();
+                        final currentSelection = localSelectedCatIds.toSet();
+                        localSelectedCatIds.value =
+                            allKeys.difference(currentSelection);
+                      }
+                    },
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Inverser'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     ];
   }
 
-  Widget _buildCatFilterChips() {
+  List<Widget> _buildImprovedCategoryChips() {
     final tab = selectedTabIndex.value;
+    final categories = tab == 2 ? enterpriseCategoriesMap : categoriesMap;
+    final selectedIds =
+        tab == 2 ? localSelectedEnterpriseCatIds : localSelectedCatIds;
 
-    if (tab == 2) {
-      // ----- ONGLET ENTREPRISES -----
-      if (enterpriseCategoriesMap.isEmpty) {
-        return const Text('Aucune catégorie d’entreprise disponible');
-      }
-      return Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: enterpriseCategoriesMap.entries.map((e) {
-          final catId = e.key;
-          final catName = e.value;
-          final isSelected = localSelectedEnterpriseCatIds.contains(catId);
-          return FilterChip(
-            label: Text(catName),
-            selected: isSelected,
-            onSelected: (bool val) {
-              if (val) {
-                localSelectedEnterpriseCatIds.add(catId);
-              } else {
-                localSelectedEnterpriseCatIds.remove(catId);
-              }
-            },
-          );
-        }).toList(),
-      );
-    } else {
-      // ----- ONGLET BOUTIQUE/ASSO (0 ou 1) -----
-      if (categoriesMap.isEmpty) {
-        return const Text('Aucune catégorie disponible');
-      }
-      return Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: categoriesMap.entries.map((e) {
-          final catId = e.key;
-          final catName = e.value;
-          final isSelected = localSelectedCatIds.contains(catId);
-          return FilterChip(
-            label: Text(catName),
-            selected: isSelected,
-            onSelected: (bool val) {
-              if (val) {
-                localSelectedCatIds.add(catId);
-              } else {
-                localSelectedCatIds.remove(catId);
-              }
-            },
-          );
-        }).toList(),
-      );
+    if (categories.isEmpty) {
+      return [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            children: [
+              Icon(
+                Icons.category_outlined,
+                size: 48,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Aucune catégorie disponible',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
     }
+
+    return categories.entries.map((entry) {
+      final isSelected = selectedIds.contains(entry.key);
+
+      return TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 200),
+        tween: Tween(
+          begin: isSelected ? 0.95 : 1.0,
+          end: 1.0,
+        ),
+        builder: (context, scale, child) {
+          return Transform.scale(
+            scale: scale,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  if (isSelected) {
+                    selectedIds.remove(entry.key);
+                  } else {
+                    selectedIds.add(entry.key);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              CustomTheme.lightScheme()
+                                  .primary
+                                  .withOpacity(0.2),
+                              CustomTheme.lightScheme()
+                                  .primary
+                                  .withOpacity(0.1),
+                            ],
+                          )
+                        : null,
+                    color: isSelected ? null : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected
+                          ? CustomTheme.lightScheme().primary
+                          : Colors.grey[300]!,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSelected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        size: 20,
+                        color: isSelected
+                            ? CustomTheme.lightScheme().primary
+                            : Colors.grey[400],
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        entry.value,
+                        style: TextStyle(
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected
+                              ? CustomTheme.lightScheme().primary
+                              : Colors.grey[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }).toList();
   }
 
   @override
   Future<void> actionBottomSheet() async {
     Get.back();
 
+    // Appliquer les filtres temporaires aux filtres réels
     final tab = selectedTabIndex.value;
     if (tab == 2) {
-      // onglet entreprises => on applique localSelectedEnterpriseCatIds
       selectedEnterpriseCatIds.value = Set.from(localSelectedEnterpriseCatIds);
     } else {
-      // onglet boutiques/assos => on applique localSelectedCatIds
       selectedCatIds.value = Set.from(localSelectedCatIds);
     }
 
-    // Refiltrage
+    // Refiltrer les établissements
     filterEstablishments();
+
+    // Feedback visuel
+    HapticFeedback.mediumImpact();
+
+    // Message de confirmation
+    final filterCount =
+        tab == 2 ? selectedEnterpriseCatIds.length : selectedCatIds.length;
+
+    if (filterCount > 0) {
+      Get.snackbar(
+        'Filtres appliqués',
+        '$filterCount catégorie${filterCount > 1 ? 's' : ''} sélectionnée${filterCount > 1 ? 's' : ''}',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+        backgroundColor: CustomTheme.lightScheme().primary,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+        icon: const Icon(
+          Icons.check_circle,
+          color: Colors.white,
+        ),
+      );
+    }
   }
 
   Future<String> _fetchUserEmail(String userId) async {

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
@@ -321,9 +322,41 @@ class ProfileScreenController extends GetxController with ControllerMixin {
     sliderValue.value = 1;
     openBottomSheet(
       'Acheter des bons',
+      subtitle: 'Sélectionnez le nombre de bons à acheter',
       hasAction: true,
       actionName: 'Acheter',
-      actionIcon: Icons.check,
+      actionIcon: Icons.shopping_cart,
+      primaryColor: CustomTheme.lightScheme().primary,
+      headerWidget: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              CustomTheme.lightScheme().primary.withOpacity(0.1),
+              CustomTheme.lightScheme().primary.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: CustomTheme.lightScheme().primary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '1 bon = 50€ de valeur',
+                style: TextStyle(
+                  color: CustomTheme.lightScheme().primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       doReset: true,
     );
   }
@@ -336,28 +369,302 @@ class ProfileScreenController extends GetxController with ControllerMixin {
   @override
   List<Widget> bottomSheetChildren() {
     return [
-      const Text('Sélectionnez le nombre de bons à acheter (1 à 12) :'),
-      const CustomSpace(heightMultiplier: 2),
-      Obx(() {
-        return Column(
-          children: [
-            Slider(
-              value: sliderValue.value.toDouble(),
-              min: 1,
-              max: 12,
-              divisions: 11,
-              label: '${sliderValue.value}',
-              onChanged: (val) {
-                sliderValue.value = val.round();
-              },
-            ),
-            Text(
-              'Nombre de bons : ${sliderValue.value}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      // Card principale avec le slider
+      Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white,
+              Colors.grey[50]!,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.grey[200]!,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
           ],
-        );
-      }),
+        ),
+        child: Column(
+          children: [
+            // Icône animée
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 600),
+              tween: Tween(begin: 0, end: 1),
+              curve: Curves.elasticOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          CustomTheme.lightScheme().primary,
+                          CustomTheme.lightScheme().primary.withOpacity(0.7),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: CustomTheme.lightScheme()
+                              .primary
+                              .withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.confirmation_number,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            // Valeur actuelle
+            Obx(() => Column(
+                  children: [
+                    Text(
+                      '${sliderValue.value}',
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                    ),
+                    Text(
+                      sliderValue.value > 1 ? 'bons' : 'bon',
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                )),
+
+            const SizedBox(height: 24),
+
+            // Slider personnalisé
+            Obx(() => SliderTheme(
+                  data: SliderTheme.of(Get.context!).copyWith(
+                    activeTrackColor: CustomTheme.lightScheme().primary,
+                    inactiveTrackColor:
+                        CustomTheme.lightScheme().primary.withOpacity(0.2),
+                    thumbColor: CustomTheme.lightScheme().primary,
+                    overlayColor:
+                        CustomTheme.lightScheme().primary.withOpacity(0.1),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 12,
+                      elevation: 5,
+                    ),
+                    trackHeight: 8,
+                    tickMarkShape: const RoundSliderTickMarkShape(),
+                    activeTickMarkColor: Colors.white,
+                    inactiveTickMarkColor:
+                        CustomTheme.lightScheme().primary.withOpacity(0.5),
+                  ),
+                  child: Slider(
+                    value: sliderValue.value.toDouble(),
+                    min: 1,
+                    max: 12,
+                    divisions: 11,
+                    onChanged: (val) {
+                      sliderValue.value = val.round();
+                      // Haptic feedback
+                      HapticFeedback.lightImpact();
+                    },
+                  ),
+                )),
+
+            const SizedBox(height: 16),
+
+            // Labels min/max
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '1 bon',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '12 bons',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+
+      const SizedBox(height: 20),
+
+      // Calcul du prix
+      Obx(() => Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Prix unitaire',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const Text(
+                      '50€',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Quantité',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Text(
+                      '× ${sliderValue.value}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${sliderValue.value * 50}€',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          )),
+
+      const SizedBox(height: 20),
+
+      // Suggestions rapides
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sélection rapide',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [1, 3, 6, 12].map((qty) {
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    sliderValue.value = qty;
+                    HapticFeedback.lightImpact();
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: sliderValue.value == qty
+                          ? CustomTheme.lightScheme().primary
+                          : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: sliderValue.value == qty
+                            ? CustomTheme.lightScheme().primary
+                            : Colors.grey[300]!,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '$qty',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: sliderValue.value == qty
+                                ? Colors.white
+                                : Colors.grey[800],
+                          ),
+                        ),
+                        Text(
+                          qty > 1 ? 'bons' : 'bon',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: sliderValue.value == qty
+                                ? Colors.white.withOpacity(0.8)
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     ];
   }
 

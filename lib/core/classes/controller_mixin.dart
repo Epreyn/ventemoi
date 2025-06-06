@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -46,7 +47,8 @@ mixin ControllerMixin on GetxController {
     return result;
   }
 
-  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> getAllAdmins() async {
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      getAllAdmins() async {
     final snap = await UniquesControllers()
         .data
         .firebaseFirestore
@@ -64,14 +66,24 @@ mixin ControllerMixin on GetxController {
   Rx<UserType?> currentUserType = Rx<UserType?>(null);
 
   Future<String> _fetchUserTypeName(String userId) async {
-    final snapUser = await UniquesControllers().data.firebaseFirestore.collection('users').doc(userId).get();
+    final snapUser = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(userId)
+        .get();
 
     if (!snapUser.exists) return '';
     final userData = snapUser.data()!;
     final userTypeId = userData['user_type_id'] ?? '';
     if (userTypeId.isEmpty) return '';
 
-    final snapType = await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(userTypeId).get();
+    final snapType = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .doc(userTypeId)
+        .get();
 
     if (!snapType.exists) return '';
     final typeData = snapType.data()!;
@@ -80,26 +92,48 @@ mixin ControllerMixin on GetxController {
   }
 
   Stream<List<UserType>> getUserTypesStream() {
-    return UniquesControllers().data.firebaseFirestore.collection('user_types').snapshots().map((query) {
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .snapshots()
+        .map((query) {
       var filteredDocs = query.docs.toList();
-      filteredDocs.sort((a, b) => a.data()['index'].compareTo(b.data()['index']));
+      filteredDocs
+          .sort((a, b) => a.data()['index'].compareTo(b.data()['index']));
       return filteredDocs.map((doc) => UserType.fromDocument(doc)).toList();
     });
   }
 
   Stream<List<UserType>> getUserTypesStreamExceptAdmin() {
-    return UniquesControllers().data.firebaseFirestore.collection('user_types').snapshots().map((query) {
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .snapshots()
+        .map((query) {
       var docs = query.docs.toList();
-      docs.sort((a, b) => (a.data()['index'] as int).compareTo((b.data()['index'] as int)));
+      docs.sort((a, b) =>
+          (a.data()['index'] as int).compareTo((b.data()['index'] as int)));
       docs = docs.where((doc) => (doc.data()['index'] as int) != 0).toList();
       return docs.map((doc) => UserType.fromDocument(doc)).toList();
     });
   }
 
   Future<String> getUserTypeNameByUserId(String userId) async {
-    final snap = await UniquesControllers().data.firebaseFirestore.collection('users').doc(userId).get();
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(userId)
+        .get();
     final userTypeId = snap.data()?['user_type_id'] ?? '';
-    final typeSnap = await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(userTypeId).get();
+    final typeSnap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .doc(userTypeId)
+        .get();
     return typeSnap.data()?['name'] ?? '';
   }
 
@@ -122,7 +156,8 @@ mixin ControllerMixin on GetxController {
         .data
         .firebaseFirestore
         .collection('wallets')
-        .where('user_id', isEqualTo: UniquesControllers().data.firebaseAuth.currentUser?.uid)
+        .where('user_id',
+            isEqualTo: UniquesControllers().data.firebaseAuth.currentUser?.uid)
         .limit(1)
         .snapshots()
         .map((query) {
@@ -138,20 +173,38 @@ mixin ControllerMixin on GetxController {
   Rx<EstablishmentCategory?> currentCategory = Rx<EstablishmentCategory?>(null);
 
   Stream<List<EstablishmentCategory>> getCategoriesStream() {
-    return UniquesControllers().data.firebaseFirestore.collection('categories').snapshots().map((query) {
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('categories')
+        .snapshots()
+        .map((query) {
       final docs = query.docs.toList();
-      docs.sort((a, b) => (a.data()['index'] as int).compareTo((b.data()['index'] as int)));
-      return docs.map((doc) => EstablishmentCategory.fromDocument(doc)).toList();
+      docs.sort((a, b) =>
+          (a.data()['index'] as int).compareTo((b.data()['index'] as int)));
+      return docs
+          .map((doc) => EstablishmentCategory.fromDocument(doc))
+          .toList();
     });
   }
 
   getCategoryById(String id) async {
-    final snap = await UniquesControllers().data.firebaseFirestore.collection('categories').doc(id).get();
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('categories')
+        .doc(id)
+        .get();
     return EstablishmentCategory.fromDocument(snap);
   }
 
   Future<String> getCategoryNameById(String id) async {
-    final snap = await UniquesControllers().data.firebaseFirestore.collection('categories').doc(id).get();
+    final snap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('categories')
+        .doc(id)
+        .get();
     return EstablishmentCategory.fromDocument(snap).name;
   }
 
@@ -191,13 +244,18 @@ mixin ControllerMixin on GetxController {
 
     if (snap.docs.isNotEmpty) {
       final docId = snap.docs.first.id;
-      await UniquesControllers().data.firebaseFirestore.collection('wallets').doc(docId).update({'points': newPoints});
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .doc(docId)
+          .update({'points': newPoints});
     }
   }
 
   //#endregion
 
-  //#region ALERT DIALOG
+  //#region ALERT DIALOG - MODERNISÉ
 
   int alertDialogAnimationDuration = 400;
 
@@ -209,7 +267,8 @@ mixin ControllerMixin on GetxController {
     return const SizedBox();
   }
 
-  void openAlertDialog(String title, {String? confirmText, Color? confirmColor}) {
+  void openAlertDialog(String title,
+      {String? confirmText, Color? confirmColor, IconData? icon}) {
     variablesToResetToAlertDialog();
 
     Get.dialog(
@@ -218,36 +277,155 @@ mixin ControllerMixin on GetxController {
         curve: Curves.easeInOutBack,
         isOpacity: true,
         yStartPosition: alertDialogAnimationDuration / 10,
-        child: AlertDialog(
-          title: Text(title),
-          content: alertDialogContent(),
-          actions: [
-            CustomTextButton(
-              tag: 'alert-dialog-back-button',
-              text: 'Annuler',
-              color: CustomTheme.lightScheme().onPrimary,
-              onPressed: () {
-                Get.back();
-              },
+        child: Center(
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              maxHeight: MediaQuery.of(Get.context!).size.height * 0.8,
             ),
-            CustomTextButton(
-              tag: 'alert-dialog-confirm-button',
-              text: confirmText ?? 'Confirmer',
-              color: confirmColor,
-              onPressed: () async {
-                Get.back();
-                await actionAlertDialog();
-              },
+            child: Stack(
+              children: [
+                // Fond avec glassmorphism
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Header avec icône
+                              if (icon != null) ...[
+                                Container(
+                                  width: 64,
+                                  height: 64,
+                                  decoration: BoxDecoration(
+                                    color: (confirmColor ??
+                                            CustomTheme.lightScheme().primary)
+                                        .withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    icon,
+                                    size: 32,
+                                    color: confirmColor ??
+                                        CustomTheme.lightScheme().primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+
+                              // Titre
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Contenu
+                              Flexible(
+                                child: SingleChildScrollView(
+                                  child: alertDialogContent(),
+                                ),
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // Actions
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextButton(
+                                      onPressed: () => Get.back(),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Annuler',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () async {
+                                        Get.back();
+                                        await actionAlertDialog();
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: confirmColor ??
+                                            CustomTheme.lightScheme().primary,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                      child: Text(
+                                        confirmText ?? 'Confirmer',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
+      barrierDismissible: true,
     );
   }
 
   //#endregion
 
-  //#region BOTTOM SHEET
+  //#region BOTTOM SHEET - MODERNISÉ
 
   void variablesToResetToBottomSheet() {}
 
@@ -268,115 +446,390 @@ mixin ControllerMixin on GetxController {
     IconData? actionIcon,
     double? maxWidth,
     bool doReset = true,
+    Color? primaryColor,
+    String? subtitle,
+    Widget? headerWidget,
   }) {
     if (doReset) variablesToResetToBottomSheet();
 
+    final color = primaryColor ?? CustomTheme.lightScheme().primary;
+
     Get.bottomSheet(
-      SingleChildScrollView(
-        child: Container(
-          transform: Matrix4.translationValues(
-            0,
-            -UniquesControllers().data.baseSpace * 2,
-            0,
-          ),
-          constraints: BoxConstraints(
-            maxWidth: maxWidth ?? double.infinity,
-          ),
-          decoration: BoxDecoration(
-            //color: CustomColors.seasalt,
-            color: CustomTheme.lightScheme().surface,
-            borderRadius: BorderRadius.all(
-              Radius.circular(UniquesControllers().data.baseSpace * 2),
-              //topRight: Radius.circular(UniquesControllers().data.baseSpace * 2),
-            ),
-          ),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const CustomSpace(heightMultiplier: 2.4),
-                  Center(
-                    child: Text(
-                      title.toUpperCase(),
-                      style: UniquesControllers().data.titleTextStyle,
-                    ),
-                  ),
-                  const CustomSpace(heightMultiplier: 2.4),
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: UniquesControllers().data.baseSpace * 4,
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: bottomSheetChildren().length,
-                      itemBuilder: (context, index) {
-                        return bottomSheetChildren()[index];
-                      },
-                      separatorBuilder: (context, index) {
-                        return const CustomSpace(heightMultiplier: 2);
-                      },
-                    ),
-                  ),
-                  const CustomSpace(heightMultiplier: 2),
-                  Visibility(
-                    visible: hasAction ?? true,
-                    child: CustomFABButton(
-                      tag: 'action-bottom-sheet-button',
-                      text: actionName == null ? '' : actionName.toUpperCase(),
-                      iconData: actionIcon,
-                      onPressed: () async {
-                        await actionBottomSheet();
-                      },
-                    ),
-                  ),
-                  Visibility(
-                    visible: hasAction ?? true,
-                    child: const CustomSpace(heightMultiplier: 4),
+      Stack(
+        children: [
+          // Fond avec effet de gradient
+          // Container(
+          //   height: MediaQuery.of(Get.context!).size.height,
+          //   decoration: BoxDecoration(
+          //     gradient: LinearGradient(
+          //       begin: Alignment.topCenter,
+          //       end: Alignment.bottomCenter,
+          //       colors: [
+          //         Colors.black.withOpacity(0.5),
+          //         Colors.black.withOpacity(0.7),
+          //       ],
+          //     ),
+          //   ),
+          // ),
+
+          // Contenu principal
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: maxWidth ?? double.infinity,
+                maxHeight: MediaQuery.of(Get.context!).size.height * 0.9,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
                   ),
                 ],
               ),
-              Align(
-                alignment: Alignment.topLeft,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: UniquesControllers().data.baseSpace,
-                    left: UniquesControllers().data.baseSpace,
-                  ),
-                  child: CustomIconButton(
-                    tag: 'bottom-sheet-back-button',
-                    iconData: Icons.arrow_back_rounded,
-                    //iconColor: CustomColors.caribbeanCurrent,
-                    //backgroundColor: CustomColors.seasalt,
-                    onPressed: () {
-                      UniquesControllers().data.back();
-                    },
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.topRight,
-                child: Visibility(
-                  visible: hasDeleteButton ?? false,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: UniquesControllers().data.baseSpace,
-                      right: UniquesControllers().data.baseSpace,
-                    ),
-                    child: CustomIconButton(
-                      tag: 'bottom-sheet-delete-button',
-                      iconData: Icons.delete_rounded,
-                      //iconColor: CustomColors.caribbeanCurrent,
-                      onPressed: deleteBottomSheet,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle animé
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    child: TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 300),
+                      tween: Tween(begin: 30, end: 50),
+                      builder: (context, value, child) {
+                        return Container(
+                          width: value,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(2.5),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 20),
+
+                  // Header amélioré
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey[100]!,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            // Bouton retour avec animation
+                            TweenAnimationBuilder<double>(
+                              duration: const Duration(milliseconds: 200),
+                              tween: Tween(begin: 0, end: 1),
+                              builder: (context, value, child) {
+                                return Transform.scale(
+                                  scale: value,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.grey[100]!,
+                                          Colors.grey[50]!,
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => Get.back(),
+                                        customBorder: const CircleBorder(),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Icon(
+                                            Icons.close,
+                                            size: 20,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(width: 16),
+
+                            // Titre et sous-titre
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  if (subtitle != null) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      subtitle,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            // Bouton suppression avec animation
+                            if (hasDeleteButton ?? false)
+                              TweenAnimationBuilder<double>(
+                                duration: const Duration(milliseconds: 200),
+                                tween: Tween(begin: 0, end: 1),
+                                builder: (context, value, child) {
+                                  return Transform.scale(
+                                    scale: value,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.red.withOpacity(0.1),
+                                            Colors.red.withOpacity(0.05),
+                                          ],
+                                        ),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.red.withOpacity(0.1),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: deleteBottomSheet,
+                                          customBorder: const CircleBorder(),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: Icon(
+                                              Icons.delete_rounded,
+                                              size: 20,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
+
+                        // Widget header personnalisé optionnel
+                        if (headerWidget != null) ...[
+                          const SizedBox(height: 16),
+                          headerWidget,
+                        ],
+
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Contenu scrollable avec fade effect
+                  Flexible(
+                    child: Stack(
+                      children: [
+                        SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Animation d'entrée pour chaque enfant
+                              ...bottomSheetChildren()
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                final index = entry.key;
+                                final child = entry.value;
+
+                                return TweenAnimationBuilder<double>(
+                                  duration: Duration(
+                                      milliseconds: 300 + (index * 50)),
+                                  tween: Tween(begin: 0, end: 1),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, value, _) {
+                                    return Transform.translate(
+                                      offset: Offset(0, 20 * (1 - value)),
+                                      child: Opacity(
+                                        opacity: value,
+                                        child: Padding(
+                                          padding: EdgeInsets.only(
+                                            bottom: index <
+                                                    bottomSheetChildren()
+                                                            .length -
+                                                        1
+                                                ? 16
+                                                : 0,
+                                          ),
+                                          child: child,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+
+                        // Gradient fade en haut
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 16,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white,
+                                  Colors.white.withOpacity(0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Action button amélioré
+                  if (hasAction ?? true)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, -5),
+                          ),
+                        ],
+                      ),
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: TweenAnimationBuilder<double>(
+                            duration: const Duration(milliseconds: 400),
+                            tween: Tween(begin: 0.8, end: 1),
+                            curve: Curves.easeOutBack,
+                            builder: (context, value, child) {
+                              return Transform.scale(
+                                scale: value,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        color,
+                                        color.withOpacity(0.8),
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: color.withOpacity(0.3),
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: actionBottomSheet,
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 18,
+                                          horizontal: 24,
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            if (actionIcon != null) ...[
+                                              Icon(
+                                                actionIcon,
+                                                size: 22,
+                                                color: Colors.white,
+                                              ),
+                                              const SizedBox(width: 12),
+                                            ],
+                                            Text(
+                                              actionName?.toUpperCase() ??
+                                                  'VALIDER',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                letterSpacing: 1.2,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: true,
+      isDismissible: true,
     );
   }
 
@@ -399,7 +852,11 @@ mixin ControllerMixin on GetxController {
       },
     };
 
-    await UniquesControllers().data.firebaseFirestore.collection('mail').add(mailDoc);
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('mail')
+        .add(mailDoc);
   }
 
   String _buildMailHtml(String content) {
@@ -438,7 +895,7 @@ mixin ControllerMixin on GetxController {
   </head>
   <body>
     <div class="header">
-      <img src="https://firebasestorage.googleapis.com/v0/b/vente-moi.appspot.com/o/logo.png?alt=media" 
+      <img src="https://firebasestorage.googleapis.com/v0/b/vente-moi.appspot.com/o/logo.png?alt=media"
            alt="Logo Vente Moi" />
     </div>
     <div class="content">
@@ -446,7 +903,7 @@ mixin ControllerMixin on GetxController {
     </div>
     <div class="footer">
       Cet e-mail vous a été envoyé automatiquement par Vente Moi.<br>
-      Pour toute question, contactez 
+      Pour toute question, contactez
       <a href="mailto:support@ventemoi.com">support@ventemoi.com</a>.
     </div>
   </body>
@@ -467,7 +924,7 @@ mixin ControllerMixin on GetxController {
       </p>
       <p>
         À très bientôt,<br>
-        L’équipe de Vente Moi
+        L'équipe de Vente Moi
       </p>
     ''';
 
@@ -493,7 +950,7 @@ mixin ControllerMixin on GetxController {
       Votre compte a été créé par <strong>$whoDidCreate</strong> sur la plateforme Vente Moi.
     </p>
     <p>
-      Vous allez recevoir un autre e-mail pour définir votre mot de passe. 
+      Vous allez recevoir un autre e-mail pour définir votre mot de passe.
       Une fois votre mot de passe créé, vous pourrez vous connecter et profiter de nos services.
     </p>
     <p>
@@ -534,11 +991,11 @@ mixin ControllerMixin on GetxController {
       <h1>Confirmation de Don</h1>
       <p>Bonjour $buyerName,</p>
       <p>
-        Vous venez de faire un don de <strong>$couponsCountOrPoints point(s)</strong> 
-        à l’association <strong>$sellerName</strong>.<br>
+        Vous venez de faire un don de <strong>$couponsCountOrPoints point(s)</strong>
+        à l'association <strong>$sellerName</strong>.<br>
         Merci pour votre générosité !
       </p>
-      <p>À bientôt,<br>L’équipe Vente Moi</p>
+      <p>À bientôt,<br>L'équipe Vente Moi</p>
     ''';
     } else {
       // Achat de bons
@@ -546,17 +1003,17 @@ mixin ControllerMixin on GetxController {
           ? '<p>Votre code de réclamation est : <strong>$reclamationPassword</strong></p>'
           : '<p>(Aucun code généré)</p>';
 
-      subject = 'Confirmation d’Achat de Bons - Vente Moi';
+      subject = 'Confirmation d\'Achat de Bons - Vente Moi';
       content = '''
-      <h1>Confirmation d’Achat</h1>
+      <h1>Confirmation d'Achat</h1>
       <p>Bonjour $buyerName,</p>
       <p>
-        Vous avez acheté <strong>$couponsCountOrPoints bon(s)</strong> 
+        Vous avez acheté <strong>$couponsCountOrPoints bon(s)</strong>
         auprès de <strong>$sellerName</strong>.<br>
       </p>
       $codeSection
       <p>Conservez bien ce code pour récupérer vos bons.</p>
-      <p>À bientôt,<br>L’équipe Vente Moi</p>
+      <p>À bientôt,<br>L'équipe Vente Moi</p>
     ''';
     }
 
@@ -588,22 +1045,22 @@ mixin ControllerMixin on GetxController {
       <h1>Notification de Don</h1>
       <p>Bonjour $sellerName,</p>
       <p>
-        Vous venez de recevoir un don de <strong>$couponsCountOrPoints point(s)</strong> 
+        Vous venez de recevoir un don de <strong>$couponsCountOrPoints point(s)</strong>
         de la part de <strong>$buyerName</strong>.<br>
       </p>
-      <p>Félicitations et merci de votre engagement,<br>L’équipe Vente Moi</p>
+      <p>Félicitations et merci de votre engagement,<br>L'équipe Vente Moi</p>
     ''';
     } else {
       // Achat de bons
-      subject = 'Notification d’Achat - Vente Moi';
+      subject = 'Notification d\'Achat - Vente Moi';
       content = '''
-      <h1>Notification d’Achat de Bons</h1>
+      <h1>Notification d'Achat de Bons</h1>
       <p>Bonjour $sellerName,</p>
       <p>
-        <strong>$buyerName</strong> vient d’acheter <strong>$couponsCountOrPoints bon(s)</strong>
+        <strong>$buyerName</strong> vient d'acheter <strong>$couponsCountOrPoints bon(s)</strong>
         auprès de votre boutique.<br>
       </p>
-      <p>Merci de préparer ces bons,<br>L’équipe Vente Moi</p>
+      <p>Merci de préparer ces bons,<br>L'équipe Vente Moi</p>
     ''';
     }
 
@@ -627,11 +1084,11 @@ mixin ControllerMixin on GetxController {
     <h1>Stock de bons en baisse</h1>
     <p>Bonjour $sellerName,</p>
     <p>
-      Il ne vous reste plus que <strong>$couponsRemaining bon(s)</strong> 
+      Il ne vous reste plus que <strong>$couponsRemaining bon(s)</strong>
       disponible(s) sur votre compte Vente Moi.<br>
       Pensez à en reprendre si nécessaire, via votre profil boutique.
     </p>
-    <p>À très bientôt,<br>L’équipe Vente Moi</p>
+    <p>À très bientôt,<br>L'équipe Vente Moi</p>
   ''';
 
     final fullHtml = _buildMailHtml(content);
@@ -660,10 +1117,10 @@ mixin ControllerMixin on GetxController {
     <h1>Nouvelle attribution de points</h1>
     <p>
       Bonjour Admin,<br><br>
-      L’entreprise <strong>$proEmail</strong> vient d’attribuer <strong>$points points</strong>
+      L'entreprise <strong>$proEmail</strong> vient d'attribuer <strong>$points points</strong>
       à un utilisateur (montant: <strong>$montant €</strong>).<br><br>
-      Commission appliquée : <strong>$commissionPercent&nbsp;%</strong><br>
-      Montant de la commission : <strong>$commissionCost €</strong> (approx.)<br><br>
+      Commission appliquée : <strong>$commissionPercent&nbsp;%</strong><br>
+      Montant de la commission : <strong>$commissionCost €</strong> (approx.)<br><br>
       Merci de vérifier si nécessaire dans le back-office.<br>
       <em>Message automatique de Vente Moi.</em>
     </p>
@@ -696,18 +1153,19 @@ mixin ControllerMixin on GetxController {
       if (adminDocs.isEmpty) return;
 
       // 2) Prepare subject & HTML
-      final subject = 'Demande d’Achat de Bons – Vente Moi';
+      final subject = 'Demande d\'Achat de Bons – Vente Moi';
       final content = '''
-        <h1>Nouvelle demande d’achat de bons</h1>
+        <h1>Nouvelle demande d'achat de bons</h1>
         <p>
-          L’entreprise <strong>$enterpriseName</strong> ($enterpriseEmail) 
+          L'entreprise <strong>$enterpriseName</strong> ($enterpriseEmail)
           vient de demander <strong>$couponsCount</strong> bon(s).<br/><br/>
-          Merci de vérifier cette demande dans l’interface d’administration.
+          Merci de vérifier cette demande dans l'interface d'administration.
         </p>
         <p>– Message automatique de Vente Moi</p>
       ''';
 
-      final fullHtml = _buildMailHtml(content); // uses your existing HTML wrapper
+      final fullHtml =
+          _buildMailHtml(content); // uses your existing HTML wrapper
 
       // 3) Send mail to each admin
       for (final doc in adminDocs) {
@@ -736,11 +1194,11 @@ mixin ControllerMixin on GetxController {
       final content = '''
         <h1>Félicitations $sponsorName !</h1>
         <p>
-          Vous venez de gagner <strong>50 points</strong> 
+          Vous venez de gagner <strong>50 points</strong>
           grâce au parrainage de <strong>$userEmail</strong>.<br>
-          Merci d’utiliser Vente Moi !
+          Merci d'utiliser Vente Moi !
         </p>
-        <p>À très bientôt,<br>L’équipe Vente Moi</p>
+        <p>À très bientôt,<br>L'équipe Vente Moi</p>
       ''';
       final html = _buildMailHtml(content);
 
@@ -764,11 +1222,11 @@ mixin ControllerMixin on GetxController {
     final content = '''
     <h1>Félicitations $sponsorName !</h1>
     <p>
-      Vous venez de gagner <strong>$pointsWon points</strong> 
+      Vous venez de gagner <strong>$pointsWon points</strong>
       grâce au parrainage de <strong>$filleulEmail</strong>.<br>
-      Merci d’utiliser Vente Moi !
+      Merci d'utiliser Vente Moi !
     </p>
-    <p>À très bientôt,<br>L’équipe Vente Moi</p>
+    <p>À très bientôt,<br>L'équipe Vente Moi</p>
   ''';
 
     final html = _buildMailHtml(content);
