@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_animation/view/custom_animation.dart';
+import '../../../screens/notifications_screen/view/notifications_screen.dart';
+import '../../../screens/notifications_screen/widget/notifications_badge.dart';
 import '../controllers/custom_app_bar_actions_controller.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -14,6 +16,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showUserInfo;
   final bool showPoints;
+  final bool showNotifications;
   final bool showDrawerButton;
   final GlobalKey<ScaffoldState>? scaffoldKey;
   final Color? backgroundColor;
@@ -29,6 +32,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.showUserInfo = true,
     this.showPoints = true,
+    this.showNotifications = true,
     this.showDrawerButton = true,
     this.scaffoldKey,
     this.backgroundColor,
@@ -187,6 +191,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             );
           }).toList()
         else ...[
+          // if (showNotifications)
+          //   CustomAnimation(
+          //     duration: UniquesControllers().data.baseAnimationDuration,
+          //     delay: UniquesControllers().data.baseAnimationDuration,
+          //     curve: Curves.easeOutQuart,
+          //     xStartPosition: 20,
+          //     isOpacity: true,
+          //     child: NotificationIconButton(
+          //       onPressed: () => Get.to(() => const NotificationsScreen()),
+          //     ),
+          //   ),
+
+          // if (showNotifications) const SizedBox(width: 12),
           // Widget points moderne
           if (showPoints)
             Obx(() => CustomAnimation(

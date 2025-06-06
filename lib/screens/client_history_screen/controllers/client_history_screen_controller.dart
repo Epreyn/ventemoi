@@ -7,11 +7,9 @@ import 'package:intl/intl.dart';
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/purchase.dart';
-import '../../../features/custom_card_animation/view/custom_card_animation.dart';
-import '../../../features/custom_space/view/custom_space.dart';
-import '../widgets/client_history_seller_name.dart';
 
-class ClientHistoryScreenController extends GetxController with ControllerMixin {
+class ClientHistoryScreenController extends GetxController
+    with ControllerMixin {
   String pageTitle = 'Historique Client'.toUpperCase();
   String customBottomAppBarTag = 'client-history-bottom-app-bar';
 
@@ -20,9 +18,10 @@ class ClientHistoryScreenController extends GetxController with ControllerMixin 
   // On suit la liste d'achats
   RxList<Purchase> purchases = <Purchase>[].obs;
 
-  // Tri DataTable
-  final RxInt sortColumnIndex = 0.obs;
-  final RxBool sortAscending = true.obs;
+  // Filtres et tri
+  RxString selectedFilter = 'all'.obs;
+  RxString sortBy = 'date'.obs;
+  RxBool sortAscending = false.obs; // Par défaut, date décroissante
 
   StreamSubscription<int>? _walletSub;
   StreamSubscription<List<Purchase>>? _purchasesSub;
@@ -37,7 +36,6 @@ class ClientHistoryScreenController extends GetxController with ControllerMixin 
     // Souscrire à la collection 'purchases' buyer_id == currentUser
     _purchasesSub = getUserPurchasesStream().listen((list) {
       purchases.value = list;
-      _sortPurchases();
     });
   }
 
@@ -81,129 +79,62 @@ class ClientHistoryScreenController extends GetxController with ControllerMixin 
     });
   }
 
-  // Tri
-  void onSortData(int colIndex, bool ascending) {
-    sortColumnIndex.value = colIndex;
-    sortAscending.value = ascending;
-    _sortPurchases();
-  }
+  // Getter pour la liste filtrée et triée
+  List<Purchase> get filteredPurchases {
+    // D'abord, on filtre
+    List<Purchase> filtered = purchases.toList();
 
-  void _sortPurchases() {
-    final sorted = purchases.toList();
-    switch (sortColumnIndex.value) {
-      case 0: // Tri sur couponsCount
-        sorted.sort((a, b) => a.couponsCount.compareTo(b.couponsCount));
+    switch (selectedFilter.value) {
+      case 'pending':
+        filtered = filtered.where((p) => !p.isReclaimed).toList();
         break;
-      case 1: // Tri sur sellerId
-        sorted.sort((a, b) => a.sellerId.compareTo(b.sellerId));
+      case 'claimed':
+        filtered = filtered.where((p) => p.isReclaimed).toList();
         break;
-      case 2: // Tri sur date
-        sorted.sort((a, b) => a.date.compareTo(b.date));
+      case 'donations':
+        filtered = filtered.where((p) => p.couponsCount == 0).toList();
         break;
-      case 3: // Tri sur reclamationPassword
-        sorted.sort((a, b) => a.reclamationPassword.compareTo(b.reclamationPassword));
-        break;
-      case 4: // Tri sur isReclaimed
-        // false avant true
-        sorted.sort((a, b) => a.isReclaimed == b.isReclaimed ? 0 : (a.isReclaimed ? 1 : -1));
+      case 'all':
+      default:
+        // Pas de filtre
         break;
     }
 
-    // Appliquer l'ordre asc/desc
+    // Ensuite, on trie
+    switch (sortBy.value) {
+      case 'date':
+        filtered.sort((a, b) => a.date.compareTo(b.date));
+        break;
+      case 'amount':
+        filtered.sort((a, b) => a.couponsCount.compareTo(b.couponsCount));
+        break;
+      case 'seller':
+        // Pour trier par vendeur, on devrait idéalement avoir le nom en cache
+        // Pour l'instant, on trie par sellerId
+        filtered.sort((a, b) => a.sellerId.compareTo(b.sellerId));
+        break;
+      case 'status':
+        // D'abord les en attente, puis les récupérés
+        filtered.sort((a, b) =>
+            a.isReclaimed == b.isReclaimed ? 0 : (a.isReclaimed ? 1 : -1));
+        break;
+    }
+
+    // Appliquer l'ordre
     if (!sortAscending.value) {
-      purchases.value = sorted.reversed.toList();
-    } else {
-      purchases.value = sorted;
+      filtered = filtered.reversed.toList();
     }
+
+    return filtered;
   }
 
-  // Les colonnes
-  List<DataColumn> get dataColumns => [
-        DataColumn(
-          label: const Text('Détails', style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label: const Text('Établissement', style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label: const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label: const Text('Code à fournir', style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label: const Text('État', style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-      ];
+  // Méthodes pour changer les filtres et le tri
+  void setFilter(String filter) {
+    selectedFilter.value = filter;
+  }
 
-  // Les rows
-  List<DataRow> get dataRows {
-    return List.generate(purchases.length, (i) {
-      final pur = purchases[i];
-      final dateFr = DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(pur.date);
-
-      final isDonation = (pur.couponsCount == 0);
-      final detailText = isDonation ? 'Don' : ' Bon d\'achat de ${pur.couponsCount * 50} €';
-
-      return DataRow(
-        cells: [
-          DataCell(
-            CustomCardAnimation(
-              delayGap: UniquesControllers().data.baseArrayDelayGapAnimation,
-              index: i,
-              child: Text(detailText),
-            ),
-          ),
-          DataCell(
-            CustomCardAnimation(
-              delayGap: UniquesControllers().data.baseArrayDelayGapAnimation,
-              index: i + 1,
-              // child: Container(),
-              child: ClientHistorySellerNameCell(sellerId: pur.sellerId),
-            ),
-          ),
-          DataCell(
-            CustomCardAnimation(
-              delayGap: UniquesControllers().data.baseArrayDelayGapAnimation,
-              index: i + 2,
-              child: Text(dateFr),
-            ),
-          ),
-          DataCell(
-            CustomCardAnimation(
-              delayGap: UniquesControllers().data.baseArrayDelayGapAnimation,
-              index: i + 3,
-              child: Text(pur.reclamationPassword),
-            ),
-          ),
-          DataCell(
-            CustomCardAnimation(
-              delayGap: UniquesControllers().data.baseArrayDelayGapAnimation,
-              index: i + 4,
-              child: pur.isReclaimed
-                  ? const Row(
-                      children: [
-                        Icon(Icons.check),
-                        CustomSpace(widthMultiplier: 0.5),
-                        Text('Récupéré'),
-                      ],
-                    )
-                  : const Row(
-                      children: [
-                        Icon(Icons.history),
-                        CustomSpace(widthMultiplier: 0.5),
-                        Text('En attente'),
-                      ],
-                    ),
-            ),
-          ),
-        ],
-      );
-    });
+  void setSortBy(String sort, bool ascending) {
+    sortBy.value = sort;
+    sortAscending.value = ascending;
   }
 }

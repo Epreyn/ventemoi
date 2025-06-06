@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
@@ -16,443 +17,697 @@ class CustomNavigationMenu extends Drawer {
     final cdc = Get.put(CustomNavigationMenuController());
 
     return Drawer(
-      backgroundColor: Colors.white,
-      child: Column(
-        children: [
-          // Header moderne avec fond gradient
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  CustomTheme.lightScheme().primary,
-                  CustomTheme.lightScheme().primary.withOpacity(0.8),
-                ],
-              ),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding:
-                    EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
-                child: Column(
-                  children: [
-                    // Logo avec effet de fond blanc
-                    Container(
-                      padding: EdgeInsets.all(
-                          UniquesControllers().data.baseSpace * 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: SizedBox(
-                        width: UniquesControllers().data.baseSpace * 10,
-                        height: UniquesControllers().data.baseSpace * 10,
-                        child: const CustomLogo(),
-                      ),
-                    ),
-                    SizedBox(height: UniquesControllers().data.baseSpace * 2),
-
-                    // Texte du header
-                    Text(
-                      'VENTE MOI',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: UniquesControllers().data.baseSpace * 3,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    SizedBox(height: UniquesControllers().data.baseSpace),
-                    Text(
-                      'Le Don des Affaires',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: UniquesControllers().data.baseSpace * 1.8,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Info utilisateur
-          _buildUserInfo(),
-
-          // Divider décoratif
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: UniquesControllers().data.baseSpace * 2,
-              vertical: UniquesControllers().data.baseSpace,
-            ),
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    Colors.grey.withOpacity(0.3),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Liste des items de navigation
-          Expanded(
-            child: Obx(() {
-              final items = cdc.items;
-              if (items.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.hourglass_empty,
-                        size: UniquesControllers().data.baseSpace * 6,
-                        color: Colors.grey[300],
-                      ),
-                      SizedBox(height: UniquesControllers().data.baseSpace * 2),
-                      Text(
-                        'Aucun menu disponible',
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: UniquesControllers().data.baseSpace * 2,
-                        ),
-                      ),
+      backgroundColor: CustomTheme.lightScheme().surface,
+      child: Container(
+        decoration: BoxDecoration(
+          color: CustomTheme.lightScheme().surface,
+        ),
+        child: Stack(
+          children: [
+            // Cercles décoratifs en arrière-plan
+            Positioned(
+              top: -80,
+              left: -80,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      CustomTheme.lightScheme().primary.withOpacity(0.15),
+                      CustomTheme.lightScheme().primary.withOpacity(0.0),
                     ],
                   ),
-                );
-              }
-
-              return ListView.builder(
-                padding: EdgeInsets.symmetric(
-                  vertical: UniquesControllers().data.baseSpace,
                 ),
-                itemCount: items.length,
-                itemBuilder: (ctx, i) {
-                  final item = items[i];
-                  final isSelected = UniquesControllers()
-                          .data
-                          .currentNavigationMenuIndex
-                          .value ==
-                      i;
+              ),
+            ),
+            Positioned(
+              bottom: -100,
+              right: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      CustomTheme.lightScheme().primary.withOpacity(0.1),
+                      CustomTheme.lightScheme().primary.withOpacity(0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: EdgeInsets.symmetric(
-                      horizontal: UniquesControllers().data.baseSpace * 1.5,
-                      vertical: UniquesControllers().data.baseSpace * 0.5,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: isSelected
-                          ? CustomTheme.lightScheme().primary.withOpacity(0.1)
-                          : Colors.transparent,
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          UniquesControllers()
-                              .data
-                              .currentNavigationMenuIndex
-                              .value = i;
-                          cdc.onItemTap(i);
-                        },
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: UniquesControllers().data.baseSpace * 2,
-                            vertical: UniquesControllers().data.baseSpace * 1.8,
+            // Contenu principal
+            Column(
+              children: [
+                // Header moderne avec effet glassmorphique
+                ClipRRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color:
+                            CustomTheme.lightScheme().surface.withOpacity(0.7),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            CustomTheme.lightScheme().primary.withOpacity(0.15),
+                            CustomTheme.lightScheme().primary.withOpacity(0.1),
+                          ],
+                        ),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: CustomTheme.lightScheme()
+                                .primary
+                                .withOpacity(0.2),
+                            width: 1,
                           ),
-                          child: Row(
+                        ),
+                      ),
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: EdgeInsets.all(
+                              UniquesControllers().data.baseSpace * 3),
+                          child: Column(
                             children: [
-                              // Icône avec fond
+                              // Logo avec effet glassmorphique
                               Container(
-                                width: UniquesControllers().data.baseSpace * 5,
-                                height: UniquesControllers().data.baseSpace * 5,
+                                padding: EdgeInsets.all(
+                                    UniquesControllers().data.baseSpace * 2),
                                 decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? CustomTheme.lightScheme().primary
-                                      : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white.withOpacity(0.3),
+                                      Colors.white.withOpacity(0.1),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(25),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: CustomTheme.lightScheme()
+                                          .primary
+                                          .withOpacity(0.2),
+                                      blurRadius: 20,
+                                      spreadRadius: 5,
+                                    ),
+                                  ],
                                 ),
-                                child: Icon(
-                                  item.iconData,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.grey[600],
-                                  size:
-                                      UniquesControllers().data.baseSpace * 2.5,
+                                child: SizedBox(
+                                  width:
+                                      UniquesControllers().data.baseSpace * 10,
+                                  height:
+                                      UniquesControllers().data.baseSpace * 10,
+                                  child: const CustomLogo(),
                                 ),
                               ),
                               SizedBox(
-                                  width:
+                                  height:
                                       UniquesControllers().data.baseSpace * 2),
 
-                              // Texte
-                              Expanded(
-                                child: Text(
-                                  item.text ?? '',
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? CustomTheme.lightScheme().primary
-                                        : Colors.grey[800],
-                                    fontSize:
-                                        UniquesControllers().data.baseSpace * 2,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
+                              // Texte du header
+                              Text(
+                                'VENTE MOI',
+                                style: TextStyle(
+                                  fontSize:
+                                      UniquesControllers().data.baseSpace * 3,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 2,
+                                  color: Colors.black,
                                 ),
                               ),
-
-                              // Indicateur de sélection
-                              if (isSelected)
-                                Container(
-                                  width: 4,
-                                  height:
-                                      UniquesControllers().data.baseSpace * 3,
-                                  decoration: BoxDecoration(
-                                    color: CustomTheme.lightScheme().primary,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
+                              SizedBox(
+                                  height: UniquesControllers().data.baseSpace *
+                                      0.5),
+                              Text(
+                                'Le Don des Affaires',
+                                style: TextStyle(
+                                  color: CustomTheme.lightScheme().primary,
+                                  fontSize:
+                                      UniquesControllers().data.baseSpace * 1.6,
+                                  fontWeight: FontWeight.w600,
                                 ),
+                              ),
                             ],
                           ),
                         ),
                       ),
                     ),
-                  );
-                },
-              );
-            }),
-          ),
+                  ),
+                ),
 
-          // Footer avec déconnexion stylisée
-          Container(
-            margin: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.red.shade400,
-                  Colors.red.shade600,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                // Liste des items de navigation
+                Expanded(
+                  child: Obx(() {
+                    final items = cdc.items;
+                    if (items.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(
+                                  UniquesControllers().data.baseSpace * 3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.2),
+                                    Colors.white.withOpacity(0.1),
+                                  ],
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.hourglass_empty,
+                                size: UniquesControllers().data.baseSpace * 6,
+                                color: CustomTheme.lightScheme()
+                                    .primary
+                                    .withOpacity(0.3),
+                              ),
+                            ),
+                            SizedBox(
+                                height:
+                                    UniquesControllers().data.baseSpace * 2),
+                            Text(
+                              'Aucun menu disponible',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize:
+                                    UniquesControllers().data.baseSpace * 2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: EdgeInsets.symmetric(
+                        vertical: UniquesControllers().data.baseSpace,
+                      ),
+                      itemCount: items.length,
+                      itemBuilder: (ctx, i) {
+                        final item = items[i];
+                        final isSelected = UniquesControllers()
+                                .data
+                                .currentNavigationMenuIndex
+                                .value ==
+                            i;
+
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: EdgeInsets.symmetric(
+                            horizontal:
+                                UniquesControllers().data.baseSpace * 1.5,
+                            vertical: UniquesControllers().data.baseSpace * 0.5,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: isSelected
+                                  ? ImageFilter.blur(sigmaX: 10, sigmaY: 10)
+                                  : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: isSelected
+                                      ? LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            CustomTheme.lightScheme()
+                                                .primary
+                                                .withOpacity(0.15),
+                                            CustomTheme.lightScheme()
+                                                .primary
+                                                .withOpacity(0.08),
+                                          ],
+                                        )
+                                      : null,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? CustomTheme.lightScheme()
+                                            .primary
+                                            .withOpacity(0.3)
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      UniquesControllers()
+                                          .data
+                                          .currentNavigationMenuIndex
+                                          .value = i;
+                                      cdc.onItemTap(i);
+                                    },
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: UniquesControllers()
+                                                .data
+                                                .baseSpace *
+                                            2,
+                                        vertical: UniquesControllers()
+                                                .data
+                                                .baseSpace *
+                                            1.8,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // Icône avec fond glassmorphique
+                                          Container(
+                                            width: UniquesControllers()
+                                                    .data
+                                                    .baseSpace *
+                                                5,
+                                            height: UniquesControllers()
+                                                    .data
+                                                    .baseSpace *
+                                                5,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: isSelected
+                                                    ? [
+                                                        CustomTheme
+                                                                .lightScheme()
+                                                            .primary,
+                                                        CustomTheme
+                                                                .lightScheme()
+                                                            .primary
+                                                            .withOpacity(0.8),
+                                                      ]
+                                                    : [
+                                                        Colors.white
+                                                            .withOpacity(0.2),
+                                                        Colors.white
+                                                            .withOpacity(0.1),
+                                                      ],
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              boxShadow: isSelected
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: CustomTheme
+                                                                .lightScheme()
+                                                            .primary
+                                                            .withOpacity(0.3),
+                                                        blurRadius: 8,
+                                                        spreadRadius: 1,
+                                                      ),
+                                                    ]
+                                                  : [],
+                                            ),
+                                            child: Icon(
+                                              item.iconData,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : Colors.grey[700],
+                                              size: UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  2.5,
+                                            ),
+                                          ),
+                                          SizedBox(
+                                              width: UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  2),
+
+                                          // Texte
+                                          Expanded(
+                                            child: Text(
+                                              item.text ?? '',
+                                              style: TextStyle(
+                                                color: isSelected
+                                                    ? CustomTheme.lightScheme()
+                                                        .primary
+                                                    : Colors.grey[800],
+                                                fontSize: UniquesControllers()
+                                                        .data
+                                                        .baseSpace *
+                                                    2,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Flèche indicatrice
+                                          if (isSelected)
+                                            Icon(
+                                              Icons.arrow_forward_ios_rounded,
+                                              color: CustomTheme.lightScheme()
+                                                  .primary,
+                                              size: UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  2,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
+                ),
+
+                // Footer avec déconnexion glassmorphique
+                Container(
+                  margin:
+                      EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.red.shade400.withOpacity(0.8),
+                              Colors.red.shade600.withOpacity(0.8),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.red.withOpacity(0.3),
+                              blurRadius: 15,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              _showLogoutDialog(context);
+                            },
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    UniquesControllers().data.baseSpace * 3,
+                                vertical:
+                                    UniquesControllers().data.baseSpace * 2,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.logout_rounded,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(
+                                      width:
+                                          UniquesControllers().data.baseSpace),
+                                  Text(
+                                    'DÉCONNEXION',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize:
+                                          UniquesControllers().data.baseSpace *
+                                              1.8,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showLogoutDialog(context);
-                },
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: UniquesControllers().data.baseSpace * 2,
-                    vertical: UniquesControllers().data.baseSpace * 2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.logout_rounded,
-                        color: Colors.white,
-                      ),
-                      SizedBox(width: UniquesControllers().data.baseSpace),
-                      const Text(
-                        'Déconnexion',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // Widget pour afficher les infos utilisateur
-  Widget _buildUserInfo() {
-    return StreamBuilder<Map<String, dynamic>?>(
-      stream: UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('users')
-          .doc(UniquesControllers().data.firebaseAuth.currentUser?.uid)
-          .snapshots()
-          .map((snap) => snap.data()),
-      builder: (context, snapshot) {
-        final userData = snapshot.data;
-        final userName = userData?['name'] ?? 'Utilisateur';
-        final userEmail = userData?['email'] ?? '';
-        final imageUrl = userData?['image_url'] ?? '';
-
-        return Container(
-          padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-          child: Row(
-            children: [
-              // Avatar utilisateur
-              Container(
-                width: UniquesControllers().data.baseSpace * 7,
-                height: UniquesControllers().data.baseSpace * 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [
-                      CustomTheme.lightScheme().primary.withOpacity(0.8),
-                      CustomTheme.lightScheme().primary,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: UniquesControllers().data.baseSpace * 3,
-                          ),
-                        )
-                      : Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: UniquesControllers().data.baseSpace * 3,
-                        ),
-                ),
-              ),
-              SizedBox(width: UniquesControllers().data.baseSpace * 2),
-
-              // Nom et email
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userName,
-                      style: TextStyle(
-                        fontSize: UniquesControllers().data.baseSpace * 2.2,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (userEmail.isNotEmpty)
-                      Text(
-                        userEmail,
-                        style: TextStyle(
-                          fontSize: UniquesControllers().data.baseSpace * 1.6,
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Dialog de confirmation de déconnexion
+  // Dialog de confirmation de déconnexion glassmorphique
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierColor: Colors.black54,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.logout_rounded,
-                color: Colors.red.shade600,
-              ),
-              SizedBox(width: UniquesControllers().data.baseSpace),
-              const Text('Déconnexion'),
-            ],
-          ),
-          content: const Text(
-            'Êtes-vous sûr de vouloir vous déconnecter ?',
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Annuler',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(25),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Container(
+                    padding:
+                        EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.95),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withOpacity(0.98),
+                          Colors.white.withOpacity(0.95),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(
+                        color:
+                            CustomTheme.lightScheme().primary.withOpacity(0.2),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Icône avec effet glassmorphique
+                        Container(
+                          width: UniquesControllers().data.baseSpace * 10,
+                          height: UniquesControllers().data.baseSpace * 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.red.shade400.withOpacity(0.2),
+                                Colors.red.shade600.withOpacity(0.1),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.logout_rounded,
+                            color: Colors.red.shade600,
+                            size: UniquesControllers().data.baseSpace * 5,
+                          ),
+                        ),
+                        SizedBox(
+                            height: UniquesControllers().data.baseSpace * 3),
+
+                        // Titre
+                        Text(
+                          'Déconnexion',
+                          style: TextStyle(
+                            fontSize: UniquesControllers().data.baseSpace * 3,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(
+                            height: UniquesControllers().data.baseSpace * 2),
+
+                        // Message
+                        Container(
+                          padding: EdgeInsets.all(
+                              UniquesControllers().data.baseSpace * 2),
+                          decoration: BoxDecoration(
+                            color: CustomTheme.lightScheme()
+                                .primary
+                                .withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(
+                              color: CustomTheme.lightScheme()
+                                  .primary
+                                  .withOpacity(0.1),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            'Êtes-vous sûr de vouloir vous déconnecter ?',
+                            style: TextStyle(
+                              fontSize: UniquesControllers().data.baseSpace * 2,
+                              color: Colors.black.withOpacity(0.8),
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(
+                            height: UniquesControllers().data.baseSpace * 4),
+
+                        // Boutons
+                        Row(
+                          children: [
+                            // Bouton Annuler
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: BackdropFilter(
+                                  filter:
+                                      ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(15),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: UniquesControllers()
+                                                  .data
+                                                  .baseSpace *
+                                              2,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Annuler',
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: UniquesControllers()
+                                                  .data
+                                                  .baseSpace *
+                                              2,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                                width: UniquesControllers().data.baseSpace * 2),
+
+                            // Bouton Déconnexion
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.red.shade400,
+                                      Colors.red.shade600,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withOpacity(0.3),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      UniquesControllers()
+                                          .data
+                                          .firebaseAuth
+                                          .signOut();
+                                      Get.offAllNamed('/login');
+                                    },
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: UniquesControllers()
+                                                .data
+                                                .baseSpace *
+                                            2,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          'Déconnexion',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: UniquesControllers()
+                                                    .data
+                                                    .baseSpace *
+                                                2,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                UniquesControllers().data.firebaseAuth.signOut();
-                Get.offAllNamed('/login');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Déconnexion',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+          ),
         );
       },
     );

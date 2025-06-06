@@ -40,6 +40,9 @@ flutter:
     - images/background.png
     - images/background-opacity.png
     - images/onboarding/particulier_1.png
+    - images/onboarding/particulier_2.png
+    - images/onboarding/particulier_3.png
+    - images/onboarding/particulier_4.png
 
   fonts:
     - family: SpaceGrotesk
