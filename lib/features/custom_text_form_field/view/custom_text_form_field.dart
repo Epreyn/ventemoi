@@ -24,6 +24,9 @@ class CustomTextFormField extends StatelessWidget {
   final int? maxCharacters;
   final Function(String)? onChanged;
   final Function(String)? onFieldSubmitted;
+  final TextCapitalization? textCapitalization;
+  final Widget? suffixIcon;
+  final double? maxWidth;
 
   const CustomTextFormField({
     super.key,
@@ -46,6 +49,9 @@ class CustomTextFormField extends StatelessWidget {
     this.maxCharacters,
     this.onChanged,
     this.onFieldSubmitted,
+    this.textCapitalization,
+    this.suffixIcon,
+    this.maxWidth,
   });
 
   @override
@@ -63,7 +69,7 @@ class CustomTextFormField extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: cc.maxWith,
+        maxWidth: maxWidth ?? cc.maxWith,
       ),
       child: Stack(
         children: [
@@ -71,6 +77,7 @@ class CustomTextFormField extends StatelessWidget {
             () => TextFormField(
               textInputAction: textInputAction ?? TextInputAction.done,
               keyboardType: keyboardType ?? TextInputType.text,
+              textCapitalization: textCapitalization ?? TextCapitalization.none,
               controller: controller,
               enabled: enabled ?? true,
               obscureText: cc.isObscure.value,
@@ -118,22 +125,24 @@ class CustomTextFormField extends StatelessWidget {
                         color: CustomTheme.lightScheme().primary,
                       )
                     : null,
-                suffixIcon: (isPassword ?? false)
-                    ? MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () {
-                            cc.isObscure.value = !cc.isObscure.value;
-                          },
-                          child: Icon(
-                            cc.isObscure.value
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      )
-                    : null,
+                suffixIcon: suffixIcon != null
+                    ? suffixIcon
+                    : (isPassword ?? false)
+                        ? MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () {
+                                cc.isObscure.value = !cc.isObscure.value;
+                              },
+                              child: Icon(
+                                cc.isObscure.value
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          )
+                        : null,
                 floatingLabelBehavior: FloatingLabelBehavior.auto,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 20,

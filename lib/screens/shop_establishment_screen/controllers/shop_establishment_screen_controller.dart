@@ -287,7 +287,16 @@ class ShopEstablishmentScreenController extends GetxController
     final raw = allEstablishments;
     final result = <Establishment>[];
 
+    // Récupérer l'ID de l'utilisateur connecté
+    final currentUserId =
+        UniquesControllers().data.firebaseAuth.currentUser?.uid;
+
     for (final e in raw) {
+      // Exclure l'établissement de l'utilisateur connecté
+      if (e.userId == currentUserId && tab != 2) {
+        continue; // Ne pas afficher sa propre boutique/association
+      }
+
       // Récupérer typeName => "Boutique"/"Association"/"Entreprise"/"INVISIBLE"
       final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
       final isBoutique = (tName == 'Boutique');

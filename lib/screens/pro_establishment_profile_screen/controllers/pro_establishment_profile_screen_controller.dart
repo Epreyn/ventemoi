@@ -14,6 +14,7 @@ import '../../../core/models/enterprise_category.dart';
 import '../../../core/models/establishment_category.dart';
 import '../../../core/models/user_type.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
+import '../widgets/cgu_payment_dialog.dart';
 
 class ProEstablishmentProfileScreenController extends GetxController
     with ControllerMixin {
@@ -28,13 +29,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   final addressCtrl = TextEditingController();
   final emailCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
-
-  // Nouveau : champ vidéo
   final videoCtrl = TextEditingController();
-  String videoTag = 'video_custom_text_field';
-  String videoLabel = 'Lien Vidéo (YouTube, etc.)';
 
-  // Infos sur la description
+  // Tags et labels
   String nameTag = 'name_custom_text_field';
   String nameLabel = 'Nom de l\'établissement';
 
@@ -53,6 +50,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   String phoneTag = 'phone_custom_text_field';
   String phoneLabel = 'Téléphone';
 
+  String videoTag = 'video_custom_text_field';
+  String videoLabel = 'Lien Vidéo (YouTube, etc.)';
+
   // Catégorie unique
   String categoryTag = 'category_custom_text_field';
   String categoryLabel = 'Catégorie';
@@ -60,13 +60,11 @@ class ProEstablishmentProfileScreenController extends GetxController
   double categoryMaxHeight = 50.0;
   Rx<EstablishmentCategory?> currentCategory = Rx<EstablishmentCategory?>(null);
 
-  // NOUVEAU : Catégories sélectionnées dans les dropdowns
+  // Catégories entreprise
   RxList<Rx<EnterpriseCategory?>> selectedEnterpriseCategories =
       <Rx<EnterpriseCategory?>>[].obs;
-  RxInt enterpriseCategorySlots = 2.obs; // Nombre de slots disponibles
-
-  // Prix pour un slot supplémentaire (en centimes pour Stripe)
-  final int additionalSlotPrice = 5000; // 50€
+  RxInt enterpriseCategorySlots = 2.obs;
+  final int additionalSlotPrice = 500; // 5€ en centimes
 
   // Bannière / Logo
   RxString bannerUrl = ''.obs;
@@ -85,11 +83,11 @@ class ProEstablishmentProfileScreenController extends GetxController
   // Détection du userType
   Rx<UserType?> currentUserType = Rx<UserType?>(null);
 
-  // Booléen : a-t-il accepté le contrat ?
+  // Statuts
   RxBool hasAcceptedContract = false.obs;
-
-  // Case à cocher dans l'AlertDialog
-  RxBool checkAccepted = false.obs;
+  RxBool hasActiveSubscription = false.obs;
+  RxString subscriptionStatus = ''.obs;
+  Rx<DateTime?> subscriptionEndDate = Rx<DateTime?>(null);
 
   @override
   void onInit() {
@@ -102,7 +100,7 @@ class ProEstablishmentProfileScreenController extends GetxController
   }
 
   // ------------------------------------------------
-  // Charger le userType => 'Entreprise' / 'Association' / etc.
+  // Charger le userType
   // ------------------------------------------------
   Future<void> _loadUserType(String uid) async {
     final userType = await getUserTypeByUserId(uid);
@@ -116,15 +114,12 @@ class ProEstablishmentProfileScreenController extends GetxController
       int slots, List<String>? existingCategoryIds) {
     selectedEnterpriseCategories.clear();
 
-    // Créer les dropdowns en fonction du nombre de slots
     for (int i = 0; i < slots; i++) {
       selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
     }
 
-    // Remplir avec les catégories existantes
     if (existingCategoryIds != null) {
       for (int i = 0; i < existingCategoryIds.length && i < slots; i++) {
-        // On récupérera la catégorie par son ID plus tard
         _loadCategoryById(existingCategoryIds[i], i);
       }
     }
@@ -165,11 +160,19 @@ class ProEstablishmentProfileScreenController extends GetxController
       establishmentDocId = snap.docs.first.id;
       final data = snap.docs.first.data();
 
-      // Lire le booléen "has_accepted_contract"
+      // Lire les statuts
       final bool accepted = data['has_accepted_contract'] ?? false;
       hasAcceptedContract.value = accepted;
 
-      // NOUVEAU : Lire le nombre de slots
+      final bool hasSubscription = data['has_active_subscription'] ?? false;
+      hasActiveSubscription.value = hasSubscription;
+
+      subscriptionStatus.value = data['subscription_status'] ?? '';
+
+      final Timestamp? endDate = data['subscription_end_date'];
+      subscriptionEndDate.value = endDate?.toDate();
+
+      // Lire le nombre de slots
       final slots = data['enterprise_category_slots'] ?? 2;
       enterpriseCategorySlots.value = slots;
 
@@ -238,6 +241,43 @@ class ProEstablishmentProfileScreenController extends GetxController
   }
 
   // ------------------------------------------------
+  // Obtenir le prix de l'abonnement
+  // ------------------------------------------------
+  String getSubscriptionPrice() {
+    final userType = currentUserType.value;
+    if (userType == null) return '0';
+
+    // Les tarifs sont mensuels après la première année
+    switch (userType.name) {
+      case 'Boutique':
+      case 'Commerçant':
+      case 'Entreprise':
+        return '50'; // 50€/mois après la 1ère année
+      case 'Association':
+        return '0'; // Gratuit
+      default:
+        return '0';
+    }
+  }
+
+  String getFirstYearPrice() {
+    final userType = currentUserType.value;
+    if (userType == null) return '0';
+
+    // Prix de la première année (adhésion + cotisation)
+    switch (userType.name) {
+      case 'Boutique':
+      case 'Commerçant':
+      case 'Entreprise':
+        return '930'; // 450€ adhésion + 40€/mois x 12 = 930€ HT
+      case 'Association':
+        return '0'; // Gratuit
+      default:
+        return '0';
+    }
+  }
+
+  // ------------------------------------------------
   // Pick banner / logo
   // ------------------------------------------------
   Future<void> pickBanner() async {
@@ -281,15 +321,12 @@ class ProEstablishmentProfileScreenController extends GetxController
     UniquesControllers().data.isInAsyncCall.value = true;
 
     try {
-      // TODO: Intégrer Stripe ici
-      // Pour l'instant, on simule le paiement réussi
+      // TODO: Intégrer Stripe ici pour le paiement du slot
       await Future.delayed(const Duration(seconds: 2));
 
-      // Ajouter un nouveau slot
       enterpriseCategorySlots.value++;
       selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
 
-      // Mettre à jour Firebase
       if (establishmentDocId != null) {
         await UniquesControllers()
             .data
@@ -332,18 +369,62 @@ class ProEstablishmentProfileScreenController extends GetxController
       return;
     }
 
-    if (hasAcceptedContract.value == false) {
-      openAlertDialog(
-        'Conditions Générales',
-        confirmText: 'Valider',
+    // Si pas encore accepté les CGU ou pas d'abonnement actif
+    if (!hasAcceptedContract.value || !hasActiveSubscription.value) {
+      String? paymentOption;
+      await showDialog(
+        context: Get.context!,
+        barrierDismissible: false,
+        builder: (context) => CGUPaymentDialog(
+          userType: currentUserType.value?.name ?? '',
+          onConfirm: (String paymentOption) async {
+            // Le dialog gère le choix de l'option de paiement en interne
+            await _processPaymentAndSave(paymentOption);
+          },
+        ),
       );
-      return;
+    } else {
+      // Si déjà accepté et abonnement actif, sauvegarder directement
+      await _saveProfileToFirestore();
     }
-
-    await _saveProfileToFirestore();
   }
 
-  Future<void> _saveProfileToFirestore() async {
+  // ------------------------------------------------
+  // Traiter le paiement et sauvegarder
+  // ------------------------------------------------
+  Future<void> _processPaymentAndSave(String paymentOption) async {
+    UniquesControllers().data.isInAsyncCall.value = true;
+
+    try {
+      // TODO: Intégrer Stripe ici pour le paiement de l'abonnement
+      // Utiliser paymentOption ('monthly' ou 'annual') pour déterminer le montant et la fréquence
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Mettre à jour les statuts
+      hasAcceptedContract.value = true;
+      hasActiveSubscription.value = true;
+      subscriptionStatus.value = 'active';
+      subscriptionEndDate.value =
+          DateTime.now().add(const Duration(days: 365)); // 1 an d'engagement
+
+      // Stocker le type de paiement choisi
+      // paymentOption sera 'monthly' ou 'annual'
+
+      // Sauvegarder avec les nouveaux statuts
+      await _saveProfileToFirestore(
+          isFirstActivation: true, paymentOption: paymentOption);
+    } catch (e) {
+      UniquesControllers().data.isInAsyncCall.value = false;
+      UniquesControllers().data.snackbar(
+          'Erreur de paiement', 'Le paiement a échoué : ${e.toString()}', true);
+    }
+  }
+
+  // ------------------------------------------------
+  // Sauvegarder le profil
+  // ------------------------------------------------
+  Future<void> _saveProfileToFirestore(
+      {bool isFirstActivation = false, String? paymentOption}) async {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid == null) return;
 
@@ -352,26 +433,11 @@ class ProEstablishmentProfileScreenController extends GetxController
     try {
       establishmentDocId ??= await _createEstablishmentDocIfNeeded(uid);
 
-      // 1) On lit l'ancienne valeur "has_accepted_contract" (avant update)
-      bool oldHasAccepted = false;
-      if (establishmentDocId != null) {
-        final oldDocSnap = await UniquesControllers()
-            .data
-            .firebaseFirestore
-            .collection('establishments')
-            .doc(establishmentDocId)
-            .get();
-        if (oldDocSnap.exists) {
-          final oldData = oldDocSnap.data() ?? {};
-          oldHasAccepted = oldData['has_accepted_contract'] ?? false;
-        }
-      }
-
-      // 2) Préparer le nouveau banner/logo
+      // Gérer les uploads
       final newBannerUrl = await _handleBannerUpload(uid);
       final newLogoUrl = await _handleLogoUpload(uid);
 
-      // 3) Récupérer le userType => pour "Entreprise", on set enterprise_categories
+      // Récupérer le userType
       final userType = currentUserType.value;
 
       final dataToUpdate = {
@@ -385,16 +451,27 @@ class ProEstablishmentProfileScreenController extends GetxController
         'video_url': videoCtrl.text.trim(),
         'category_id': currentCategory.value?.id ?? '',
         'enterprise_categories': [],
-        'enterprise_category_slots': enterpriseCategorySlots.value, // NOUVEAU
-        // Contrat accepté => toujours `true` si l'utilisateur a coché la case
-        'has_accepted_contract': true,
+        'enterprise_category_slots': enterpriseCategorySlots.value,
+        'has_accepted_contract': hasAcceptedContract.value,
+        'has_active_subscription': hasActiveSubscription.value,
+        'subscription_status': subscriptionStatus.value,
+        'subscription_end_date': subscriptionEndDate.value != null
+            ? Timestamp.fromDate(subscriptionEndDate.value!)
+            : null,
+        'is_visible_in_shop':
+            hasAcceptedContract.value && hasActiveSubscription.value,
+        'updated_at': FieldValue.serverTimestamp(),
       };
+
+      // Ajouter l'option de paiement si fournie
+      if (paymentOption != null) {
+        dataToUpdate['payment_option'] = paymentOption;
+      }
 
       if (userType != null && userType.name == 'Entreprise') {
         dataToUpdate['enterprise_categories'] = getSelectedCategoryIds();
       }
 
-      // 4) On met à jour l'établissement
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -402,10 +479,8 @@ class ProEstablishmentProfileScreenController extends GetxController
           .doc(establishmentDocId)
           .update(dataToUpdate);
 
-      // 5) Si l'ancien doc avait has_accepted_contract = false
-      //    et maintenant c'est true => on applique la récompense.
-      if (!oldHasAccepted) {
-        // => c'est la 1ère fois qu'il accepte le contrat => on regarde le parrainage
+      // Si c'est la première activation, gérer le parrainage
+      if (isFirstActivation && emailCtrl.text.trim().isNotEmpty) {
         await _handleSponsorshipRewardIfAny(uid, emailCtrl.text.trim());
       }
 
@@ -414,20 +489,25 @@ class ProEstablishmentProfileScreenController extends GetxController
       isPickedLogo.value = false;
 
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers()
-          .data
-          .snackbar('Succès', 'Fiche mise à jour avec succès', false);
+      UniquesControllers().data.snackbar(
+          'Succès',
+          isFirstActivation
+              ? 'Votre établissement est maintenant visible dans le shop !'
+              : 'Fiche mise à jour avec succès',
+          false);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     }
   }
 
+  // ------------------------------------------------
+  // Gérer le parrainage
+  // ------------------------------------------------
   Future<void> _handleSponsorshipRewardIfAny(
       String uid, String userEmail) async {
     if (userEmail.isEmpty) return;
 
-    // 1) Chercher s'il existe un doc "sponsorship" qui contient userEmail
     final snap = await UniquesControllers()
         .data
         .firebaseFirestore
@@ -439,7 +519,6 @@ class ProEstablishmentProfileScreenController extends GetxController
       return;
     }
 
-    // Supposez qu'il n'y ait qu'un seul parrain => on prend le premier doc
     final sponsorshipDoc = snap.docs.first;
     final sponsorData = sponsorshipDoc.data();
     final sponsorUid = sponsorData['user_id'] ?? '';
@@ -447,7 +526,7 @@ class ProEstablishmentProfileScreenController extends GetxController
       return;
     }
 
-    // 2) +50 points dans le wallet du sponsor
+    // +100€ en bons cadeaux pour le parrain (entreprise/commerce)
     final sponsorWalletSnap = await UniquesControllers()
         .data
         .firebaseFirestore
@@ -457,7 +536,6 @@ class ProEstablishmentProfileScreenController extends GetxController
         .get();
 
     if (sponsorWalletSnap.docs.isEmpty) {
-      // Créer un wallet si besoin
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -465,17 +543,17 @@ class ProEstablishmentProfileScreenController extends GetxController
           .doc()
           .set({
         'user_id': sponsorUid,
-        'points': 50,
-        'coupons': 0,
+        'points': 0,
+        'coupons': 2, // 100€ = 2 bons de 50€
       });
     } else {
       final walletRef = sponsorWalletSnap.docs.first.reference;
       await walletRef.update({
-        'points': FieldValue.increment(50),
+        'coupons': FieldValue.increment(2), // 100€ = 2 bons de 50€
       });
     }
 
-    // 3) Envoyer un mail au sponsor => "Félicitations, vous gagnez 50 points"
+    // Envoyer un mail au sponsor
     final sponsorUserSnap = await UniquesControllers()
         .data
         .firebaseFirestore
@@ -495,51 +573,6 @@ class ProEstablishmentProfileScreenController extends GetxController
             userEmail: userEmail);
       }
     }
-  }
-
-  // ------------------------------------------------
-  // AlertDialog d'acceptation
-  // ------------------------------------------------
-  @override
-  void variablesToResetToAlertDialog() {
-    checkAccepted.value = false;
-  }
-
-  @override
-  Widget alertDialogContent() {
-    return Obx(() {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Merci de lire et accepter nos conditions générales avant de poursuivre :',
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Checkbox(
-                value: checkAccepted.value,
-                onChanged: (val) => checkAccepted.value = val ?? false,
-              ),
-              const Text('J\'accepte les CGU'),
-            ],
-          ),
-        ],
-      );
-    });
-  }
-
-  @override
-  Future<void> actionAlertDialog() async {
-    if (!checkAccepted.value) {
-      UniquesControllers()
-          .data
-          .snackbar('Erreur', 'Vous devez cocher la case pour accepter.', true);
-      return;
-    }
-
-    await _saveProfileToFirestore();
   }
 
   // ------------------------------------------------
@@ -563,9 +596,16 @@ class ProEstablishmentProfileScreenController extends GetxController
       'logo_url': '',
       'category_id': '',
       'enterprise_categories': [],
-      'enterprise_category_slots': 2, // NOUVEAU : 2 slots par défaut
+      'enterprise_category_slots': 2,
       'video_url': '',
       'has_accepted_contract': false,
+      'has_active_subscription': false,
+      'subscription_status': '',
+      'subscription_end_date': null,
+      'is_visible_in_shop': false,
+      'payment_option': 'monthly', // Option par défaut
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
 
     return docRef.id;
@@ -653,32 +693,26 @@ class ProEstablishmentProfileScreenController extends GetxController
   // ------------------------------------------------
   // Widgets d'affichage (logo / banner)
   // ------------------------------------------------
-
   Widget buildLogoWidget() {
     if (isPickedLogo.value) {
-      // Fichier local
       if (logoFile.value != null) {
         return _buildImageContainer(
           file: logoFile.value,
           size: 15 * UniquesControllers().data.baseSpace,
         );
-      }
-      // Bytes web
-      else if (logoBytes.value != null) {
+      } else if (logoBytes.value != null) {
         return _buildImageContainer(
           bytes: logoBytes.value,
           size: 15 * UniquesControllers().data.baseSpace,
         );
       }
     }
-    // Sinon, l'URL existante
     if (logoUrl.value.isNotEmpty) {
       return _buildImageContainer(
         url: logoUrl.value,
         size: 15 * UniquesControllers().data.baseSpace,
       );
     }
-    // Sinon "Aucun logo"
     return _buildPlaceholder(
       size: 15 * UniquesControllers().data.baseSpace,
       label: 'Aucun logo',
@@ -711,7 +745,6 @@ class ProEstablishmentProfileScreenController extends GetxController
         maxFormWidth: maxFormWidth,
       );
     }
-    // Placeholder
     return _buildPlaceholder(
       size: 22 * UniquesControllers().data.baseSpace,
       label: 'Aucune bannière',
@@ -741,11 +774,18 @@ class ProEstablishmentProfileScreenController extends GetxController
       return Center(
         child: Container(
           height: size,
-          width: maxFormWidth,
+          width: double.infinity,
           decoration: BoxDecoration(
             borderRadius:
                 BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
             image: image,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
         ),
       );
@@ -758,6 +798,13 @@ class ProEstablishmentProfileScreenController extends GetxController
             borderRadius:
                 BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
             image: image,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
         ),
       );
@@ -774,9 +821,34 @@ class ProEstablishmentProfileScreenController extends GetxController
       return Center(
         child: Container(
           height: size,
-          width: maxFormWidth,
-          color: Colors.grey.shade200,
-          child: Center(child: Text(label)),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius:
+                BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 2,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_outlined,
+                size: UniquesControllers().data.baseSpace * 5,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: UniquesControllers().data.baseSpace * 1.5,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -784,21 +856,34 @@ class ProEstablishmentProfileScreenController extends GetxController
       child: Container(
         height: size,
         width: size,
-        color: Colors.grey.shade200,
-        child: Center(child: Text(label)),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius:
+              BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
+          border: Border.all(
+            color: Colors.grey.shade300,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_outlined,
+              size: UniquesControllers().data.baseSpace * 3,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: UniquesControllers().data.baseSpace * 1.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  // ------------------------------------------------
-  // FAB
-  // ------------------------------------------------
-  late Widget saveFloatingActionButton = CustomCardAnimation(
-    index: UniquesControllers().data.dynamicIconList.length,
-    child: FloatingActionButton.extended(
-      onPressed: saveEstablishmentProfile,
-      icon: const Icon(Icons.save),
-      label: const Text('Enregistrer les modifications'),
-    ),
-  );
 }

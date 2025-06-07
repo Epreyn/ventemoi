@@ -17,6 +17,7 @@ class CustomPlacesAutocomplete extends StatefulWidget {
   final String? labelText;
   final IconData? iconData;
   final bool? enabled;
+  final double? maxWidth;
 
   const CustomPlacesAutocomplete({
     Key? key,
@@ -30,6 +31,7 @@ class CustomPlacesAutocomplete extends StatefulWidget {
     this.labelText,
     this.iconData,
     this.enabled,
+    this.maxWidth,
   }) : super(key: key);
 
   @override
@@ -357,7 +359,7 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: UniquesControllers().data.baseMaxWidth,
+        maxWidth: widget.maxWidth ?? UniquesControllers().data.baseMaxWidth,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,19 +381,19 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
             },
           ),
 
-          // Indicateur OpenStreetMap pour le web
-          if (kIsWeb)
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0, left: 16.0),
-              child: Text(
-                'Recherche via OpenStreetMap',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
+          // // Indicateur OpenStreetMap pour le web
+          // if (kIsWeb)
+          //   Padding(
+          //     padding: const EdgeInsets.only(top: 4.0, left: 16.0),
+          //     child: Text(
+          //       'Recherche via OpenStreetMap',
+          //       style: TextStyle(
+          //         fontSize: 10,
+          //         color: Colors.grey[600],
+          //         fontStyle: FontStyle.italic,
+          //       ),
+          //     ),
+          //   ),
 
           // Liste des suggestions avec style moderne
           if (_showSuggestions || _isLoading)

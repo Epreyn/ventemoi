@@ -90,14 +90,18 @@ class RegisterScreen extends StatelessWidget {
                               children: [
                                 // Cercles pulsants qui s'adaptent à la taille
                                 Obx(() {
-                                  // Hauteur dynamique basée sur si la section association est ouverte
+                                  // Hauteur dynamique basée sur les sections ouvertes
                                   final hasAssociationSection = cc
                                           .showInviteOption.value ||
                                       cc.selectedAssociation.value != null ||
                                       cc.searchResults.isNotEmpty;
+                                  final hasReferralCode =
+                                      cc.hasValidReferralCode.value;
 
-                                  final baseHeight =
-                                      hasAssociationSection ? 1200.0 : 1050.0;
+                                  double baseHeight = 1100.0;
+                                  if (hasAssociationSection)
+                                    baseHeight += 150.0;
+                                  if (hasReferralCode) baseHeight += 50.0;
 
                                   return Stack(
                                     children: List.generate(2, (index) {
@@ -374,6 +378,11 @@ class RegisterScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
+          // Section Code de parrainage
+          _buildReferralCodeSection(cc),
+
+          const SizedBox(height: 24),
+
           // Section Parrainage Association (pour tous les types d'utilisateurs)
           _buildAssociationSection(cc),
 
@@ -381,7 +390,7 @@ class RegisterScreen extends StatelessWidget {
 
           // Bouton d'inscription
           CustomCardAnimation(
-            index: 15,
+            index: 16,
             child: CustomFABButton(
               tag: 'register-button',
               iconData: Icons.app_registration_rounded,
@@ -403,13 +412,108 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildReferralCodeSection(RegisterScreenController cc) {
+    return Column(
+      children: [
+        // Champ de code de parrainage
+        CustomCardAnimation(
+          index: 12,
+          child: CustomTextFormField(
+            tag: cc.referralCodeTag,
+            controller: cc.referralCodeController,
+            labelText: cc.referralCodeLabel,
+            iconData: Icons.card_giftcard_rounded,
+            textCapitalization: TextCapitalization.characters,
+            onChanged: (value) {
+              if (value.length == 6) {
+                cc.validateReferralCode(value);
+              } else {
+                cc.hasValidReferralCode.value = false;
+                cc.sponsorInfo.value = null;
+              }
+            },
+            suffixIcon: Obx(() => cc.hasValidReferralCode.value
+                ? Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                  )
+                : const SizedBox.shrink()),
+          ),
+        ),
+
+        // Message de validation du code
+        Obx(() => cc.hasValidReferralCode.value && cc.sponsorInfo.value != null
+            ? CustomCardAnimation(
+                index: 13,
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.green.withOpacity(0.1),
+                        Colors.green.withOpacity(0.05),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.green.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.celebration_rounded,
+                          color: Colors.green[700],
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Parrainage de ${cc.sponsorInfo.value!['name']}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              '🎁 Vous recevrez 100 points à l\'inscription !',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : const SizedBox.shrink()),
+      ],
+    );
+  }
+
   Widget _buildAssociationSection(RegisterScreenController cc) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Titre de la section
         CustomCardAnimation(
-          index: 12,
+          index: 14,
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -459,7 +563,7 @@ class RegisterScreen extends StatelessWidget {
 
         // Recherche d'association
         CustomCardAnimation(
-          index: 13,
+          index: 15,
           child: Column(
             children: [
               // Conteneur pour centrer le CustomTextFormField

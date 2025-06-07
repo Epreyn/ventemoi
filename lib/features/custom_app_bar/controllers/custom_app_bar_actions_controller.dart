@@ -56,7 +56,12 @@ class CustomAppBarActionsController extends GetxController {
   }
 
   Future<void> _determineUserType(String uid) async {
-    final userDoc = await UniquesControllers().data.firebaseFirestore.collection('users').doc(uid).get();
+    final userDoc = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .get();
     if (!userDoc.exists) return;
 
     final data = userDoc.data()!;
@@ -64,7 +69,12 @@ class CustomAppBarActionsController extends GetxController {
 
     if (userTypeId.isEmpty) return;
 
-    final typeDoc = await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(userTypeId).get();
+    final typeDoc = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .doc(userTypeId)
+        .get();
     if (!typeDoc.exists) return;
 
     final tData = typeDoc.data()!;
@@ -143,6 +153,71 @@ class CustomAppBarActionsController extends GetxController {
       }
       return total;
     });
+  }
+
+  // Méthode pour forcer le rafraîchissement des données
+  Future<void> refreshWalletData() async {
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      // Récupérer directement les données du wallet
+      final walletSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (walletSnap.docs.isNotEmpty) {
+        final walletData = walletSnap.docs.first.data();
+        realPoints.value = walletData['points'] ?? 0;
+        couponsRestants.value = walletData['coupons'] ?? 0;
+      }
+
+      // Récupérer les points en attente
+      final pendingSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('points_attributions')
+          .where('target_id', isEqualTo: uid)
+          .where('validated', isEqualTo: false)
+          .get();
+
+      var pendingSum = 0;
+      for (final doc in pendingSnap.docs) {
+        final rawPoints = doc.data()['points'] ?? 0;
+        pendingSum += (rawPoints as num).toInt();
+      }
+      pendingPoints.value = pendingSum;
+
+      // Récupérer les coupons en attente
+      final couponsPendingSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('points_requests')
+          .where('user_id', isEqualTo: uid)
+          .where('isValidated', isEqualTo: false)
+          .get();
+
+      var couponsPendingTotal = 0;
+      for (final doc in couponsPendingSnap.docs) {
+        final nb = doc.data()['coupons_count'] ?? 0;
+        couponsPendingTotal += (nb as num).toInt();
+      }
+      couponsPending.value = couponsPendingTotal;
+    } catch (e) {
+      print('Erreur lors du rafraîchissement des données wallet: $e');
+    }
+  }
+
+  // Méthode statique pour notifier tous les contrôleurs actifs
+  static void notifyAllControllers() {
+    if (Get.isRegistered<CustomAppBarActionsController>()) {
+      final controller = Get.find<CustomAppBarActionsController>();
+      controller.refreshWalletData();
+    }
   }
 
   // Déconnexion

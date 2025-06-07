@@ -233,7 +233,7 @@ class EnterpriseEstablishmentCard extends StatelessWidget {
                     ),
                   ),
 
-                // FOOTER spécifique entreprise
+                // FOOTER avec bouton simulateur
                 Container(
                   padding:
                       EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
@@ -248,44 +248,21 @@ class EnterpriseEstablishmentCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.business_center,
-                        size: 20 * widthScale,
-                        color: CustomTheme.lightScheme().primary,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showPointsSimulator(context),
+                    icon: const Icon(Icons.calculate),
+                    label: const Text('Simulateur de points'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: CustomTheme.lightScheme().primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
                       ),
-                      SizedBox(width: UniquesControllers().data.baseSpace),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Entreprise partenaire',
-                              style: TextStyle(
-                                fontSize: 14 * widthScale,
-                                fontWeight: FontWeight.bold,
-                                color: CustomTheme.lightScheme().primary,
-                              ),
-                            ),
-                            if (establishment.hasAcceptedContract)
-                              Text(
-                                'Certifiée VenteMoi',
-                                style: TextStyle(
-                                  fontSize: 12 * widthScale,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                          ],
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      if (establishment.hasAcceptedContract)
-                        Icon(
-                          Icons.verified,
-                          color: CustomTheme.lightScheme().primary,
-                          size: 24 * widthScale,
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -404,5 +381,302 @@ class EnterpriseEstablishmentCard extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
+  }
+
+  // MÉTHODE DU SIMULATEUR DE POINTS
+  void _showPointsSimulator(BuildContext context) {
+    final TextEditingController amountController = TextEditingController();
+    final RxString calculatedPoints = '0'.obs;
+    final RxDouble enteredAmount = 0.0.obs;
+
+    // Taux de conversion : 2% de cashback (100€ = 2 points)
+    // TODO: Récupérer le taux réel depuis Firestore si disponible
+    const double cashbackRate = 0.02; // 2%
+
+    // Suggestions de montants
+    final List<double> suggestedAmounts = [10, 25, 50, 100, 200];
+
+    Get.dialog(
+      AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.calculate,
+              color: CustomTheme.lightScheme().primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Simulateur de points',
+                style: TextStyle(
+                  color: CustomTheme.lightScheme().primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo et nom de l'entreprise
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      if (establishment.logoUrl.isNotEmpty)
+                        CircleAvatar(
+                          backgroundImage: NetworkImage(establishment.logoUrl),
+                          radius: 30,
+                        )
+                      else
+                        CircleAvatar(
+                          backgroundColor: CustomTheme.lightScheme()
+                              .primary
+                              .withOpacity(0.1),
+                          radius: 30,
+                          child: Icon(
+                            Icons.business,
+                            color: CustomTheme.lightScheme().primary,
+                            size: 30,
+                          ),
+                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              establishment.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.verified,
+                                  size: 16,
+                                  color: Colors.green[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Entreprise partenaire',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Titre de la section
+                Text(
+                  'Combien souhaitez-vous dépenser ?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Champ de saisie du montant
+                TextField(
+                  controller: amountController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    suffixText: '€',
+                    suffixStyle: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
+                    hintText: '0.00',
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: CustomTheme.lightScheme().primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    final amount =
+                        double.tryParse(value.replaceAll(',', '.')) ?? 0;
+                    enteredAmount.value = amount;
+                    final points = (amount * cashbackRate).round();
+                    calculatedPoints.value = points.toString();
+                  },
+                ),
+                const SizedBox(height: 24),
+
+                // Résultat du calcul avec animation
+                Obx(() => AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                        return ScaleTransition(
+                          scale: animation,
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: enteredAmount.value > 0
+                          ? Container(
+                              key: ValueKey(calculatedPoints.value),
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    CustomTheme.lightScheme().primary,
+                                    CustomTheme.lightScheme()
+                                        .primary
+                                        .withBlue(200),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: CustomTheme.lightScheme()
+                                        .primary
+                                        .withOpacity(0.3),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.celebration,
+                                        color: Colors.white,
+                                        size: 32,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Vous gagnerez',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${calculatedPoints.value} points',
+                                            style: const TextStyle(
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      'Pour ${enteredAmount.value.toStringAsFixed(2)}€ dépensés',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.touch_app,
+                                    size: 48,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Entrez un montant',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    )),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text(
+              'Fermer',
+              style: TextStyle(
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
   }
 }

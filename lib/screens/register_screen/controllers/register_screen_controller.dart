@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
+import 'package:ventemoi/core/classes/email_templates.dart';
 
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
@@ -59,6 +61,13 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   String confirmPasswordValidatorPattern = r'^.{8,}$';
   TextEditingController confirmPasswordController = TextEditingController();
 
+  // Code de parrainage
+  String referralCodeTag = 'referral-code';
+  String referralCodeLabel = 'Code de parrainage (optionnel)';
+  TextEditingController referralCodeController = TextEditingController();
+  RxBool hasValidReferralCode = false.obs;
+  Rx<Map<String, dynamic>?> sponsorInfo = Rx<Map<String, dynamic>?>(null);
+
   // Association parrainage
   String associationSearchTag = 'association-search';
   String associationSearchLabel = 'Rechercher une association (optionnel)';
@@ -89,6 +98,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     emailController.clear();
     passwordController.clear();
     confirmPasswordController.clear();
+    referralCodeController.clear();
     associationSearchController.clear();
     invitationEmailController.clear();
     isConfirmedPassword.value = true;
@@ -96,11 +106,57 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     selectedAssociation.value = null;
     searchResults.clear();
     showInviteOption.value = false;
+    hasValidReferralCode.value = false;
+    sponsorInfo.value = null;
+
+    // Vérifier si un code de parrainage est passé en paramètre URL
+    final referralCode = Get.parameters['code'];
+    if (referralCode != null && referralCode.isNotEmpty) {
+      referralCodeController.text = referralCode;
+      validateReferralCode(referralCode);
+    }
   }
 
   bool checkPasswordConfirmation() {
     return passwordController.text.trim() ==
         confirmPasswordController.text.trim();
+  }
+
+  // Valider le code de parrainage
+  Future<void> validateReferralCode(String code) async {
+    if (code.trim().isEmpty) {
+      hasValidReferralCode.value = false;
+      sponsorInfo.value = null;
+      return;
+    }
+
+    try {
+      // Rechercher l'utilisateur avec ce code
+      final userQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .where('referral_code', isEqualTo: code.trim().toUpperCase())
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        hasValidReferralCode.value = true;
+        sponsorInfo.value = userQuery.docs.first.data();
+        sponsorInfo.value!['id'] = userQuery.docs.first.id;
+      } else {
+        hasValidReferralCode.value = false;
+        sponsorInfo.value = null;
+        UniquesControllers().data.snackbar(
+              'Code invalide',
+              'Ce code de parrainage n\'existe pas',
+              true,
+            );
+      }
+    } catch (e) {
+      hasValidReferralCode.value = false;
+      sponsorInfo.value = null;
+    }
   }
 
   // Recherche d'associations
@@ -319,6 +375,37 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
 
+      // Vérifier si l'email est dans une liste de parrainage
+      final emailToCheck = emailController.text.trim().toLowerCase();
+      Map<String, dynamic>? actualSponsorInfo;
+
+      final sponsorshipQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .where('sponsored_emails', arrayContains: emailToCheck)
+          .limit(1)
+          .get();
+
+      if (sponsorshipQuery.docs.isNotEmpty) {
+        // L'email est parrainé
+        final sponsorId = sponsorshipQuery.docs.first.data()['user_id'];
+        final sponsorDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('users')
+            .doc(sponsorId)
+            .get();
+
+        if (sponsorDoc.exists) {
+          actualSponsorInfo = sponsorDoc.data();
+          actualSponsorInfo!['id'] = sponsorDoc.id;
+        }
+      } else if (hasValidReferralCode.value && sponsorInfo.value != null) {
+        // Utiliser le code de parrainage saisi
+        actualSponsorInfo = sponsorInfo.value;
+      }
+
       final userCredential = await UniquesControllers()
           .data
           .firebaseAuth
@@ -345,6 +432,9 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         }
       }
 
+      // Générer un code de parrainage pour le nouvel utilisateur
+      final newReferralCode = _generateReferralCode();
+
       final userData = <String, dynamic>{
         'name': nameController.text.trim(),
         'email': emailController.text.trim(),
@@ -352,6 +442,8 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         'image_url': imageUrl,
         'isVisible': true,
         'isEnable': true,
+        'referral_code': newReferralCode,
+        'created_at': FieldValue.serverTimestamp(),
       };
 
       await UniquesControllers()
@@ -361,6 +453,12 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .doc(user.uid)
           .set(userData);
 
+      // Calculer les points de bienvenue
+      int welcomePoints = 0;
+      if (actualSponsorInfo != null) {
+        welcomePoints = 100; // Bonus de parrainage
+      }
+
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -368,7 +466,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .doc()
           .set({
         'user_id': user.uid,
-        'points': 0,
+        'points': welcomePoints,
         'coupons': 0,
         'bank_details': Map<String, dynamic>.from({
           'iban': '',
@@ -401,7 +499,36 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       }
 
       // Créer le document sponsorship
-      final sponsoredEmails = <String>[];
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .doc()
+          .set({
+        'user_id': user.uid,
+        'sponsored_emails': [],
+      });
+
+      // Si parrainé, mettre à jour le parrain
+      if (actualSponsorInfo != null) {
+        // Retirer l'email de la liste sponsored_emails du parrain
+        if (sponsorshipQuery.docs.isNotEmpty) {
+          await sponsorshipQuery.docs.first.reference.update({
+            'sponsored_emails': FieldValue.arrayRemove([emailToCheck])
+          });
+        }
+
+        // Ajouter des points au parrain
+        await _addReferralPointsToSponsor(actualSponsorInfo['id'], 50);
+
+        // Envoyer un email de notification au parrain
+        await sendSponsorshipNotificationEmail(
+          sponsorEmail: actualSponsorInfo['email'],
+          sponsorName: actualSponsorInfo['name'],
+          newUserEmail: emailController.text.trim(),
+          pointsEarned: 50,
+        );
+      }
 
       // Si une association a été sélectionnée, ajouter l'utilisateur comme filleul
       if (selectedAssociation.value != null) {
@@ -425,16 +552,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         }
       }
 
-      await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('sponsorships')
-          .doc()
-          .set({
-        'user_id': user.uid,
-        'sponsored_emails': sponsoredEmails,
-      });
-
       UniquesControllers().getStorage.write('email', emailController.text);
       UniquesControllers()
           .getStorage
@@ -442,12 +559,15 @@ class RegisterScreenController extends GetxController with ControllerMixin {
 
       UniquesControllers().data.isInAsyncCall.value = false;
 
-      await sendWelcomeEmail(user.email ?? '', nameController.text.trim());
+      await sendModernWelcomeEmail(
+          user.email ?? '', nameController.text.trim());
 
       Get.toNamed(Routes.login);
       UniquesControllers().data.snackbar(
             'Inscription réussie',
-            'Vous pouvez maintenant vous connecter !',
+            actualSponsorInfo != null
+                ? 'Bienvenue ! Vous avez reçu 100 points de bienvenue grâce au parrainage.'
+                : 'Vous pouvez maintenant vous connecter !',
             false,
           );
     } catch (e) {
@@ -456,6 +576,82 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .data
           .snackbar('Erreur lors de l\'inscription', e.toString(), true);
     }
+  }
+
+  String _generateReferralCode() {
+    final random = Random();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List.generate(6, (index) => chars[random.nextInt(chars.length)])
+        .join();
+  }
+
+  Future<void> _addReferralPointsToSponsor(String sponsorId, int points) async {
+    try {
+      final walletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: sponsorId)
+          .limit(1)
+          .get();
+
+      if (walletQuery.docs.isNotEmpty) {
+        await walletQuery.docs.first.reference.update({
+          'points': FieldValue.increment(points),
+        });
+      }
+    } catch (e) {
+      print('Erreur lors de l\'ajout des points de parrainage: $e');
+    }
+  }
+
+  Future<void> sendSponsorshipNotificationEmail({
+    required String sponsorEmail,
+    required String sponsorName,
+    required String newUserEmail,
+    required int pointsEarned,
+  }) async {
+    final content = '''
+      <h2>🎉 Félicitations $sponsorName !</h2>
+      <p>
+        Excellente nouvelle ! <strong>$newUserEmail</strong> vient de s'inscrire
+        sur VenteMoi grâce à votre parrainage.
+      </p>
+
+      <div class="highlight-box">
+        <h3>Votre récompense</h3>
+        <div class="info-value" style="font-size: 32px; color: #ff7a00; margin: 10px 0;">
+          +$pointsEarned points
+        </div>
+        <p style="margin: 10px 0; color: #666;">
+          Ces points ont été ajoutés à votre compte
+        </p>
+      </div>
+
+      <p>
+        Continuez à parrainer vos proches et gagnez encore plus de récompenses !
+        Chaque nouveau filleul actif vous rapporte des points bonus.
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://ventemoi.com/parrainage" class="button">
+          Parrainer d'autres amis
+        </a>
+      </div>
+
+      <div class="divider"></div>
+
+      <p style="font-size: 14px; color: #888;">
+        💡 <strong>Rappel :</strong> Vous gagnez également 10% des achats
+        réalisés par vos filleuls. Plus vous parrainez, plus vous gagnez !
+      </p>
+    ''';
+
+    await sendMailSimple(
+      toEmail: sponsorEmail,
+      subject: '🎊 $newUserEmail s\'est inscrit grâce à vous !',
+      htmlBody: buildModernMailHtml(content),
+    );
   }
 
   Future<String> uploadProfileImage(File file, String uid) async {
