@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,16 +8,20 @@ import 'package:intl/intl.dart';
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/purchase.dart';
-import '../../../features/custom_card_animation/view/custom_card_animation.dart';
+import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
-import '../widgets/pro_sells_buyer_email_cell.dart';
-import '../widgets/pro_sells_buyer_name_cell.dart';
 
 class ProSellsScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Ventes'.toUpperCase();
   String customBottomAppBarTag = 'pro-sells-bottom-app-bar';
 
   RxList<Purchase> purchases = <Purchase>[].obs;
+  RxList<Purchase> filteredPurchases = <Purchase>[].obs;
+
+  final RxString filterStatus = 'all'.obs;
+  final RxString sortOrder = 'date_desc'.obs;
+  final RxString periodFilter = 'all'.obs;
+  final TextEditingController searchController = TextEditingController();
 
   final RxInt sortColumnIndex = 0.obs;
   final RxBool sortAscending = true.obs;
@@ -27,25 +32,29 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
   Rx<Purchase?> editingPurchase = Rx<Purchase?>(null);
   final TextEditingController codeController = TextEditingController();
 
+  // Cache pour les informations des utilisateurs
+  final Map<String, Map<String, dynamic>> _userCache = {};
+
   @override
   void onInit() {
     super.onInit();
     _purchasesSub = getProPurchasesStream().listen((list) {
       purchases.value = list;
-      _sortPurchases();
+      applyFilters();
     });
   }
 
   @override
   void onClose() {
     _purchasesSub?.cancel();
+    codeController.dispose();
+    searchController.dispose();
     super.onClose();
   }
 
   // Récupération des purchases où seller_id == currentUser
   Stream<List<Purchase>> getProPurchasesStream() {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    print('UID : ' + uid.toString());
     if (uid == null) return const Stream.empty();
     return UniquesControllers()
         .data
@@ -56,193 +65,376 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
         .map((snap) => snap.docs.map((d) => Purchase.fromDocument(d)).toList());
   }
 
-  // Tri
-  void onSortData(int colIndex, bool asc) {
-    sortColumnIndex.value = colIndex;
-    sortAscending.value = asc;
-    _sortPurchases();
-  }
+  // Méthode pour appliquer les filtres et le tri
+  void applyFilters() async {
+    List<Purchase> filtered = purchases.toList();
 
-  void _sortPurchases() {
-    final sorted = purchases.toList();
-    switch (sortColumnIndex.value) {
-      case 0: // Détails
-        // ...ex: tri sur couponsCount
-        sorted.sort((a, b) => a.couponsCount.compareTo(b.couponsCount));
+    // Filtre par statut
+    switch (filterStatus.value) {
+      case 'pending':
+        filtered = filtered.where((p) => !p.isReclaimed).toList();
         break;
-
-      case 1: // Valeur => on suppose que vous avez un champ "purchaseValue"
-        // => sorted.sort((a, b) => a.purchaseValue.compareTo(b.purchaseValue));
+      case 'reclaimed':
+        filtered = filtered.where((p) => p.isReclaimed).toList();
         break;
-
-      case 2: // Acheteur => buyerId
-        sorted.sort((a, b) => a.buyerId.compareTo(b.buyerId));
-        break;
-
-      case 3: // Date
-        sorted.sort((a, b) => a.date.compareTo(b.date));
-        break;
-
-      case 4: // Email => pas de champ direct => skip
-        break;
-
-      case 5: // Statut => isReclaimed
-        sorted.sort((a, b) =>
-            a.isReclaimed.toString().compareTo(b.isReclaimed.toString()));
-        break;
-
       default:
+        // 'all' - pas de filtre
         break;
     }
-    if (!sortAscending.value) {
-      purchases.value = sorted.reversed.toList();
-    } else {
-      purchases.value = sorted;
+
+    // Filtre par période
+    final now = DateTime.now();
+    switch (periodFilter.value) {
+      case 'today':
+        filtered = filtered.where((p) {
+          return p.date.year == now.year &&
+              p.date.month == now.month &&
+              p.date.day == now.day;
+        }).toList();
+        break;
+      case 'week':
+        final weekAgo = now.subtract(const Duration(days: 7));
+        filtered = filtered.where((p) => p.date.isAfter(weekAgo)).toList();
+        break;
+      case 'month':
+        final monthAgo = DateTime(now.year, now.month - 1, now.day);
+        filtered = filtered.where((p) => p.date.isAfter(monthAgo)).toList();
+        break;
+      default:
+        // 'all' - pas de filtre de période
+        break;
     }
+
+    // Filtre par recherche
+    final searchQuery = searchController.text.toLowerCase().trim();
+    if (searchQuery.isNotEmpty) {
+      // Charger les informations des utilisateurs si nécessaire
+      for (final purchase in filtered) {
+        if (!_userCache.containsKey(purchase.buyerId)) {
+          try {
+            final userDoc = await UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('users')
+                .doc(purchase.buyerId)
+                .get();
+
+            if (userDoc.exists) {
+              _userCache[purchase.buyerId] =
+                  userDoc.data() as Map<String, dynamic>;
+            }
+          } catch (e) {
+            // Ignorer les erreurs
+          }
+        }
+      }
+
+      // Filtrer par nom ou email
+      filtered = filtered.where((p) {
+        final userData = _userCache[p.buyerId];
+        if (userData == null) return false;
+
+        final name = (userData['name'] ?? '').toString().toLowerCase();
+        final email = (userData['email'] ?? '').toString().toLowerCase();
+
+        return name.contains(searchQuery) || email.contains(searchQuery);
+      }).toList();
+    }
+
+    // Tri
+    switch (sortOrder.value) {
+      case 'date_asc':
+        filtered.sort((a, b) => a.date.compareTo(b.date));
+        break;
+      case 'date_desc':
+        filtered.sort((a, b) => b.date.compareTo(a.date));
+        break;
+      case 'amount_asc':
+        filtered.sort(
+            (a, b) => (a.couponsCount * 50).compareTo(b.couponsCount * 50));
+        break;
+      case 'amount_desc':
+        filtered.sort(
+            (a, b) => (b.couponsCount * 50).compareTo(a.couponsCount * 50));
+        break;
+      default:
+        filtered.sort((a, b) => b.date.compareTo(a.date));
+        break;
+    }
+
+    filteredPurchases.value = filtered;
   }
 
-  // Colonnes
-  List<DataColumn> get dataColumns => [
-        DataColumn(
-          label: const Text('Détails',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label: const Text('Valeur',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label: const Text('Acheteur',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        DataColumn(
-          label:
-              const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
-          onSort: (col, asc) => onSortData(col, asc),
-        ),
-        const DataColumn(
-          label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        const DataColumn(
-          label: Text('Statut', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-      ];
-
-  List<DataRow> get dataRows {
-    return List.generate(purchases.length, (i) {
-      final pur = purchases[i];
-      final dateFr = DateFormat('dd/MM/yyyy HH:mm', 'fr_FR').format(pur.date);
-
-      // 1) Détails => couponsCount ou “Don”
-      final bool isDonation = (pur.couponsCount == 0);
-      final detailText = isDonation
-          ? 'Don' // (si vous avez donation_amount, vous pourriez l'afficher)
-          : '${pur.couponsCount} bons';
-
-      // 2) Switch isReclaimed => si false => on peut l’activer => ouvre code
-      // 3) Sur clic => on assigne editingPurchase=pur => openReclaimDialog()
-
-      return DataRow(
-        //color: i.isEven ? MaterialStateProperty.all() : null,
-        cells: [
-          // Détails
-          DataCell(
-            CustomCardAnimation(
-              index: i,
-              child: Text(detailText),
-            ),
-          ),
-          // Valeur => purchaseValue
-          DataCell(
-            CustomCardAnimation(
-              index: i,
-              child: Text('${pur.couponsCount * 50} €'),
-            ),
-          ),
-          // Acheteur => buyer name
-          DataCell(
-            CustomCardAnimation(
-              index: i,
-              child: ProSellsBuyerNameCell(buyerId: pur.buyerId),
-            ),
-          ),
-          // Date
-          DataCell(
-            CustomCardAnimation(
-              index: i,
-              child: Text(dateFr),
-            ),
-          ),
-          // Email
-          DataCell(
-            CustomCardAnimation(
-              index: i,
-              child: ProSellsBuyerEmailCell(buyerId: pur.buyerId),
-            ),
-          ),
-          // Statut
-          DataCell(
-            pur.isReclaimed
-                ? const Row(
-                    children: [
-                      Icon(Icons.check),
-                      CustomSpace(widthMultiplier: 0.5),
-                      Text('Récupéré'),
-                    ],
-                  )
-                : CustomCardAnimation(
-                    index: i,
-                    child: Switch(
-                      thumbColor: WidgetStateProperty.all(Colors.black),
-                      value: pur.isReclaimed,
-                      onChanged: pur.isReclaimed
-                          ? null
-                          : (val) {
-                              if (val) {
-                                editingPurchase.value = pur;
-                                openReclaimDialog();
-                              }
-                            },
-                    ),
-                  ),
-          ),
-        ],
-      );
-    });
+  // Méthode pour définir le filtre de statut
+  void setFilter(String filter) {
+    filterStatus.value = filter;
+    applyFilters();
   }
 
-  // On clique sur switch => openReclaimDialog() => saisie code
+  // Méthode pour définir l'ordre de tri
+  void setSortOrder(String order) {
+    sortOrder.value = order;
+    applyFilters();
+  }
+
+  // Méthode pour définir le filtre de période
+  void setPeriodFilter(String period) {
+    periodFilter.value = period;
+    applyFilters();
+  }
+
+  // Méthode pour réinitialiser tous les filtres
+  void clearFilters() {
+    searchController.clear();
+    filterStatus.value = 'all';
+    periodFilter.value = 'all';
+    sortOrder.value = 'date_desc';
+    applyFilters();
+  }
+
+  // Getter réactif pour vérifier s'il y a des filtres actifs
+  bool get hasActiveFilters {
+    return filterStatus.value != 'all' ||
+        periodFilter.value != 'all' ||
+        searchController.text.isNotEmpty ||
+        sortOrder.value != 'date_desc';
+  }
+
+  // Méthode pour ouvrir la boîte de dialogue de réclamation
   void openReclaimDialog() {
-    openAlertDialog('Valider la récupération ?');
+    codeController.clear();
+    _showReclaimDialog();
   }
 
-  // On veut un champ code => on l’ajoute dans alertDialogContent
-  @override
-  Widget alertDialogContent() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text('Entrer le code de réclamation :'),
-        const SizedBox(height: 12),
-        TextField(
-          controller: codeController,
-          obscureText: true,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(90),
+  // Méthode privée pour afficher la boîte de dialogue personnalisée
+  void _showReclaimDialog() {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+        ),
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: 400,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.9),
+                Colors.white.withOpacity(0.8),
+              ],
             ),
-            labelText: 'Code',
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.5),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: CustomTheme.lightScheme().primary.withOpacity(0.15),
+                blurRadius: 30,
+                spreadRadius: 5,
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Padding(
+                padding:
+                    EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icône
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color:
+                            CustomTheme.lightScheme().primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        Icons.lock_open,
+                        color: CustomTheme.lightScheme().primary,
+                        size: 40,
+                      ),
+                    ),
+                    const CustomSpace(heightMultiplier: 2),
+
+                    // Titre
+                    Text(
+                      'Validation de la récupération',
+                      style: TextStyle(
+                        fontSize: UniquesControllers().data.baseSpace * 2.2,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey[800],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const CustomSpace(heightMultiplier: 1),
+
+                    // Sous-titre
+                    Text(
+                      'Entrez le code fourni par le client',
+                      style: TextStyle(
+                        fontSize: UniquesControllers().data.baseSpace * 1.6,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const CustomSpace(heightMultiplier: 3),
+
+                    // Champ de code
+                    TextField(
+                      controller: codeController,
+                      obscureText: true,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: UniquesControllers().data.baseSpace * 2.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 8,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '• • • • • •',
+                        hintStyle: TextStyle(
+                          fontSize: UniquesControllers().data.baseSpace * 2.5,
+                          color: Colors.grey[400],
+                          letterSpacing: 4,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.withOpacity(0.05),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: Colors.grey.withOpacity(0.2),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: Colors.grey.withOpacity(0.2),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide(
+                            color: CustomTheme.lightScheme().primary,
+                            width: 2,
+                          ),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: UniquesControllers().data.baseSpace * 3,
+                          vertical: UniquesControllers().data.baseSpace * 2,
+                        ),
+                      ),
+                    ),
+                    const CustomSpace(heightMultiplier: 3),
+
+                    // Boutons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Get.back(),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                vertical:
+                                    UniquesControllers().data.baseSpace * 1.8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            child: Text(
+                              'Annuler',
+                              style: TextStyle(
+                                fontSize:
+                                    UniquesControllers().data.baseSpace * 1.8,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  CustomTheme.lightScheme().primary,
+                                  CustomTheme.lightScheme()
+                                      .primary
+                                      .withOpacity(0.8),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: CustomTheme.lightScheme()
+                                      .primary
+                                      .withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () async {
+                                  Get.back();
+                                  await validateReclamation();
+                                },
+                                borderRadius: BorderRadius.circular(15),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    vertical:
+                                        UniquesControllers().data.baseSpace *
+                                            1.8,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Valider',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: UniquesControllers()
+                                                .data
+                                                .baseSpace *
+                                            1.8,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-      ],
+      ),
+      barrierDismissible: true,
     );
   }
 
-  @override
-  Future<void> actionAlertDialog() async {
+  // Méthode pour valider la réclamation
+  Future<void> validateReclamation() async {
     final pur = editingPurchase.value;
     if (pur == null) return;
 
@@ -250,11 +442,20 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
     codeController.clear();
 
     if (inputCode.isEmpty) {
-      UniquesControllers().data.snackbar('Erreur', 'Code vide', true);
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Veuillez entrer un code',
+            true,
+          );
       return;
     }
+
     if (inputCode != pur.reclamationPassword) {
-      UniquesControllers().data.snackbar('Erreur', 'Code invalide', true);
+      UniquesControllers().data.snackbar(
+            'Code invalide',
+            'Le code entré ne correspond pas',
+            true,
+          );
       return;
     }
 
@@ -270,10 +471,55 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
         'isReclaimed': true,
       });
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Succès', 'Produit récupéré', false);
+
+      // Message de succès avec style
+      Get.snackbar(
+        'Succès',
+        'La vente a été validée avec succès',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green.withOpacity(0.9),
+        colorText: Colors.white,
+        borderRadius: 20,
+        margin: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.check_circle,
+            color: Colors.white,
+          ),
+        ),
+        duration: const Duration(seconds: 3),
+      );
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Erreur', e.toString(), true);
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Une erreur est survenue',
+            true,
+          );
     }
+  }
+
+  // Override requis par ControllerMixin avec tous les paramètres
+  @override
+  void openAlertDialog(String title,
+      {String? confirmText, Color? confirmColor, IconData? icon}) {
+    // Cette méthode n'est pas utilisée dans ce contrôleur
+    // On utilise plutôt openReclaimDialog() et _showReclaimDialog()
+  }
+
+  // Override requis par ControllerMixin
+  @override
+  Widget alertDialogContent() => const SizedBox.shrink();
+
+  // Override requis par ControllerMixin
+  @override
+  Future<void> actionAlertDialog() async {
+    // Cette méthode n'est pas utilisée dans ce contrôleur
+    // On utilise plutôt validateReclamation()
   }
 }
