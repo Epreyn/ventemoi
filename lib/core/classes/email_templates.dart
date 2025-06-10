@@ -289,9 +289,8 @@ extension EmailTemplates on ControllerMixin {
                 <p>Cet email vous a été envoyé automatiquement. Merci de ne pas y répondre.</p>
 
                 <div class="footer-links">
-                    <a href="https://ventemoi.com">Site web</a>
-                    <a href="mailto:support@ventemoi.com">Support</a>
-                    <a href="https://ventemoi.com/privacy">Confidentialité</a>
+                    <a href="https://app.ventemoi.fr">Site web</a>
+                    <a href="mailto:app@ventemoi.fr">Support</a>
                 </div>
             </div>
         </div>

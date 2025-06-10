@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// core/models/points_request.dart
 
 class PointsRequest {
-  final String id; // <-- we store the doc id
+  final String id;
   final String userId;
-  final String establishmentId;
   final String walletId;
+  final String establishmentId;
   final int couponsCount;
   final bool isValidated;
   final DateTime createdAt;
@@ -12,31 +12,35 @@ class PointsRequest {
   PointsRequest({
     required this.id,
     required this.userId,
-    required this.establishmentId,
     required this.walletId,
+    required this.establishmentId,
     required this.couponsCount,
     required this.isValidated,
     required this.createdAt,
   });
 
-  factory PointsRequest.fromDocument(String docId, Map<String, dynamic> map) {
-    // Convert 'createdAt' from Timestamp if necessary
-    final rawCreated = map['createdAt'];
-    DateTime dt;
-    if (rawCreated is Timestamp) {
-      dt = rawCreated.toDate();
-    } else {
-      dt = DateTime.now();
-    }
-
+  factory PointsRequest.fromDocument(String id, Map<String, dynamic> data) {
     return PointsRequest(
-      id: docId,
-      userId: map['user_id'] ?? '',
-      establishmentId: map['establishment_id'] ?? '',
-      walletId: map['wallet_id'] ?? '',
-      couponsCount: map['coupons_count'] ?? 0,
-      isValidated: map['isValidated'] ?? false,
-      createdAt: dt,
+      id: id,
+      userId: data['user_id'] ?? '',
+      walletId: data['wallet_id'] ?? '',
+      establishmentId: data['establishment_id'] ?? '',
+      couponsCount: data['coupons_count'] ?? 0,
+      isValidated: data['isValidated'] ?? false,
+      createdAt: data['createdAt'] != null
+          ? DateTime.parse(data['createdAt'])
+          : DateTime.now(),
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'user_id': userId,
+      'wallet_id': walletId,
+      'establishment_id': establishmentId,
+      'coupons_count': couponsCount,
+      'isValidated': isValidated,
+      'createdAt': createdAt.toIso8601String(),
+    };
   }
 }

@@ -10,6 +10,7 @@ import 'core/theme/util.dart';
 
 import 'features/screen_layout/controllers/screen_layout_controller.dart';
 import 'firebase_options.dart';
+import 'screens/not_found_screen/view/not_found_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,28 @@ class App extends StatelessWidget {
       initialRoute: AppScreens.initial,
       getPages: AppScreens.routes,
       defaultTransition: Transition.noTransition,
+      unknownRoute: GetPage(
+        name: '/404',
+        page: () => const NotFoundScreen(),
+      ),
+      // Configuration pour une meilleure gestion des routes et paramètres
+      navigatorKey: Get.key,
+      navigatorObservers: [GetObserver()],
+      // Gestion des paramètres URL et du routing
+      routingCallback: (routing) {
+        // Les paramètres sont automatiquement extraits par GetX
+        // Accessible via Get.parameters['paramName']
+        if (routing?.current != null) {
+          //debugPrint('Route actuelle: ${routing!.current}');
+          //debugPrint('Paramètres: ${Get.parameters}');
+        }
+      },
+      // Pour supporter les deep links sur web
+      onGenerateRoute: (settings) {
+        // GetX gère automatiquement l'extraction des paramètres
+        // Cette méthode est utile pour des cas spéciaux
+        return null; // Laisser GetX gérer le routing
+      },
     );
   }
 }

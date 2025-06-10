@@ -62,7 +62,8 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
         .collection('purchases')
         .where('seller_id', isEqualTo: uid)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Purchase.fromDocument(d)).toList());
+        .map((snap) =>
+            snap.docs.map((d) => Purchase.fromDocumentSnapshot(d)).toList());
   }
 
   // Méthode pour appliquer les filtres et le tri

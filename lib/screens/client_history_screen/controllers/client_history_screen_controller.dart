@@ -57,7 +57,8 @@ class ClientHistoryScreenController extends GetxController
         .collection('purchases')
         .where('buyer_id', isEqualTo: uid)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => Purchase.fromDocument(d)).toList());
+        .map((snap) =>
+            snap.docs.map((d) => Purchase.fromDocumentSnapshot(d)).toList());
   }
 
   // Récupère le wallet => points

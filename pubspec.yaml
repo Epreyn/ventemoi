@@ -25,6 +25,7 @@ dependencies:
   firebase_storage:
 
   shimmer:
+  fl_chart:
 
 dev_dependencies:
   flutter_test:

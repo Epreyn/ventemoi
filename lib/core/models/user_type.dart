@@ -1,47 +1,36 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import 'nameable.dart';
+import 'package:ventemoi/core/models/nameable.dart';
 
 class UserType implements Nameable {
   @override
-  final String name;
-  @override
   final String id;
-  final int index;
+  @override
+  final String name;
   final String description;
+  final int index;
 
   UserType({
     required this.id,
     required this.name,
-    required this.index,
     required this.description,
+    required this.index,
   });
 
   factory UserType.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return UserType(
       id: doc.id,
-      name: doc['name'],
-      index: doc['index'],
-      description: doc['description'],
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      index: data['index'] ?? 0,
     );
   }
 
-  UserType copyWith({
-    String? id,
-    String? name,
-    int? index,
-    String? description,
-  }) {
-    return UserType(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      index: this.index,
-      description: this.description,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'UserType(id: $id, name: $name, index: $index, description: $description)';
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'description': description,
+      'index': index,
+    };
   }
 }

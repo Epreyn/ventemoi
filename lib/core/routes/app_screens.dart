@@ -39,6 +39,11 @@ class AppScreens {
     GetPage(
       name: RoutePaths.register,
       page: () => const RegisterScreen(),
+      parameters: {
+        'token': Get.parameters['token'] ?? '',
+        'email': Get.parameters['email'] ?? '',
+        'code': Get.parameters['code'] ?? '',
+      },
     ),
     GetPage(
       name: RoutePaths.shopEstablishment,

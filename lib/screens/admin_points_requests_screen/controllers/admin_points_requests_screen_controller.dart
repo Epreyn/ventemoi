@@ -19,9 +19,81 @@ class AdminPointsRequestsScreenController extends GetxController
   // All points_requests docs
   final RxList<PointsRequest> requests = <PointsRequest>[].obs;
 
+  // Filtered requests
+  List<PointsRequest>? get filteredRequests {
+    var filtered = requests.toList();
+
+    // Filtre par recherche
+    if (searchText.value.isNotEmpty) {
+      final search = searchText.value.toLowerCase();
+      filtered = filtered.where((request) {
+        final userName = getUserName(request.userId).toLowerCase();
+        final userEmail = getUserEmail(request.userId).toLowerCase();
+        final estabName = getEstabName(request.establishmentId).toLowerCase();
+        final couponsStr = request.couponsCount.toString();
+
+        return userName.contains(search) ||
+            userEmail.contains(search) ||
+            estabName.contains(search) ||
+            couponsStr.contains(search);
+      }).toList();
+    }
+
+    // Filtre par statut de validation
+    if (filterValidated.value == 'validated') {
+      filtered = filtered.where((r) => r.isValidated).toList();
+    } else if (filterValidated.value == 'pending') {
+      filtered = filtered.where((r) => !r.isValidated).toList();
+    }
+
+    // Tri
+    filtered.sort((a, b) {
+      int comparison = 0;
+
+      switch (sortColumnIndex.value) {
+        case 0: // Date
+          comparison = a.createdAt.compareTo(b.createdAt);
+          break;
+        case 1: // Nom
+          comparison = getUserName(a.userId).compareTo(getUserName(b.userId));
+          break;
+        case 2: // Email
+          comparison = getUserEmail(a.userId).compareTo(getUserEmail(b.userId));
+          break;
+        case 3: // Bons
+          comparison = a.couponsCount.compareTo(b.couponsCount);
+          break;
+      }
+
+      return sortAscending.value ? comparison : -comparison;
+    });
+
+    return filtered;
+  }
+
+  // Stats calculées
+  Map<String, int> get requestStats {
+    final total = requests.length;
+    final validated = requests.where((r) => r.isValidated).length;
+    final pending = requests.where((r) => !r.isValidated).length;
+    final totalCoupons =
+        requests.fold<int>(0, (sum, r) => sum + r.couponsCount);
+
+    return {
+      'total': total,
+      'validated': validated,
+      'pending': pending,
+      'totalCoupons': totalCoupons,
+    };
+  }
+
   // Sorting
   final RxInt sortColumnIndex = 0.obs;
-  final RxBool sortAscending = true.obs;
+  final RxBool sortAscending = false.obs; // Plus récent d'abord par défaut
+
+  // Filtering
+  final RxString searchText = ''.obs;
+  final RxString filterValidated = 'all'.obs; // all, validated, pending
 
   // We store user names/emails and establishment names in these caches
   final RxMap<String, String> userNameCache = <String, String>{}.obs;
@@ -90,7 +162,16 @@ class AdminPointsRequestsScreenController extends GetxController
   @override
   void onClose() {
     _sub?.cancel();
+    searchEmailCtrl.dispose();
+    couponsCountCtrl.dispose();
     super.onClose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Search and filtering
+  // ---------------------------------------------------------------------------
+  void onSearchChanged(String value) {
+    searchText.value = value;
   }
 
   // ---------------------------------------------------------------------------
@@ -179,18 +260,11 @@ class AdminPointsRequestsScreenController extends GetxController
   void onSortData(int colIndex, bool asc) {
     sortColumnIndex.value = colIndex;
     sortAscending.value = asc;
-
-    final sorted = requests.toList();
-    // For now, let's say colIndex=0 => date
-    if (colIndex == 0) {
-      sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      if (!asc) sorted.reversed;
-    }
-    requests.value = sorted;
+    requests.refresh(); // Trigger UI update
   }
 
   // ---------------------------------------------------------------------------
-  // DataTable columns
+  // DataTable columns (legacy - kept for compatibility)
   // ---------------------------------------------------------------------------
   List<DataColumn> get dataColumns => [
         DataColumn(
@@ -205,7 +279,7 @@ class AdminPointsRequestsScreenController extends GetxController
       ];
 
   // ---------------------------------------------------------------------------
-  // Build rows
+  // Build rows (legacy - kept for compatibility)
   // ---------------------------------------------------------------------------
   List<DataRow> get dataRows {
     return List.generate(requests.length, (i) {
@@ -399,8 +473,40 @@ class AdminPointsRequestsScreenController extends GetxController
 
   @override
   alertDialogContent() {
-    return Text(
-        'Êtes-vous sûr de vouloir valider cette demande ?\nCette action est irréversible.');
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Êtes-vous sûr de vouloir valider cette demande ?',
+          style: TextStyle(fontSize: 16),
+        ),
+        SizedBox(height: 12),
+        Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue[200]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 20, color: Colors.blue[700]),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Cette action est irréversible. Les bons seront crédités sur le wallet de la boutique.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.blue[900],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -431,7 +537,7 @@ class AdminPointsRequestsScreenController extends GetxController
           .limit(1)
           .get();
       if (walletSnap.docs.isEmpty) {
-        throw 'Le user n’a pas de wallet.';
+        throw 'Le user n\'a pas de wallet.';
       }
       final walletId = walletSnap.docs.first.id;
 
@@ -444,7 +550,7 @@ class AdminPointsRequestsScreenController extends GetxController
           .limit(1)
           .get();
       if (estSnap.docs.isEmpty) {
-        throw 'L\'utilisateur n’a pas d’établissement.';
+        throw 'L\'utilisateur n\'a pas d\'établissement.';
       }
       final estabId = estSnap.docs.first.id;
 

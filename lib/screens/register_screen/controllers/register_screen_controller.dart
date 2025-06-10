@@ -90,6 +90,10 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   RxBool showInviteOption = false.obs;
   RxBool isSearching = false.obs;
 
+  // Variables pour les points en attente
+  RxBool hasPendingPoints = false.obs;
+  RxInt pendingPointsAmount = 0.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -108,12 +112,54 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     showInviteOption.value = false;
     hasValidReferralCode.value = false;
     sponsorInfo.value = null;
+    hasPendingPoints.value = false;
+    pendingPointsAmount.value = 0;
 
     // Vérifier si un code de parrainage est passé en paramètre URL
     final referralCode = Get.parameters['code'];
     if (referralCode != null && referralCode.isNotEmpty) {
       referralCodeController.text = referralCode;
       validateReferralCode(referralCode);
+    }
+
+    // Vérifier si c'est une invitation avec des points (token dans l'URL)
+    final invitationToken = Get.parameters['token'];
+    final invitationEmail = Get.parameters['email'];
+    if (invitationToken != null && invitationToken.isNotEmpty) {
+      _checkInvitationToken(invitationToken, invitationEmail);
+    }
+  }
+
+  // Vérifier le token d'invitation et pré-remplir l'email
+  Future<void> _checkInvitationToken(String token, String? email) async {
+    try {
+      // Rechercher l'attribution en attente avec ce token
+      final pendingSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('pending_points_attributions')
+          .where('invitation_token', isEqualTo: token)
+          .where('claimed', isEqualTo: false)
+          .limit(1)
+          .get();
+
+      if (pendingSnap.docs.isNotEmpty) {
+        final data = pendingSnap.docs.first.data();
+        final points = data['points'] ?? 0;
+        final pendingEmail = data['email'] ?? '';
+
+        // Pré-remplir l'email et le rendre non modifiable
+        if (email != null && email.isNotEmpty) {
+          emailController.text = Uri.decodeComponent(email);
+        } else if (pendingEmail.isNotEmpty) {
+          emailController.text = pendingEmail;
+        }
+
+        hasPendingPoints.value = true;
+        pendingPointsAmount.value = points;
+      }
+    } catch (e) {
+      print('Erreur vérification token invitation: $e');
     }
   }
 
@@ -459,6 +505,11 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         welcomePoints = 100; // Bonus de parrainage
       }
 
+      // NOUVEAU : Vérifier et réclamer les points en attente
+      final pendingPoints =
+          await _checkAndClaimPendingPoints(emailToCheck, user.uid);
+      welcomePoints += pendingPoints;
+
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -563,11 +614,25 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           user.email ?? '', nameController.text.trim());
 
       Get.toNamed(Routes.login);
+
+      // Message personnalisé en fonction des points reçus
+      String successMessage = 'Inscription réussie !';
+      if (pendingPoints > 0 && actualSponsorInfo != null) {
+        successMessage =
+            'Bienvenue ! Vous avez reçu ${welcomePoints} points (${pendingPoints} points en attente + 100 points de parrainage).';
+      } else if (pendingPoints > 0) {
+        successMessage =
+            'Bienvenue ! Vous avez reçu ${pendingPoints} points qui vous attendaient.';
+      } else if (actualSponsorInfo != null) {
+        successMessage =
+            'Bienvenue ! Vous avez reçu 100 points de bienvenue grâce au parrainage.';
+      } else {
+        successMessage = 'Vous pouvez maintenant vous connecter !';
+      }
+
       UniquesControllers().data.snackbar(
             'Inscription réussie',
-            actualSponsorInfo != null
-                ? 'Bienvenue ! Vous avez reçu 100 points de bienvenue grâce au parrainage.'
-                : 'Vous pouvez maintenant vous connecter !',
+            successMessage,
             false,
           );
     } catch (e) {
@@ -575,6 +640,62 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       UniquesControllers()
           .data
           .snackbar('Erreur lors de l\'inscription', e.toString(), true);
+    }
+  }
+
+  // NOUVEAU : Méthode pour vérifier et réclamer les points en attente
+  Future<int> _checkAndClaimPendingPoints(String email, String userId) async {
+    try {
+      final pendingSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('pending_points_attributions')
+          .where('email', isEqualTo: email.toLowerCase())
+          .where('claimed', isEqualTo: false)
+          .get();
+
+      if (pendingSnap.docs.isEmpty) return 0;
+
+      int totalPoints = 0;
+      final batch = UniquesControllers().data.firebaseFirestore.batch();
+
+      for (final doc in pendingSnap.docs) {
+        final data = doc.data();
+        final points = data['points'] ?? 0;
+        totalPoints += points as int;
+
+        // Marquer comme réclamé
+        batch.update(doc.reference, {
+          'claimed': true,
+          'claimed_by_user_id': userId,
+          'claimed_at': DateTime.now(),
+        });
+
+        // Créer une attribution validée
+        final attributionRef = UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('points_attributions')
+            .doc();
+        batch.set(attributionRef, {
+          'giver_id': data['giver_id'],
+          'target_id': userId,
+          'target_email': email,
+          'date': DateTime.now(),
+          'cost': 0,
+          'points': points,
+          'commission_percent': 0,
+          'commission_cost': 0,
+          'validated': true,
+          'from_pending': true,
+        });
+      }
+
+      await batch.commit();
+      return totalPoints;
+    } catch (e) {
+      print('Erreur lors de la réclamation des points en attente: $e');
+      return 0;
     }
   }
 

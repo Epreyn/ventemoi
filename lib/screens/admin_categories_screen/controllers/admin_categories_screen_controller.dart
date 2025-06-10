@@ -8,7 +8,8 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/establishment_category.dart';
 
-class AdminCategoriesScreenController extends GetxController with ControllerMixin {
+class AdminCategoriesScreenController extends GetxController
+    with ControllerMixin {
   // Titre / bottom bar
   String pageTitle = 'Catégories'.toUpperCase();
   String customBottomAppBarTag = 'admin-categories-bottom-app-bar';
@@ -27,6 +28,34 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
   // Pour la suppression => on ouvre un AlertDialog
   EstablishmentCategory? categoryToDelete;
 
+  // Nouvelles variables pour la recherche et le tri
+  RxString searchText = ''.obs;
+  RxString sortBy = 'index'.obs; // 'index' ou 'name'
+
+  // Liste filtrée pour l'affichage
+  RxList<EstablishmentCategory> get filteredCategories {
+    var filtered = categories.where((category) {
+      if (searchText.value.isEmpty) return true;
+
+      final search = searchText.value.toLowerCase();
+      return category.name.toLowerCase().contains(search);
+    }).toList();
+
+    // Appliquer le tri
+    switch (sortBy.value) {
+      case 'name':
+        filtered.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+      case 'index':
+      default:
+        filtered.sort((a, b) => a.index.compareTo(b.index));
+        break;
+    }
+
+    return filtered.obs;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -35,6 +64,9 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
       list.sort((a, b) => a.index.compareTo(b.index));
       categories.value = list;
     });
+
+    // Écouter les changements de tri pour forcer le rafraîchissement
+    ever(sortBy, (_) => categories.refresh());
   }
 
   @override
@@ -52,27 +84,36 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
         .firebaseFirestore
         .collection('categories')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => EstablishmentCategory.fromDocument(d)).toList());
+        .map((snap) => snap.docs
+            .map((d) => EstablishmentCategory.fromDocument(d))
+            .toList());
   }
 
   // -----------------------------------------------------------------------------
-  // Création d’une catégorie : on ouvre un bottomSheet
+  // Recherche
+  // -----------------------------------------------------------------------------
+  void onSearchChanged(String value) {
+    searchText.value = value;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Création d'une catégorie : on ouvre un bottomSheet
   // -----------------------------------------------------------------------------
   void openCreateBottomSheet() {
     isEditMode.value = false;
     tempCategory = null;
     variablesToResetToBottomSheet(); // reset nameCtrl etc.
-    openBottomSheet('Nouvelle catégorie', actionName: 'Créer', actionIcon: Icons.check);
+    // Note: Le dialog est maintenant géré dans la vue
   }
 
   // -----------------------------------------------------------------------------
-  // Édition d’une catégorie : ouvre aussi le bottomSheet
+  // Édition d'une catégorie : ouvre aussi le bottomSheet
   // -----------------------------------------------------------------------------
   void openEditBottomSheet(EstablishmentCategory cat) {
     isEditMode.value = true;
     tempCategory = cat;
     variablesToResetToBottomSheet(); // => ça va remplir nameCtrl avec cat.name
-    openBottomSheet('Modifier la catégorie', actionName: 'Enregistrer', actionIcon: Icons.save);
+    // Note: Le dialog est maintenant géré dans la vue
   }
 
   @override
@@ -86,28 +127,14 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
 
   @override
   List<Widget> bottomSheetChildren() {
-    return [
-      Form(
-        key: formKey,
-        child: CustomTextFormField(
-          tag: 'name_category',
-          controller: nameCtrl,
-          labelText: 'Nom de la catégorie',
-          validator: (val) {
-            if (val == null || val.trim().isEmpty) {
-              return 'Nom requis';
-            }
-            return null;
-          },
-        ),
-      ),
-    ];
+    // Cette méthode n'est plus utilisée car on utilise des dialogs maintenant
+    return [];
   }
 
   @override
   Future<void> actionBottomSheet() async {
     // user a cliqué sur "Créer" ou "Enregistrer"
-    // on ferme le bottomSheet d’abord
+    // on ferme le dialog d'abord
     Get.back();
     if (!formKey.currentState!.validate()) {
       return;
@@ -143,7 +170,11 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
     }
     final nextIndex = maxIdx + 1;
 
-    await UniquesControllers().data.firebaseFirestore.collection('categories').add({
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('categories')
+        .add({
       'name': name,
       'index': nextIndex,
     });
@@ -151,10 +182,17 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
   }
 
   Future<void> _updateCategory(String docId, String newName) async {
-    await UniquesControllers().data.firebaseFirestore.collection('categories').doc(docId).update({
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('categories')
+        .doc(docId)
+        .update({
       'name': newName,
     });
-    UniquesControllers().data.snackbar('Succès', 'Catégorie mise à jour.', false);
+    UniquesControllers()
+        .data
+        .snackbar('Succès', 'Catégorie mise à jour.', false);
   }
 
   // -----------------------------------------------------------------------------
@@ -162,7 +200,8 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
   // -----------------------------------------------------------------------------
   void openDeleteAlertDialog(EstablishmentCategory cat) {
     categoryToDelete = cat;
-    openAlertDialog('Supprimer la catégorie ?', confirmText: 'Supprimer', confirmColor: Colors.red);
+    openAlertDialog('Supprimer la catégorie ?',
+        confirmText: 'Supprimer', confirmColor: Colors.red);
   }
 
   @override
@@ -177,8 +216,15 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
 
     UniquesControllers().data.isInAsyncCall.value = true;
     try {
-      await UniquesControllers().data.firebaseFirestore.collection('categories').doc(docId).delete();
-      UniquesControllers().data.snackbar('Succès', 'Catégorie supprimée.', false);
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('categories')
+          .doc(docId)
+          .delete();
+      UniquesControllers()
+          .data
+          .snackbar('Succès', 'Catégorie supprimée.', false);
     } catch (e) {
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     } finally {
@@ -191,31 +237,44 @@ class AdminCategoriesScreenController extends GetxController with ControllerMixi
   // ReorderableListView => reorder => on met à jour le champ 'index'
   // -----------------------------------------------------------------------------
   void onReorder(int oldIndex, int newIndex) async {
-    // Dans le widget, si newIndex > oldIndex, flutter l’a déjà ajusté de +1
+    // Dans le widget, si newIndex > oldIndex, flutter l'a déjà ajusté de +1
     // => on fait un adaptateur
     if (newIndex > oldIndex) {
       newIndex -= 1;
     }
     if (oldIndex == newIndex) return;
 
-    // On réordonne localement
-    final tmp = categories.removeAt(oldIndex);
-    categories.insert(newIndex, tmp);
+    // Travailler avec la liste filtrée
+    final filtered = filteredCategories;
+    final tmp = filtered.removeAt(oldIndex);
+    filtered.insert(newIndex, tmp);
 
-    // On met à jour en Firestore tous les items
-    // (ou au moins ceux impactés, mais plus simple : tous)
-    // On va stocker le nouveau i comme index
+    // Mettre à jour tous les index en fonction de la nouvelle position dans la liste filtrée
     final batch = UniquesControllers().data.firebaseFirestore.batch();
-    for (int i = 0; i < categories.length; i++) {
-      final cat = categories[i];
-      final ref = UniquesControllers().data.firebaseFirestore.collection('categories').doc(cat.id);
-      batch.update(ref, {'index': i});
+
+    if (sortBy.value == 'index') {
+      // Si on est trié par index, on met à jour les index en conséquence
+      for (int i = 0; i < filtered.length; i++) {
+        final cat = filtered[i];
+        final ref = UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('categories')
+            .doc(cat.id);
+        batch.update(ref, {'index': i});
+      }
+    } else {
+      // Si on est trié par nom, on doit recalculer les index pour maintenir l'ordre
+      UniquesControllers().data.snackbar('Info',
+          'Changez le tri sur "Ordre" pour réorganiser les catégories.', false);
+      return;
     }
 
     // On attend la fin du batch
     try {
       await batch.commit();
-      UniquesControllers().data.snackbar('Ordre mis à jour', 'L\'ordre d\'affichage a été mis à jour.', false);
+      UniquesControllers().data.snackbar(
+          'Ordre mis à jour', 'L\'ordre d\'affichage a été mis à jour.', false);
     } catch (e) {
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     }

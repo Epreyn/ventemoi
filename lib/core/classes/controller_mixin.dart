@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:ventemoi/core/classes/email_templates.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
 
 import '../../features/custom_animation/view/custom_animation.dart';
@@ -1235,6 +1236,88 @@ mixin ControllerMixin on GetxController {
       subject: subject,
       htmlBody: html,
     );
+  }
+
+  /// NOUVEAU : Envoie un email d'invitation avec des points en attente
+  Future<void> sendPointsInvitationEmail({
+    required String recipientEmail,
+    required int points,
+    required String invitationToken,
+  }) async {
+    try {
+      // URL de votre application avec le token d'invitation
+      final appUrl =
+          'https://app.ventemoi.fr/register?token=$invitationToken&email=${Uri.encodeComponent(recipientEmail)}';
+
+      // Construire le contenu de l'email avec le template moderne de email_templates.dart
+      final content = '''
+        <h2>🎉 Vous avez reçu des points !</h2>
+        <p>
+          Bonne nouvelle ! Vous avez reçu <strong style="color: #ff7a00; font-size: 24px;">$points points</strong>
+          sur notre plateforme VenteMoi.
+        </p>
+
+        <div class="highlight-box">
+          <h3>Vos points vous attendent</h3>
+          <div class="info-value" style="font-size: 48px; color: #ff7a00; margin: 20px 0;">
+            $points
+          </div>
+          <p style="margin: 10px 0; color: #666;">
+            points offerts
+          </p>
+        </div>
+
+        <p style="font-size: 16px; color: #555; line-height: 1.6; margin-top: 20px;">
+          Pour récupérer vos points, il vous suffit de créer votre compte en cliquant sur le bouton ci-dessous :
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="$appUrl" class="button">
+            Créer mon compte et récupérer mes points
+          </a>
+        </div>
+
+        <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin-top: 30px;">
+          <p style="font-size: 14px; color: #555; margin: 0;">
+            <strong>Comment ça marche ?</strong><br>
+            1. Cliquez sur le bouton ci-dessus<br>
+            2. Créez votre compte avec cette adresse email : <strong>$recipientEmail</strong><br>
+            3. Vos $points points seront automatiquement crédités<br>
+            4. Utilisez vos points pour profiter de nos offres exclusives !
+          </p>
+        </div>
+
+        <div class="divider"></div>
+
+        <p style="font-size: 14px; color: #888; margin-top: 20px;">
+          💡 <strong>Qu'est-ce que VenteMoi ?</strong><br>
+          VenteMoi est une plateforme solidaire qui vous permet d'utiliser vos points pour :
+        </p>
+        <ul style="font-size: 14px; color: #666; line-height: 1.8;">
+          <li>Acheter des bons d'achat chez nos partenaires</li>
+          <li>Faire des dons à des associations</li>
+          <li>Participer à l'économie solidaire locale</li>
+          <li>Gagner encore plus de points en parrainant vos proches</li>
+        </ul>
+
+        <p style="font-size: 13px; color: #999; margin-top: 30px; text-align: center;">
+          Si vous ne pouvez pas cliquer sur le bouton, copiez et collez ce lien dans votre navigateur :<br>
+          <a href="$appUrl" style="color: #ff7a00; word-break: break-all;">$appUrl</a>
+        </p>
+      ''';
+
+      // Utiliser buildModernMailHtml de email_templates.dart pour avoir le template moderne
+      final fullHtml = buildModernMailHtml(content);
+
+      await sendMailSimple(
+        toEmail: recipientEmail,
+        subject: '🎉 Vous avez reçu $points points sur VenteMoi !',
+        htmlBody: fullHtml,
+      );
+    } catch (e) {
+      print('Erreur envoi email invitation: $e');
+      rethrow;
+    }
   }
 
 //#endregion MAIL

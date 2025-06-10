@@ -114,13 +114,13 @@ class ProSellsScreen extends StatelessWidget {
     );
 
     return ScreenLayout(
+      noFAB: true,
       appBar: CustomAppBar(
         showUserInfo: true,
         showPoints: true,
         showDrawerButton: true,
         modernStyle: true,
       ),
-      noFAB: true,
       body: Obx(() {
         final list = cc.filteredPurchases;
 

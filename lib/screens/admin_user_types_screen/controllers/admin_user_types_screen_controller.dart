@@ -9,11 +9,13 @@ import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/user_type.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 
-class AdminUserTypesScreenController extends GetxController with ControllerMixin {
-  String pageTitle = 'Types d’Utilisateurs'.toUpperCase();
+class AdminUserTypesScreenController extends GetxController
+    with ControllerMixin {
+  String pageTitle = 'Types d\'Utilisateurs'.toUpperCase();
   String customBottomAppBarTag = 'admin-user-types-bottom-app-bar';
 
   RxList<UserType> userTypes = <UserType>[].obs;
+  RxList<UserType> filteredUserTypes = <UserType>[].obs;
   StreamSubscription<List<UserType>>? _sub;
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -24,21 +26,31 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
   UserType? tempUserType; // pour edit
   UserType? userTypeToDelete; // pour delete
 
+  // Recherche et tri
+  RxString searchText = ''.obs;
+  RxString sortBy = 'index'.obs; // 'index', 'name', 'description'
+
   @override
   void onInit() {
     super.onInit();
     _sub = _listenUserTypes().listen((all) {
-      // on ignore index == 0 => c’est Admin
+      // on ignore index == 0 => c'est Admin
       final filtered = all.where((u) => u.index != 0).toList();
-      // on trie par index
+      // on trie par index par défaut
       filtered.sort((a, b) => a.index.compareTo(b.index));
       userTypes.value = filtered;
+      _applyFiltersAndSort();
     });
+
+    // Écouter les changements de tri
+    ever(sortBy, (_) => _applyFiltersAndSort());
   }
 
   @override
   void onClose() {
     _sub?.cancel();
+    nameCtrl.dispose();
+    descCtrl.dispose();
     super.onClose();
   }
 
@@ -52,13 +64,51 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
   }
 
   // ------------------------------------------------------
+  // Recherche et filtrage
+  // ------------------------------------------------------
+  void onSearchChanged(String value) {
+    searchText.value = value;
+    _applyFiltersAndSort();
+  }
+
+  void _applyFiltersAndSort() {
+    var filtered = userTypes.toList();
+
+    // Appliquer la recherche
+    if (searchText.value.isNotEmpty) {
+      final search = searchText.value.toLowerCase();
+      filtered = filtered.where((userType) {
+        return userType.name.toLowerCase().contains(search) ||
+            userType.description.toLowerCase().contains(search);
+      }).toList();
+    }
+
+    // Appliquer le tri
+    switch (sortBy.value) {
+      case 'name':
+        filtered.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case 'description':
+        filtered.sort((a, b) => a.description.compareTo(b.description));
+        break;
+      case 'index':
+      default:
+        filtered.sort((a, b) => a.index.compareTo(b.index));
+        break;
+    }
+
+    filteredUserTypes.value = filtered;
+  }
+
+  // ------------------------------------------------------
   // Création => bottomSheet
   // ------------------------------------------------------
   void openCreateBottomSheet() {
     isEditMode.value = false;
     tempUserType = null;
     variablesToResetToBottomSheet();
-    openBottomSheet('Nouveau Type d\'utilisateur', actionName: 'Créer', actionIcon: Icons.check);
+    openBottomSheet('Nouveau Type d\'utilisateur',
+        actionName: 'Créer', actionIcon: Icons.check);
   }
 
   // ------------------------------------------------------
@@ -68,7 +118,8 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
     isEditMode.value = true;
     tempUserType = u;
     variablesToResetToBottomSheet();
-    openBottomSheet('Modifier Type d\'utilisateur', actionName: 'Enregistrer', actionIcon: Icons.save);
+    openBottomSheet('Modifier Type d\'utilisateur',
+        actionName: 'Enregistrer', actionIcon: Icons.save);
   }
 
   @override
@@ -111,10 +162,10 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
 
   @override
   Future<void> actionBottomSheet() async {
-    Get.back();
     if (!formKey.currentState!.validate()) {
       return;
     }
+    Get.back();
     UniquesControllers().data.isInAsyncCall.value = true;
     try {
       final name = nameCtrl.text.trim();
@@ -142,17 +193,29 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
     }
     final nextIndex = maxIndex + 1;
 
-    await UniquesControllers().data.firebaseFirestore.collection('user_types').add({
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .add({
       'name': name,
       'description': desc,
       'index': nextIndex,
     });
 
-    UniquesControllers().data.snackbar('Succès', 'Type d\'utilisateur créé.', false);
+    UniquesControllers()
+        .data
+        .snackbar('Succès', 'Type d\'utilisateur créé.', false);
   }
 
-  Future<void> _updateUserType(String docId, String newName, String newDesc) async {
-    await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(docId).update({
+  Future<void> _updateUserType(
+      String docId, String newName, String newDesc) async {
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('user_types')
+        .doc(docId)
+        .update({
       'name': newName,
       'description': newDesc,
     });
@@ -160,16 +223,106 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
   }
 
   // ------------------------------------------------------
-  // Suppression => alertDialog
+  // Suppression => alertDialog moderne
   // ------------------------------------------------------
   void openDeleteAlertDialog(UserType u) {
     userTypeToDelete = u;
-    openAlertDialog('Supprimer ce Type ?', confirmText: 'Supprimer', confirmColor: Colors.red);
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          width: 400,
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icône d'avertissement
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  size: 32,
+                  color: Colors.red[600],
+                ),
+              ),
+              SizedBox(height: 16),
+
+              // Titre
+              Text(
+                'Supprimer ce type ?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[900],
+                ),
+              ),
+              SizedBox(height: 8),
+
+              // Description
+              Text(
+                'Cette action est irréversible. Le type "${u.name}" sera définitivement supprimé.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              SizedBox(height: 24),
+
+              // Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      userTypeToDelete = null;
+                      Get.back();
+                    },
+                    child: Text('Annuler'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      Get.back();
+                      actionAlertDialog();
+                    },
+                    child: Text('Supprimer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[600],
+                      foregroundColor: Colors.white,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget alertDialogContent() {
-    return const Text('Voulez-vous vraiment supprimer ce type d\'utilisateur ?');
+    return const Text(
+        'Voulez-vous vraiment supprimer ce type d\'utilisateur ?');
   }
 
   @override
@@ -178,8 +331,15 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
     if (toDel == null) return;
     UniquesControllers().data.isInAsyncCall.value = true;
     try {
-      await UniquesControllers().data.firebaseFirestore.collection('user_types').doc(toDel.id).delete();
-      UniquesControllers().data.snackbar('Succès', 'Type d\'utilisateur supprimé.', false);
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(toDel.id)
+          .delete();
+      UniquesControllers()
+          .data
+          .snackbar('Succès', 'Type d\'utilisateur supprimé.', false);
     } catch (e) {
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     } finally {
@@ -189,32 +349,55 @@ class AdminUserTypesScreenController extends GetxController with ControllerMixin
   }
 
   // ------------------------------------------------------
-  // reorder => ne jamais toucher l’index 0
+  // reorder => ne jamais toucher l'index 0
   // ------------------------------------------------------
   void onReorder(int oldIndex, int newIndex) async {
-    // Si on glisse un item vers le bas => newIndex s’incrémente
+    // Si on glisse un item vers le bas => newIndex s'incrémente
     if (newIndex > oldIndex) newIndex--;
 
     // Pas de changement
     if (oldIndex == newIndex) return;
 
-    final list = userTypes;
+    // Utiliser filteredUserTypes pour le réordonnancement
+    final list = filteredUserTypes.toList();
     final item = list.removeAt(oldIndex);
     list.insert(newIndex, item);
 
-    // On recalcule: l’élément en position 0 aura index=1, etc.
+    // Mettre à jour temporairement la liste filtrée pour un feedback immédiat
+    filteredUserTypes.value = list;
+
+    // On recalcule: l'élément en position 0 aura index=1, etc.
     final batch = UniquesControllers().data.firebaseFirestore.batch();
     for (int i = 0; i < list.length; i++) {
       final docId = list[i].id;
       // i=0 => index=1, i=1 => index=2, etc.
       final newIdx = i + 1;
-      final ref = UniquesControllers().data.firebaseFirestore.collection('user_types').doc(docId);
+      final ref = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(docId);
       batch.update(ref, {'index': newIdx});
     }
+
     try {
       await batch.commit();
-      UniquesControllers().data.snackbar('Ordre mis à jour', 'L\'ordre d\'affichage a été mis à jour.', false);
+
+      // Afficher un feedback visuel moderne
+      Get.snackbar(
+        'Ordre mis à jour',
+        'L\'ordre d\'affichage a été mis à jour avec succès',
+        backgroundColor: Colors.green[600],
+        colorText: Colors.white,
+        icon: Icon(Icons.check_circle, color: Colors.white),
+        duration: Duration(seconds: 2),
+        margin: EdgeInsets.all(16),
+        borderRadius: 12,
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } catch (e) {
+      // Recharger les données en cas d'erreur
+      _applyFiltersAndSort();
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     }
   }
