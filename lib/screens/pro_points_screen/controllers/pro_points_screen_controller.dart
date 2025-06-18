@@ -10,6 +10,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/commission.dart';
 import '../../../core/models/point_attribution.dart';
+import '../../../core/services/sponsorship_service.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
@@ -37,7 +38,8 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   // BottomSheet
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController searchCtrl = TextEditingController();
-  final RxList<Map<String, dynamic>> searchResults = <Map<String, dynamic>>[].obs;
+  final RxList<Map<String, dynamic>> searchResults =
+      <Map<String, dynamic>>[].obs;
   final RxString selectedEmail = ''.obs;
   final TextEditingController montantCtrl = TextEditingController(text: '');
 
@@ -50,9 +52,11 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
         .data
         .firebaseFirestore
         .collection('points_attributions')
-        .where('giver_id', isEqualTo: UniquesControllers().data.firebaseAuth.currentUser?.uid)
+        .where('giver_id',
+            isEqualTo: UniquesControllers().data.firebaseAuth.currentUser?.uid)
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => PointAttribution.fromDocument(doc)).toList())
+        .map((snap) =>
+            snap.docs.map((doc) => PointAttribution.fromDocument(doc)).toList())
         .listen((list) {
       pointsList.value = list;
       _sortPoints();
@@ -64,7 +68,8 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
         .firebaseFirestore
         .collection('commissions')
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => Commission.fromDocument(doc)).toList())
+        .map((snap) =>
+            snap.docs.map((doc) => Commission.fromDocument(doc)).toList())
         .listen((list) {
       ratioList.value = list;
     });
@@ -107,16 +112,19 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   // --------------------------------------------------------
   List<DataColumn> get dataColumns => [
         DataColumn(
-          label: const Text('Email', style: TextStyle(fontWeight: FontWeight.bold)),
+          label: const Text('Email',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           onSort: (col, asc) => onSortData(col, asc),
         ),
         DataColumn(
-          label: const Text('Points', style: TextStyle(fontWeight: FontWeight.bold)),
+          label: const Text('Points',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           numeric: true,
           onSort: (col, asc) => onSortData(col, asc),
         ),
         DataColumn(
-          label: const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
+          label:
+              const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
           onSort: (col, asc) => onSortData(col, asc),
         ),
         const DataColumn(
@@ -219,7 +227,7 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   }
 
   // --------------------------------------------------------
-  // Recherche d’un Particulier par email
+  // Recherche d'un Particulier par email
   // --------------------------------------------------------
   Future<void> searchParticuliersByEmail(String input) async {
     final txt = input.trim().toLowerCase();
@@ -247,14 +255,18 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
         .get();
     final allDocs = snap.docs.map((doc) {
       final d = doc.data();
-      return {'uid': doc.id, 'email': (d['email'] ?? '').toString().toLowerCase()};
+      return {
+        'uid': doc.id,
+        'email': (d['email'] ?? '').toString().toLowerCase()
+      };
     }).toList();
-    final filtered = allDocs.where((m) => (m['email'] as String).contains(txt)).toList();
+    final filtered =
+        allDocs.where((m) => (m['email'] as String).contains(txt)).toList();
     searchResults.value = filtered;
   }
 
   // --------------------------------------------------------
-  // Création d’une attribution => applique la commission
+  // Création d'une attribution => applique la commission
   // --------------------------------------------------------
   @override
   Future<void> actionBottomSheet() async {
@@ -266,15 +278,27 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
     UniquesControllers().data.isInAsyncCall.value = true;
 
     try {
-      final email = (selectedEmail.value.isNotEmpty ? selectedEmail.value : searchCtrl.text).trim().toLowerCase();
+      final email = (selectedEmail.value.isNotEmpty
+              ? selectedEmail.value
+              : searchCtrl.text)
+          .trim()
+          .toLowerCase();
       final montant = double.tryParse(montantCtrl.text.trim()) ?? 0.0;
       if (email.isEmpty || montant <= 0) {
         UniquesControllers().data.isInAsyncCall.value = false;
-        UniquesControllers().data.snackbar('Erreur', 'Email ou montant invalide', true);
+        UniquesControllers()
+            .data
+            .snackbar('Erreur', 'Email ou montant invalide', true);
         return;
       }
       final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-      final proEmail = UniquesControllers().data.firebaseAuth.currentUser?.email?.toLowerCase() ?? '';
+      final proEmail = UniquesControllers()
+              .data
+              .firebaseAuth
+              .currentUser
+              ?.email
+              ?.toLowerCase() ??
+          '';
       if (uid == null) {
         UniquesControllers().data.isInAsyncCall.value = false;
         return;
@@ -282,13 +306,16 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
 
       // 1) Vérifier si l'utilisateur (Particulier) existe ou le créer
       final existingUser = await findUserByEmail(email);
-      final String userId = existingUser == null ? await createUserWithoutSwitchingSession(email) : existingUser['uid'];
+      final String userId = existingUser == null
+          ? await createUserWithoutSwitchingSession(email)
+          : existingUser['uid'];
 
       // 2) Calcul des points => 1.6%
       final points = (montant * (manualPercentage.value / 100.0)).floor();
       if (points <= 0) {
         UniquesControllers().data.isInAsyncCall.value = false;
-        UniquesControllers().data.snackbar('Erreur', 'Le montant est trop faible pour générer des points', true);
+        UniquesControllers().data.snackbar('Erreur',
+            'Le montant est trop faible pour générer des points', true);
         return;
       }
 
@@ -303,7 +330,11 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
       }
 
       // 4) Écriture Firestore
-      final docRef = UniquesControllers().data.firebaseFirestore.collection('points_attributions').doc();
+      final docRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('points_attributions')
+          .doc();
       await docRef.set({
         'giver_id': uid,
         'target_id': userId,
@@ -317,6 +348,18 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
         'commission_percent': commissionPercent,
         'commission_cost': commissionCost,
       });
+
+      // 5) Vérifier si l'utilisateur a un parrain et attribuer les points de parrainage
+      final sponsorInfo = await SponsorshipService.checkForSponsor(email);
+      if (sponsorInfo != null) {
+        await SponsorshipService.attributeParticulierSponsorshipPoints(
+          sponsorId: sponsorInfo['sponsor_id'],
+          filleulId: userId,
+          filleulEmail: email,
+          basePoints: points,
+          sponsorshipDocId: sponsorInfo['sponsorship_doc_id'],
+        );
+      }
 
       UniquesControllers().data.snackbar(
             'Succès',
@@ -339,11 +382,11 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   }
 
   // --------------------------------------------------------
-  // findCommissionForPro => cherche une commission s’appliquant
+  // findCommissionForPro => cherche une commission s'appliquant
   // --------------------------------------------------------
   Commission? _findCommissionForPro(double amount, String proEmail) {
     // On parcourt la liste ratioList
-    // On cherche un doc Commission qui match l’emailException (vide ou == proEmail)
+    // On cherche un doc Commission qui match l'emailException (vide ou == proEmail)
     // + qui match le range minAmount <= amount < maxAmount (ou isInfinite).
     // On peut choisir le premier match ou le plus précis. Exemple simple :
     for (final c in ratioList) {
@@ -357,7 +400,7 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
       // Filtrage par montant
       if (amount >= c.minAmount) {
         if (c.isInfinite) {
-          // c s’applique => on le retourne
+          // c s'applique => on le retourne
           return c;
         } else {
           // on check maxAmount
@@ -389,10 +432,12 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
 
   Future<String> createUserWithoutSwitchingSession(String email) async {
     var tmpPass = UniqueKey().toString();
-    final secondaryApp = await Firebase.initializeApp(name: 'SecondaryApp', options: Firebase.app().options);
+    final secondaryApp = await Firebase.initializeApp(
+        name: 'SecondaryApp', options: Firebase.app().options);
     final secondAuth = FirebaseAuth.instanceFor(app: secondaryApp);
     try {
-      final userCred = await secondAuth.createUserWithEmailAndPassword(email: email, password: tmpPass);
+      final userCred = await secondAuth.createUserWithEmailAndPassword(
+          email: email, password: tmpPass);
       final newUid = userCred.user?.uid;
       if (newUid == null) {
         throw Exception("Impossible de créer l'utilisateur secondaire");
@@ -410,7 +455,12 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
       final partId = userTypeIdParticulier.docs.first.id;
 
       // On crée la doc user
-      await UniquesControllers().data.firebaseFirestore.collection('users').doc(newUid).set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(newUid)
+          .set({
         'name': '',
         'email': email,
         'user_type_id': partId,
@@ -419,19 +469,35 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
         'isVisible': true,
       });
       // On crée la doc wallet
-      await UniquesControllers().data.firebaseFirestore.collection('wallets').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .doc()
+          .set({
         'user_id': newUid,
         'points': 0,
         'coupons': 0,
         'bank_details': null,
       });
       // On crée doc sponsorship (si besoin)
-      await UniquesControllers().data.firebaseFirestore.collection('sponsorships').doc().set({
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .doc()
+          .set({
         'user_id': newUid,
-        'sponsoredEmails': [],
+        'sponsored_emails': [],
+        'sponsorship_details': {},
+        'total_earnings': 0,
+        'created_at': DateTime.now(),
+        'updated_at': DateTime.now(),
       });
 
-      final whoCreated = UniquesControllers().data.firebaseAuth.currentUser?.email ?? 'un administrateur';
+      final whoCreated =
+          UniquesControllers().data.firebaseAuth.currentUser?.email ??
+              'un administrateur';
 
       await sendWelcomeEmailForCreatedUser(
         toEmail: email,
@@ -461,7 +527,7 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
               style: TextStyle(fontStyle: FontStyle.italic),
             ),
             const CustomSpace(heightMultiplier: 2),
-            // => Champ recherche d’email
+            // => Champ recherche d'email
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -809,17 +809,11 @@ class ProSellsScreen extends StatelessWidget {
         child: InkWell(
           onTap: () {
             // TODO: Implémenter l'export CSV
-            Get.snackbar(
-              'Export',
-              'Fonctionnalité d\'export en cours de développement',
-              snackPosition: SnackPosition.TOP,
-              backgroundColor: Colors.orange.withOpacity(0.9),
-              colorText: Colors.white,
-              borderRadius: 20,
-              margin: EdgeInsets.all(
-                UniquesControllers().data.baseSpace * 2,
-              ),
-            );
+            UniquesControllers().data.snackbar(
+                  'Export',
+                  'Fonctionnalité d\'export en cours de développement',
+                  false,
+                );
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(

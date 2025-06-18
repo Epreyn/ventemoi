@@ -100,7 +100,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
+                          //borderRadius: BorderRadius.circular(28),
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                             child: Column(
@@ -145,10 +145,16 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                       color: Colors.green,
                                     ),
                                     _buildStatCard(
-                                      icon: Icons.monetization_on_rounded,
-                                      value: '${totalEarnings}€',
-                                      label: 'Gains',
+                                      icon: Icons.schedule_rounded,
+                                      value: '${cc.pendingReferrals.value}',
+                                      label: 'En attente',
                                       color: Colors.orange,
+                                    ),
+                                    _buildStatCard(
+                                      icon: Icons.monetization_on_rounded,
+                                      value: '$totalEarnings pts',
+                                      label: 'Gains',
+                                      color: Colors.purple,
                                     ),
                                   ],
                                 ),
@@ -200,7 +206,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
+                          //borderRadius: BorderRadius.circular(28),
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                             child: Column(
@@ -342,7 +348,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                             ],
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
+                            //borderRadius: BorderRadius.circular(28),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                               child: Column(
@@ -450,7 +456,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                             ],
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
+                            //borderRadius: BorderRadius.circular(28),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                               child: Column(
@@ -505,6 +511,9 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                         referralData?['earnings'] ?? 0;
                                     final joinDate =
                                         referralData?['joinDate'] ?? '';
+                                    final userType =
+                                        referralData?['userType'] ?? '';
+                                    final name = referralData?['name'] ?? '';
 
                                     return Dismissible(
                                       key: Key(email),
@@ -583,7 +592,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                                     : Colors.grey
                                                         .withOpacity(0.2),
                                                 child: Icon(
-                                                  Icons.person_rounded,
+                                                  _getIconForUserType(userType),
                                                   color: isActive
                                                       ? Colors.green
                                                       : Colors.grey,
@@ -609,7 +618,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                             ],
                                           ),
                                           title: Text(
-                                            email,
+                                            name.isNotEmpty ? name : email,
                                             style: TextStyle(
                                               fontWeight: FontWeight.w600,
                                               fontSize: 14,
@@ -619,16 +628,58 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                isActive
-                                                    ? 'Actif'
-                                                    : 'En attente',
-                                                style: TextStyle(
-                                                  color: isActive
-                                                      ? Colors.green
-                                                      : Colors.orange,
-                                                  fontSize: 12,
+                                              if (name.isNotEmpty)
+                                                Text(
+                                                  email,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
                                                 ),
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          _getColorForUserType(
+                                                                  userType)
+                                                              .withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              12),
+                                                    ),
+                                                    child: Text(
+                                                      userType.isNotEmpty
+                                                          ? userType
+                                                          : 'Non inscrit',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color:
+                                                            _getColorForUserType(
+                                                                userType),
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    isActive
+                                                        ? 'Actif'
+                                                        : 'En attente',
+                                                    style: TextStyle(
+                                                      color: isActive
+                                                          ? Colors.green
+                                                          : Colors.orange,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                               if (joinDate.isNotEmpty)
                                                 Text(
@@ -645,7 +696,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                                 CrossAxisAlignment.end,
                                             children: [
                                               Text(
-                                                '+${earnings}€',
+                                                '+$earnings pts',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   color: Colors.green,
@@ -775,5 +826,35 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
         ],
       ),
     );
+  }
+
+  IconData _getIconForUserType(String userType) {
+    switch (userType.toLowerCase()) {
+      case 'particulier':
+        return Icons.person_rounded;
+      case 'entreprise':
+        return Icons.business_rounded;
+      case 'boutique':
+        return Icons.store_rounded;
+      case 'association':
+        return Icons.favorite_rounded;
+      default:
+        return Icons.person_outline_rounded;
+    }
+  }
+
+  Color _getColorForUserType(String userType) {
+    switch (userType.toLowerCase()) {
+      case 'particulier':
+        return Colors.blue;
+      case 'entreprise':
+        return Colors.purple;
+      case 'boutique':
+        return Colors.orange;
+      case 'association':
+        return Colors.pink;
+      default:
+        return Colors.grey;
+    }
   }
 }

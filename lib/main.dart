@@ -31,7 +31,6 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = View.of(context).platformDispatcher.platformBrightness;
     TextTheme textTheme = createTextTheme(context, 'Onest', 'Phudu');
     CustomTheme customTheme = CustomTheme(textTheme);
 
@@ -47,23 +46,10 @@ class App extends StatelessWidget {
         name: '/404',
         page: () => const NotFoundScreen(),
       ),
-      // Configuration pour une meilleure gestion des routes et paramètres
       navigatorKey: Get.key,
       navigatorObservers: [GetObserver()],
-      // Gestion des paramètres URL et du routing
-      routingCallback: (routing) {
-        // Les paramètres sont automatiquement extraits par GetX
-        // Accessible via Get.parameters['paramName']
-        if (routing?.current != null) {
-          //debugPrint('Route actuelle: ${routing!.current}');
-          //debugPrint('Paramètres: ${Get.parameters}');
-        }
-      },
-      // Pour supporter les deep links sur web
       onGenerateRoute: (settings) {
-        // GetX gère automatiquement l'extraction des paramètres
-        // Cette méthode est utile pour des cas spéciaux
-        return null; // Laisser GetX gérer le routing
+        return null;
       },
     );
   }

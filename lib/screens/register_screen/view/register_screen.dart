@@ -549,15 +549,6 @@ class RegisterScreen extends StatelessWidget {
                                 fontSize: 14,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              '🎁 Vous recevrez 100 points à l\'inscription !',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
                           ],
                         ),
                       ),

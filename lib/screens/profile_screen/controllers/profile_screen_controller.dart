@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart'; // ajustez selon vos imports
+import '../../../core/services/payment_validation_hook.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_space/view/custom_space.dart';
@@ -35,12 +36,12 @@ class ProfileScreenController extends GetxController with ControllerMixin {
   final ibanController = TextEditingController();
   final bicController = TextEditingController();
 
-  // SliderValue pour l’achat de bons (1..12)
+  // SliderValue pour l'achat de bons (1..12)
   RxInt sliderValue = 1.obs;
 
   // Id du doc 'wallet' si besoin
   String? currentWalletDocId;
-  // Id d’établissement (si besoin, ex: pour user de type Boutique)
+  // Id d'établissement (si besoin, ex: pour user de type Boutique)
   String? userEstablishmentId;
 
   // ---------------------------
@@ -139,7 +140,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
     // Particulier => personal_address
     personalAddressController.text = userData['personal_address'] ?? '';
 
-    // Pour l’image de profil
+    // Pour l'image de profil
     UniquesControllers().data.oldImageUrl.value = userData['image_url'] ?? '';
   }
 
@@ -184,7 +185,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
         return;
       }
 
-      // Upload image s’il y en a une
+      // Upload image s'il y en a une
       String newImageUrl = UniquesControllers().data.oldImageUrl.value;
       if (UniquesControllers().data.isPickedFile.value) {
         newImageUrl = await _uploadProfileImageIfNeeded(uid);
@@ -728,11 +729,27 @@ class ProfileScreenController extends GetxController with ControllerMixin {
           enterpriseName: enterpriseName,
           couponsCount: nb,
         );
+
+        // NOUVEAU: Si c'est une entreprise/boutique qui vient de payer et accepter les CGU
+        // Déclencher le hook de parrainage
+        final userTypeName = await getUserTypeNameByUserId(uid);
+        if (userTypeName != 'Particulier') {
+          // Vérifier si c'est la première fois qu'il valide
+          final hasAlreadyValidated =
+              await PaymentValidationHook.hasAlreadyValidated(uid);
+          if (!hasAlreadyValidated) {
+            await PaymentValidationHook.onPaymentAndCGUValidated(
+              userId: uid,
+              userEmail: enterpriseEmail,
+              userType: userTypeName,
+            );
+          }
+        }
       }
 
       UniquesControllers().data.snackbar(
             'Demande envoyée',
-            'Votre demande d’achat de $nb bon(s) a bien été créée.',
+            'Votre demande d\'achat de $nb bon(s) a bien été créée.',
             false,
           );
     } catch (e) {
@@ -794,7 +811,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
       UniquesControllers().data.snackbar(
           'Compte supprimé', 'Votre compte a été supprimé avec succès.', false);
 
-      // 4) Redirection (ex: vers l’écran de login)
+      // 4) Redirection (ex: vers l'écran de login)
       Get.offAllNamed(Routes.login);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;

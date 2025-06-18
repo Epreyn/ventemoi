@@ -151,27 +151,17 @@ class GiftPurchaseController extends GetxController with ControllerMixin {
       }
 
       Get.back();
-      Get.snackbar(
-        'Bon cadeau offert !',
-        'Le bon a été envoyé à ${getUserDisplayName(selectedUser.value!)}',
-        backgroundColor: Colors.green.withOpacity(0.9),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        margin: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-        borderRadius: 16,
-        icon: const Icon(Icons.check_circle, color: Colors.white),
-      );
+      UniquesControllers().data.snackbar(
+            'Bon cadeau offert !',
+            'Le bon a été envoyé à ${getUserDisplayName(selectedUser.value!)}',
+            false,
+          );
     } catch (e) {
-      Get.snackbar(
-        'Erreur',
-        'Impossible d\'offrir le bon cadeau',
-        backgroundColor: Colors.red.withOpacity(0.9),
-        colorText: Colors.white,
-        snackPosition: SnackPosition.BOTTOM,
-        margin: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-        borderRadius: 16,
-        icon: const Icon(Icons.error, color: Colors.white),
-      );
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Impossible d\'offrir le bon cadeau',
+            true,
+          );
     } finally {
       isTransferring.value = false;
     }

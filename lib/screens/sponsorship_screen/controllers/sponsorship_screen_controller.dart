@@ -22,6 +22,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
   RxString referralCode = ''.obs;
   RxInt totalEarnings = 0.obs;
   RxInt activeReferrals = 0.obs;
+  RxInt pendingReferrals = 0.obs;
   Rx<Map<String, dynamic>?> sponsorInfo = Rx<Map<String, dynamic>?>(null);
   RxMap<String, Map<String, dynamic>> referralDetails =
       <String, Map<String, dynamic>>{}.obs;
@@ -63,14 +64,11 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
     // Écouter les changements du document sponsorship
     _sponsorshipSub = _listenSponsorshipDoc(uid).listen((sponsorship) {
       currentSponsorship.value = sponsorship;
-      _updateReferralDetails(sponsorship?.sponsoredEmails ?? []);
+      _updateReferralDetails(sponsorship);
     });
 
     // Vérifier si l'utilisateur a un parrain
     await _checkForSponsor(uid);
-
-    // Calculer les gains totaux
-    _calculateTotalEarnings();
   }
 
   Future<void> _initializeReferralCode(String uid) async {
@@ -139,84 +137,137 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
     }
   }
 
-  void _updateReferralDetails(List<String> emails) async {
-    for (String email in emails) {
+  void _updateReferralDetails(Sponsorship? sponsorship) async {
+    if (sponsorship == null) {
+      referralDetails.clear();
+      activeReferrals.value = 0;
+      pendingReferrals.value = 0;
+      totalEarnings.value = 0;
+      return;
+    }
+
+    referralDetails.clear();
+    int active = 0;
+    int pending = 0;
+
+    // Utiliser les nouvelles données du modèle
+    totalEarnings.value = sponsorship.totalEarnings;
+
+    for (String email in sponsorship.sponsoredEmails) {
       try {
-        // Récupérer les infos de l'utilisateur parrainé
-        final userQuery = await UniquesControllers()
-            .data
-            .firebaseFirestore
-            .collection('users')
-            .where('email', isEqualTo: email)
-            .limit(1)
-            .get();
+        final detail = sponsorship.sponsorshipDetails[email.toLowerCase()];
 
-        if (userQuery.docs.isNotEmpty) {
-          final userData = userQuery.docs.first.data();
-          final userId = userQuery.docs.first.id;
-
-          // Vérifier si l'utilisateur est actif
-          final isActive = userData['isEnable'] ?? false;
-
-          // Récupérer les gains générés par ce filleul
-          final earnings = await _calculateEarningsFromReferral(userId);
-
+        if (detail != null) {
+          // L'utilisateur existe dans les détails
           referralDetails[email] = {
-            'isActive': isActive,
-            'earnings': earnings,
-            'joinDate': _formatDate(userData['created_at']),
-            'name': userData['name'] ?? '',
+            'isActive': detail.isActive,
+            'earnings': detail.totalEarnings,
+            'joinDate': detail.joinDate != null
+                ? _formatDate(Timestamp.fromDate(detail.joinDate!))
+                : '',
+            'name': await _getUserNameByEmail(email),
+            'userType': detail.userType,
+            'hasPaid': detail.hasPaid,
+            'hasAcceptedCGU': detail.hasAcceptedCGU,
+            'userId': detail.userId,
           };
 
-          if (isActive) {
-            activeReferrals.value++;
+          if (detail.isActive) {
+            active++;
+          } else {
+            pending++;
           }
         } else {
-          // Utilisateur pas encore inscrit
-          referralDetails[email] = {
-            'isActive': false,
-            'earnings': 0,
-            'joinDate': '',
-            'name': '',
-          };
+          // Utilisateur pas encore inscrit ou détails non disponibles
+          final userQuery = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('users')
+              .where('email', isEqualTo: email)
+              .limit(1)
+              .get();
+
+          if (userQuery.docs.isNotEmpty) {
+            final userData = userQuery.docs.first.data();
+            final userId = userQuery.docs.first.id;
+            final isActive = userData['isEnable'] ?? false;
+
+            referralDetails[email] = {
+              'isActive': isActive,
+              'earnings': 0,
+              'joinDate': _formatDate(userData['created_at']),
+              'name': userData['name'] ?? '',
+              'userType': await _getUserTypeNameById(userData['user_type_id']),
+              'hasPaid': false,
+              'hasAcceptedCGU': false,
+              'userId': userId,
+            };
+
+            if (isActive) {
+              active++;
+            } else {
+              pending++;
+            }
+          } else {
+            // Utilisateur pas encore inscrit
+            referralDetails[email] = {
+              'isActive': false,
+              'earnings': 0,
+              'joinDate': '',
+              'name': '',
+              'userType': '',
+              'hasPaid': false,
+              'hasAcceptedCGU': false,
+              'userId': '',
+            };
+            pending++;
+          }
         }
       } catch (e) {
         print(
             'Erreur lors de la mise à jour des détails du filleul $email: $e');
       }
     }
+
+    activeReferrals.value = active;
+    pendingReferrals.value = pending;
   }
 
-  Future<int> _calculateEarningsFromReferral(String referralId) async {
-    // Logique pour calculer les gains générés par un filleul
-    // Par exemple: 10% des achats du filleul, bonus d'inscription, etc.
+  Future<String> _getUserNameByEmail(String email) async {
     try {
-      final walletQuery = await UniquesControllers()
+      final userQuery = await UniquesControllers()
           .data
           .firebaseFirestore
-          .collection('wallets')
-          .where('user_id', isEqualTo: referralId)
+          .collection('users')
+          .where('email', isEqualTo: email)
           .limit(1)
           .get();
 
-      if (walletQuery.docs.isNotEmpty) {
-        final walletData = walletQuery.docs.first.data();
-        // Exemple: 5€ de bonus par filleul actif + 10% de ses achats
-        final totalSpent = (walletData['total_spent'] ?? 0) as num;
-        return 5 + (totalSpent * 0.1).round();
+      if (userQuery.docs.isNotEmpty) {
+        return userQuery.docs.first.data()['name'] ?? '';
       }
     } catch (e) {
-      print('Erreur lors du calcul des gains: $e');
+      print('Erreur _getUserNameByEmail: $e');
     }
-    return 0;
+    return '';
   }
 
-  void _calculateTotalEarnings() {
-    int total = 0;
-    referralDetails.forEach((email, details) {
-      total += (details['earnings'] as int?) ?? 0;
-    });
-    totalEarnings.value = total;
+  Future<String> _getUserTypeNameById(String userTypeId) async {
+    try {
+      final typeDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(userTypeId)
+          .get();
+
+      if (typeDoc.exists) {
+        return typeDoc.data()?['name'] ?? '';
+      }
+    } catch (e) {
+      print('Erreur _getUserTypeNameById: $e');
+    }
+    return '';
   }
 
   String _formatDate(dynamic timestamp) {
@@ -263,17 +314,43 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
     if (sponsorshipDocId == null) return;
 
     try {
-      await UniquesControllers()
+      // Récupérer le document actuel
+      final docRef = UniquesControllers()
           .data
           .firebaseFirestore
           .collection('sponsorships')
-          .doc(sponsorshipDocId!)
-          .update({
-        'sponsored_emails': FieldValue.arrayRemove([email]),
+          .doc(sponsorshipDocId!);
+
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) return;
+
+      final sponsorship = Sponsorship.fromDocument(docSnap);
+
+      // Retirer l'email de la liste
+      final updatedEmails = List<String>.from(sponsorship.sponsoredEmails);
+      updatedEmails.remove(email);
+
+      // Retirer les détails
+      final updatedDetails =
+          Map<String, SponsorshipDetail>.from(sponsorship.sponsorshipDetails);
+      final removedDetail = updatedDetails.remove(email.toLowerCase());
+
+      // Recalculer le total des gains
+      int newTotalEarnings = 0;
+      updatedDetails.forEach((_, detail) {
+        newTotalEarnings += detail.totalEarnings;
+      });
+
+      // Mettre à jour le document
+      await docRef.update({
+        'sponsored_emails': updatedEmails,
+        'sponsorship_details':
+            updatedDetails.map((key, value) => MapEntry(key, value.toMap())),
+        'total_earnings': newTotalEarnings,
+        'updated_at': FieldValue.serverTimestamp(),
       });
 
       referralDetails.remove(email);
-      _calculateTotalEarnings();
 
       UniquesControllers().data.snackbar(
             'Succès',
@@ -376,20 +453,26 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
       <div class="highlight-box">
         <h3>Votre code de parrainage exclusif</h3>
         <div class="code-box">$referralCode</div>
-        <p style="margin: 15px 0 5px 0; color: #666;">
-          Ce code vous donne droit à <strong>100 points offerts</strong> à l'inscription !
-        </p>
       </div>
 
       <p>
         <strong>Pourquoi rejoindre VenteMoi ?</strong>
       </p>
       <ul style="line-height: 1.8;">
-        <li>💰 <strong>100 points de bienvenue</strong> grâce au parrainage</li>
         <li>🛍️ Des réductions exclusives chez nos commerçants partenaires</li>
         <li>❤️ La possibilité de soutenir des associations locales</li>
         <li>🎁 Des bons d'achat à utiliser dans vos boutiques préférées</li>
+        <li>🤝 <strong>Devenez parrain à votre tour</strong> et gagnez des points !</li>
       </ul>
+
+      <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h4 style="color: #1890ff; margin-top: 0;">💡 Comment fonctionne le parrainage ?</h4>
+        <p style="margin: 10px 0;">En devenant membre, vous pourrez aussi parrainer vos proches et gagner :</p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li><strong>40% des points</strong> que vos filleuls particuliers recevront</li>
+          <li><strong>50 points</strong> pour chaque entreprise/boutique parrainée qui s'inscrit</li>
+        </ul>
+      </div>
 
       <div style="text-align: center; margin: 30px 0;">
         <a href="https://ventemoi.com/register?code=$referralCode" class="button">
@@ -408,12 +491,10 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
 
     await sendMailSimple(
       toEmail: toEmail,
-      subject: '🎁 $sponsorName vous offre 100 points sur VenteMoi !',
+      subject: '🎁 $sponsorName vous invite sur VenteMoi !',
       htmlBody: buildModernMailHtml(content),
     );
   }
-
-  // Supprimer la fonction createUserWithoutSwitchingSession car on ne crée plus de compte
 
   Future<void> _addSponsoredEmailToList(String email) async {
     if (sponsorshipDocId == null) {
@@ -431,6 +512,10 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
       await newRef.set({
         'user_id': sponsorUid,
         'sponsored_emails': [email],
+        'sponsorship_details': {},
+        'total_earnings': 0,
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
       });
     } else {
       // Mettre à jour le document existant
@@ -441,6 +526,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
           .doc(sponsorshipDocId!)
           .update({
         'sponsored_emails': FieldValue.arrayUnion([email]),
+        'updated_at': FieldValue.serverTimestamp(),
       });
     }
   }
@@ -494,21 +580,40 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                   color: Colors.blue.withOpacity(0.3),
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.info_outline_rounded,
-                    color: Colors.blue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Gagnez 50 points par filleul + 10% de ses achats',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.blue[700],
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: Colors.blue,
+                        size: 20,
                       ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Règles de parrainage',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '• Particuliers : 40% des points reçus',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.blue[700],
+                    ),
+                  ),
+                  Text(
+                    '• Entreprises/Boutiques : 50 points à l\'inscription',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.blue[700],
                     ),
                   ),
                 ],

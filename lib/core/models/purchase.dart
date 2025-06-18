@@ -27,8 +27,8 @@ class Purchase {
       buyerId: data['buyer_id'] ?? '',
       sellerId: data['seller_id'] ?? '',
       couponsCount: data['coupons_count'] ?? 0,
-      reclamationPassword: data['reclamation_password'] ?? '',
-      isReclaimed: data['is_reclaimed'] ?? false,
+      reclamationPassword: data['reclamationPassword'] ?? '',
+      isReclaimed: data['isReclaimed'] ?? false,
       date:
           data['date'] != null ? DateTime.parse(data['date']) : DateTime.now(),
     );
@@ -45,8 +45,8 @@ class Purchase {
       'buyer_id': buyerId,
       'seller_id': sellerId,
       'coupons_count': couponsCount,
-      'reclamation_password': reclamationPassword,
-      'is_reclaimed': isReclaimed,
+      'reclamationPassword': reclamationPassword,
+      'isReclaimed': isReclaimed,
       'date': date.toIso8601String(),
     };
   }

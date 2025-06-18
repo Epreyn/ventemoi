@@ -474,27 +474,11 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
       UniquesControllers().data.isInAsyncCall.value = false;
 
       // Message de succès avec style
-      Get.snackbar(
-        'Succès',
-        'La vente a été validée avec succès',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.green.withOpacity(0.9),
-        colorText: Colors.white,
-        borderRadius: 20,
-        margin: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.check_circle,
-            color: Colors.white,
-          ),
-        ),
-        duration: const Duration(seconds: 3),
-      );
+      UniquesControllers().data.snackbar(
+            'Succès',
+            'La vente a été validée avec succès',
+            false,
+          );
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar(

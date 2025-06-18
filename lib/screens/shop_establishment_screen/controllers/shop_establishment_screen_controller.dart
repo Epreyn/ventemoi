@@ -1351,20 +1351,11 @@ class ShopEstablishmentScreenController extends GetxController
         tab == 2 ? selectedEnterpriseCatIds.length : selectedCatIds.length;
 
     if (filterCount > 0) {
-      Get.snackbar(
-        'Filtres appliqués',
-        '$filterCount catégorie${filterCount > 1 ? 's' : ''} sélectionnée${filterCount > 1 ? 's' : ''}',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-        backgroundColor: CustomTheme.lightScheme().primary,
-        colorText: Colors.white,
-        margin: const EdgeInsets.all(16),
-        borderRadius: 12,
-        icon: const Icon(
-          Icons.check_circle,
-          color: Colors.white,
-        ),
-      );
+      UniquesControllers().data.snackbar(
+            'Filtres appliqués',
+            '$filterCount catégorie${filterCount > 1 ? 's' : ''} sélectionnée${filterCount > 1 ? 's' : ''}',
+            false,
+          );
     }
   }
 

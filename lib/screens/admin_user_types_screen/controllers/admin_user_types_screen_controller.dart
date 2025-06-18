@@ -384,17 +384,11 @@ class AdminUserTypesScreenController extends GetxController
       await batch.commit();
 
       // Afficher un feedback visuel moderne
-      Get.snackbar(
-        'Ordre mis à jour',
-        'L\'ordre d\'affichage a été mis à jour avec succès',
-        backgroundColor: Colors.green[600],
-        colorText: Colors.white,
-        icon: Icon(Icons.check_circle, color: Colors.white),
-        duration: Duration(seconds: 2),
-        margin: EdgeInsets.all(16),
-        borderRadius: 12,
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      UniquesControllers().data.snackbar(
+            'Ordre mis à jour',
+            'L\'ordre d\'affichage a été mis à jour avec succès',
+            false,
+          );
     } catch (e) {
       // Recharger les données en cas d'erreur
       _applyFiltersAndSort();

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -267,41 +268,170 @@ class CustomData extends GetxController {
   }
 
   void snackbar(String title, String message, bool error) {
-    Get.snackbar(
-      title,
-      message,
-      icon: error
-          ? const Icon(
-              Icons.error,
-              //color: CustomColors.atomicTangerine,
-            )
-          : const Icon(
-              Icons.check_circle,
-              //color: CustomColors.caribbeanCurrent,
-            ),
-      maxWidth: 600,
-      borderWidth: baseSpace / 2,
-      isDismissible: true,
-      margin: EdgeInsets.symmetric(
-        vertical: baseSpace * 2,
-        horizontal: baseSpace * 2,
-      ),
-      duration: const Duration(seconds: 2),
-      animationDuration: baseAnimationDuration * 2,
-      // borderColor: CustomColors.caribbeanCurrent,
-      // colorText: CustomColors.eerieBlack,
-      // backgroundColor: CustomColors.lightBlue,
-      mainButton: TextButton(
-        onPressed: () => Get.back(),
-        child: const Text(
-          'OK',
-          style: TextStyle(
-              //color: CustomColors.caribbeanCurrent,
+    Get.showSnackbar(
+      GetSnackBar(
+        backgroundColor: Colors.transparent,
+        padding: EdgeInsets.zero,
+        margin: EdgeInsets.all(baseSpace * 2),
+        borderRadius: 20,
+        duration: const Duration(seconds: 3),
+        animationDuration: baseAnimationDuration,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeIn,
+        isDismissible: true,
+        dismissDirection: DismissDirection.horizontal,
+        messageText: Container(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withOpacity(0.95),
+                      Colors.white.withOpacity(0.85),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: error
+                          ? Colors.red.withOpacity(0.1)
+                          : CustomTheme.lightScheme().primary.withOpacity(0.1),
+                      blurRadius: 30,
+                      spreadRadius: 5,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Get.back(),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: EdgeInsets.all(baseSpace * 1.5),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: baseSpace * 2,
+                              vertical: baseSpace,
+                            ),
+                            decoration: BoxDecoration(
+                              color: error
+                                  ? Colors.red.withOpacity(0.1)
+                                  : CustomTheme.lightScheme()
+                                      .primary
+                                      .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(baseSpace),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: error
+                                          ? [
+                                              Colors.red.withOpacity(0.8),
+                                              Colors.red.withOpacity(0.6),
+                                            ]
+                                          : [
+                                              CustomTheme.lightScheme().primary,
+                                              CustomTheme.lightScheme()
+                                                  .primary
+                                                  .withOpacity(0.8),
+                                            ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: error
+                                            ? Colors.red.withOpacity(0.3)
+                                            : CustomTheme.lightScheme()
+                                                .primary
+                                                .withOpacity(0.3),
+                                        blurRadius: 10,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    error
+                                        ? Icons.error_outline_rounded
+                                        : Icons.check_circle_outline_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                SizedBox(width: baseSpace * 1.5),
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          CustomTheme.lightScheme().onSurface,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Get.back(),
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: CustomTheme.lightScheme()
+                                        .onSurface
+                                        .withOpacity(0.5),
+                                    size: 20,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(
+                              left: baseSpace * 2,
+                              right: baseSpace * 2,
+                              top: baseSpace,
+                              bottom: baseSpace * 0.5,
+                            ),
+                            child: Text(
+                              message,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: CustomTheme.lightScheme()
+                                    .onSurface
+                                    .withOpacity(0.8),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
+            ),
+          ),
         ),
       ),
-      snackPosition: SnackPosition.TOP,
-      snackStyle: SnackStyle.FLOATING,
     );
   }
 

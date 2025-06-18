@@ -142,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
                                         ],
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(28),
+                                        //borderRadius: BorderRadius.circular(28),
                                         child: BackdropFilter(
                                           filter: ImageFilter.blur(
                                               sigmaX: 8, sigmaY: 8),
@@ -219,7 +219,7 @@ class ProfileScreen extends StatelessWidget {
                                         ],
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(28),
+                                        //borderRadius: BorderRadius.circular(28),
                                         child: BackdropFilter(
                                           filter: ImageFilter.blur(
                                               sigmaX: 8, sigmaY: 8),

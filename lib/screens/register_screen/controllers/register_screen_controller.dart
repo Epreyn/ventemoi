@@ -619,13 +619,12 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       String successMessage = 'Inscription réussie !';
       if (pendingPoints > 0 && actualSponsorInfo != null) {
         successMessage =
-            'Bienvenue ! Vous avez reçu ${welcomePoints} points (${pendingPoints} points en attente + 100 points de parrainage).';
+            'Bienvenue ! Vous avez reçu ${welcomePoints} points (${pendingPoints} points en attente).';
       } else if (pendingPoints > 0) {
         successMessage =
             'Bienvenue ! Vous avez reçu ${pendingPoints} points qui vous attendaient.';
       } else if (actualSponsorInfo != null) {
-        successMessage =
-            'Bienvenue ! Vous avez reçu 100 points de bienvenue grâce au parrainage.';
+        successMessage = 'Bienvenue !';
       } else {
         successMessage = 'Vous pouvez maintenant vous connecter !';
       }

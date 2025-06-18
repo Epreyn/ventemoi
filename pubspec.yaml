@@ -44,6 +44,9 @@ flutter:
     - images/onboarding/particulier_2.png
     - images/onboarding/particulier_3.png
     - images/onboarding/particulier_4.png
+    - images/onboarding/admin_1.png
+    - images/onboarding/admin_2.png
+    - images/onboarding/admin_3.png
 
   fonts:
     - family: SpaceGrotesk

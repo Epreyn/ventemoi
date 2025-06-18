@@ -17,6 +17,7 @@
 
         <!-- iOS meta tags & icons -->
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="VenteMoi" />
         <link rel="apple-touch-icon" href="icons/Icon-192.png" />
@@ -36,15 +37,58 @@
         />
 
         <!-- Script Google Maps (avec Places) -->
-        <script
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLEUR2PbirD85Te-jmSNYSFz-O7cW9a-Q&libraries=places"
-            async
-            defer
-        ></script>
+        <script>
+            ((g) => {
+                var h,
+                    a,
+                    k,
+                    p = "The Google Maps JavaScript API",
+                    c = "google",
+                    l = "importLibrary",
+                    q = "__ib__",
+                    m = document,
+                    b = window;
+                b = b[c] || (b[c] = {});
+                var d = b.maps || (b.maps = {}),
+                    r = new Set(),
+                    e = new URLSearchParams(),
+                    u = () =>
+                        h ||
+                        (h = new Promise(async (f, n) => {
+                            await (a = m.createElement("script"));
+                            e.set("libraries", [...r] + "");
+                            for (k in g)
+                                e.set(
+                                    k.replace(
+                                        /[A-Z]/g,
+                                        (t) => "_" + t[0].toLowerCase(),
+                                    ),
+                                    g[k],
+                                );
+                            e.set("callback", c + ".maps." + q);
+                            a.src =
+                                `https://maps.${c}apis.com/maps/api/js?` + e;
+                            d[q] = f;
+                            a.onerror = () =>
+                                (h = n(Error(p + " could not load.")));
+                            a.nonce =
+                                m.querySelector("script[nonce]")?.nonce || "";
+                            m.head.append(a);
+                        }));
+                d[l]
+                    ? console.warn(p + " only loads once. Ignoring:", g)
+                    : (d[l] = (f, ...n) =>
+                          r.add(f) && u().then(() => d[l](f, ...n)));
+            })({
+                key: "AIzaSyCLEUR2PbirD85Te-jmSNYSFz-O7cW9a-Q",
+                v: "weekly",
+                libraries: ["places"],
+            });
+        </script>
 
         <script>
             // The value below is injected by flutter build, do not touch.
-            var serviceWorkerVersion = null;
+            var serviceWorkerVersion = "{{flutter_service_worker_version}}";
         </script>
 
         <!-- Script pour améliorer la gestion des deep links et paramètres URL -->
@@ -125,14 +169,22 @@
                 justify-content: center;
                 box-shadow: 0 10px 30px rgba(255, 122, 0, 0.3);
                 animation: pulse 2s ease-in-out infinite;
+                padding: 20px;
             }
 
-            .loader-logo-text {
-                color: white;
-                font-size: 24px;
-                font-weight: bold;
-                letter-spacing: 1px;
+            .loader-logo img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                filter: brightness(0) invert(1); /* Rend l'image blanche */
             }
+
+            /* Alternative sans filtre si vous voulez garder les couleurs du logo */
+            /* .loader-logo img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            } */
 
             .loader-spinner {
                 width: 50px;
@@ -189,7 +241,7 @@
         <div id="loading" class="loading-container">
             <div class="loader-content">
                 <div class="loader-logo">
-                    <div class="loader-logo-text">VM</div>
+                    <img src="icons/Icon-192.png" alt="VenteMoi Logo" />
                 </div>
                 <div class="loader-spinner"></div>
                 <div class="loading-text">Chargement de VenteMoi...</div>
@@ -215,6 +267,9 @@
         <script>
             window.addEventListener("load", function (ev) {
                 // Download main.dart.js
+                // Note: Nous utilisons loadEntrypoint malgré le warning de dépréciation
+                // car la nouvelle API load() nécessite _flutter.buildConfig qui n'est pas
+                // disponible dans certaines versions de Flutter. Cela fonctionne correctement.
                 _flutter.loader.loadEntrypoint({
                     serviceWorker: {
                         serviceWorkerVersion: serviceWorkerVersion,
