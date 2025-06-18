@@ -16,10 +16,14 @@ class Establishment implements Nameable {
   final String bannerUrl;
   final String categoryId;
   final List<String>? enterpriseCategoryIds;
-  final int enterpriseCategorySlots; // NOUVEAU : nombre de slots de catégories
+  final int enterpriseCategorySlots;
 
   final String videoUrl;
   final bool hasAcceptedContract;
+
+  final int affiliatesCount;
+  final bool isVisibleOverride;
+  final bool isAssociation;
 
   Establishment({
     required this.id,
@@ -36,6 +40,9 @@ class Establishment implements Nameable {
     required this.enterpriseCategorySlots, // NOUVEAU
     required this.videoUrl,
     required this.hasAcceptedContract,
+    this.affiliatesCount = 0,
+    this.isVisibleOverride = false,
+    this.isAssociation = false,
   });
 
   factory Establishment.fromDocument(DocumentSnapshot doc) {
@@ -54,10 +61,12 @@ class Establishment implements Nameable {
       bannerUrl: data['banner_url'] ?? '',
       categoryId: data['category_id'] ?? '',
       enterpriseCategoryIds: rawECats?.map((e) => e.toString()).toList(),
-      enterpriseCategorySlots:
-          data['enterprise_category_slots'] ?? 2, // Par défaut 2
+      enterpriseCategorySlots: data['enterprise_category_slots'] ?? 2,
       videoUrl: data['video_url'] ?? '',
       hasAcceptedContract: data['has_accepted_contract'] ?? false,
+      affiliatesCount: data['affiliatesCount'] ?? 0,
+      isVisibleOverride: data['isVisibleOverride'] ?? false,
+      isAssociation: data['isAssociation'] ?? false,
     );
   }
 }

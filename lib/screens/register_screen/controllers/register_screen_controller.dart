@@ -11,6 +11,7 @@ import 'package:ventemoi/core/classes/email_templates.dart';
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/association_visibility_service.dart';
 
 class RegisterScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Inscription'.toUpperCase();
@@ -600,6 +601,17 @@ class RegisterScreenController extends GetxController with ControllerMixin {
             'sponsored_emails': FieldValue.arrayUnion(
                 [emailController.text.trim().toLowerCase()])
           });
+
+          // Trouver l'établissement de cette association
+          final establishmentId =
+              await AssociationVisibilityService.getEstablishmentIdByUserId(
+                  associationId);
+
+          if (establishmentId != null) {
+            // Mettre à jour le compteur d'affiliés
+            await AssociationVisibilityService.updateAffiliatesCount(
+                establishmentId);
+          }
         }
       }
 

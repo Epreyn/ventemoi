@@ -921,6 +921,120 @@ class AdminUsersScreen extends StatelessWidget {
                           (val) => cc.onSwitchVisible(user, val),
                           Colors.blue,
                         )),
+                    SizedBox(height: 16),
+                    FutureBuilder<Map<String, dynamic>?>(
+                      future: cc.getAssociationEstablishmentInfo(user.id),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data == null) {
+                          return SizedBox.shrink();
+                        }
+
+                        final info = snapshot.data!;
+                        final establishmentId = info['id'];
+                        final affiliatesCount = info['affiliatesCount'] ?? 0;
+                        final isOverride = info['isVisibleOverride'] ?? false;
+
+                        return Column(
+                          children: [
+                            SizedBox(height: 24),
+
+                            // Titre section
+                            Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'GESTION ASSOCIATION',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey[600],
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: 16),
+
+                            // Compteur d'affiliés
+                            Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: affiliatesCount >= 15
+                                    ? Colors.green[50]
+                                    : Colors.orange[50],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: affiliatesCount >= 15
+                                      ? Colors.green
+                                      : Colors.orange,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.group,
+                                    color: affiliatesCount >= 15
+                                        ? Colors.green[700]
+                                        : Colors.orange[700],
+                                    size: 32,
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '$affiliatesCount membres affiliés',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: affiliatesCount >= 15
+                                                ? Colors.green[800]
+                                                : Colors.orange[800],
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          affiliatesCount >= 15
+                                              ? 'Seuil de visibilité atteint ✓'
+                                              : 'Minimum requis : 15 membres',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: affiliatesCount >= 15
+                                                ? Colors.green[600]
+                                                : Colors.orange[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            SizedBox(height: 16),
+
+                            // Switch override
+                            Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.purple[50],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: _buildSwitchRow(
+                                'Forcer la visibilité',
+                                'Rendre visible même avec moins de 15 affiliés',
+                                isOverride,
+                                (val) => cc.toggleAssociationVisibilityOverride(
+                                    establishmentId, val),
+                                Colors.purple,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),

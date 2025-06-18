@@ -7,6 +7,7 @@ import 'package:ventemoi/screens/sponsorship_screen/view/sponsorship_screen.dart
 
 import '../../screens/admin_categories_screen/view/admin_categories_screen.dart';
 import '../../screens/admin_enterprise_categories_screen/view/admin_enterprise_categories_screen.dart';
+import '../../screens/admin_migration_screen/view/admin_migration_screen.dart';
 import '../../screens/admin_points_attributions_screen/view/admin_points_attributions_screen.dart';
 import '../../screens/admin_user_types_screen/view/admin_user_types_screen.dart';
 import '../../screens/admin_users_screen/view/admin_users_screen.dart';
@@ -112,6 +113,10 @@ class AppScreens {
     GetPage(
       name: RoutePaths.onboarding,
       page: () => const OnboardingScreen(),
+    ),
+    GetPage(
+      name: RoutePaths.adminMigration,
+      page: () => AdminMigrationScreen(),
     ),
   ];
 }

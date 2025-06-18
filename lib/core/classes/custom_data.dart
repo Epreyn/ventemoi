@@ -241,6 +241,12 @@ class CustomData extends GetxController {
       text: 'Commissions',
       onPressed: () => Get.offNamed(Routes.adminCommissions),
     ),
+    // CustomBottomAppBarIconButtonModel(
+    //   tag: Routes.adminMigration,
+    //   iconData: Icons.move_to_inbox_outlined,
+    //   text: 'Migration',
+    //   onPressed: () => Get.offNamed(Routes.adminMigration),
+    // ),
     CustomBottomAppBarIconButtonModel(
       tag: Routes.sponsorship,
       iconData: Icons.bolt_outlined,

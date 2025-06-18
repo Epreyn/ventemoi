@@ -10,6 +10,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/user.dart' as u;
 import '../../../core/models/user_type.dart';
+import '../../../core/services/association_visibility_service.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 
@@ -128,6 +129,82 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
         return a.userTypeID.compareTo(b.userTypeID);
       default:
         return 0;
+    }
+  }
+
+  // ------------------------------------------------
+  // Association Establishment
+  // ------------------------------------------------
+
+  Future<Map<String, dynamic>?> getAssociationEstablishmentInfo(
+      String userId) async {
+    try {
+      // Vérifier si c'est un utilisateur de type Association
+      final userDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (!userDoc.exists) return null;
+
+      final userTypeId = userDoc.data()?['user_type_id'];
+      if (userTypeId == null) return null;
+
+      // Vérifier le type
+      final typeDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(userTypeId)
+          .get();
+
+      if (typeDoc.data()?['name'] != 'Association') return null;
+
+      // Récupérer l'établissement
+      final estabQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: userId)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isEmpty) return null;
+
+      final estabDoc = estabQuery.docs.first;
+      return {
+        'id': estabDoc.id,
+        'affiliatesCount': estabDoc.data()['affiliatesCount'] ?? 0,
+        'isVisibleOverride': estabDoc.data()['isVisibleOverride'] ?? false,
+      };
+    } catch (e) {
+      print('Erreur getAssociationEstablishmentInfo: $e');
+      return null;
+    }
+  }
+
+  // Méthode pour activer/désactiver le override
+  Future<void> toggleAssociationVisibilityOverride(
+      String establishmentId, bool override) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      await AssociationVisibilityService.setVisibilityOverride(
+          establishmentId, override);
+
+      UniquesControllers().data.snackbar(
+            'Succès',
+            override
+                ? 'Visibilité forcée activée'
+                : 'Visibilité forcée désactivée',
+            false,
+          );
+    } catch (err) {
+      UniquesControllers().data.snackbar('Erreur', err.toString(), true);
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
 
