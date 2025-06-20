@@ -31,7 +31,7 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    TextTheme textTheme = createTextTheme(context, 'Onest', 'Phudu');
+    TextTheme textTheme = createTextTheme(context, 'Questrial', 'Questrial');
     CustomTheme customTheme = CustomTheme(textTheme);
 
     return GetMaterialApp(

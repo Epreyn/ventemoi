@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/classes/unique_controllers.dart';
+import '../../../core/models/establishement.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
@@ -137,9 +138,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
           Obx(() => AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOutExpo,
-                left: cc.selectedTabIndex.value * (Get.width - 32) / 3,
+                // Division par 4 maintenant au lieu de 3
+                left: cc.selectedTabIndex.value * (Get.width - 32) / 4,
                 child: Container(
-                  width: (Get.width - 32) / 3,
+                  width: (Get.width - 32) / 4, // Division par 4
                   height: 48,
                   padding: const EdgeInsets.all(4),
                   child: Container(
@@ -159,9 +161,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
               )),
           Row(
             children: [
-              _buildTabButton(cc, 0, 'Boutiques', Icons.store),
-              _buildTabButton(cc, 1, 'Associations', Icons.volunteer_activism),
-              _buildTabButton(cc, 2, 'Entreprises', Icons.business),
+              _buildTabButton(cc, 0, 'Entreprises', Icons.business),
+              _buildTabButton(cc, 1, 'Boutiques', Icons.store),
+              _buildTabButton(cc, 2, 'Associations', Icons.volunteer_activism),
+              _buildTabButton(cc, 3, 'Sponsors', Icons.handshake),
             ],
           ),
         ],
@@ -218,6 +221,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
     cc.localSelectedCatIds.value = Set.from(cc.selectedCatIds);
     cc.localSelectedEnterpriseCatIds.value =
         Set.from(cc.selectedEnterpriseCatIds);
+    cc.localSelectedSponsorCatIds.value = Set.from(cc.selectedSponsorCatIds);
 
     cc.openBottomSheet(
       'Filtrer par catégorie',
@@ -253,31 +257,31 @@ class ShopEstablishmentScreen extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Obx(() {
-              final filterCount = cc.selectedTabIndex.value == 2
-                  ? cc.selectedEnterpriseCatIds.length
-                  : cc.selectedCatIds.length;
+              int filterCount = 0;
+              switch (cc.selectedTabIndex.value) {
+                case 0: // Entreprises
+                  filterCount = cc.selectedEnterpriseCatIds.length;
+                  break;
+                case 1: // Boutiques
+                case 2: // Associations
+                  filterCount = cc.selectedCatIds.length;
+                  break;
+                case 3: // Sponsors
+                  filterCount = cc.selectedSponsorCatIds.length;
+                  break;
+              }
 
               return Text(
                 filterCount > 0
                     ? '$filterCount catégorie${filterCount > 1 ? 's' : ''} sélectionnée${filterCount > 1 ? 's' : ''}'
                     : 'Aucune catégorie sélectionnée',
                 style: TextStyle(
+                  fontSize: 14,
                   color: CustomTheme.lightScheme().primary,
                   fontWeight: FontWeight.w500,
                 ),
               );
             }),
-          ),
-          TextButton.icon(
-            onPressed: () {
-              cc.localSelectedCatIds.clear();
-              cc.localSelectedEnterpriseCatIds.clear();
-            },
-            icon: const Icon(Icons.clear_all, size: 18),
-            label: const Text('Réinitialiser'),
-            style: TextButton.styleFrom(
-              foregroundColor: CustomTheme.lightScheme().primary,
-            ),
           ),
         ],
       ),
@@ -303,7 +307,8 @@ class ShopEstablishmentScreen extends StatelessWidget {
     });
   }
 
-  Widget _buildGrid(List establishments, ShopEstablishmentScreenController cc) {
+  Widget _buildGrid(List<Establishment> establishments,
+      ShopEstablishmentScreenController cc) {
     return LayoutBuilder(
       builder: (context, constraints) {
         const double maxCardWidth = 500.0;
@@ -329,9 +334,11 @@ class ShopEstablishmentScreen extends StatelessWidget {
           itemCount: establishments.length,
           itemBuilder: (context, index) {
             final establishment = establishments[index];
-            final tabIndex = cc.selectedTabIndex.value;
+            final tName =
+                cc.userTypeNameCache[establishment.userId] ?? 'INVISIBLE';
 
-            if (tabIndex == 2) {
+            // Utiliser la bonne carte selon le type
+            if (tName == 'Entreprise') {
               return EnterpriseEstablishmentCard(
                 establishment: establishment,
                 index: index,

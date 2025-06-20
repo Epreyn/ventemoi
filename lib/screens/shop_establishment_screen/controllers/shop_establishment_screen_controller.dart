@@ -43,6 +43,12 @@ class ShopEstablishmentScreenController extends GetxController
   RxString enterpriseSearchText = ''.obs;
   RxSet<String> selectedEnterpriseCatIds = <String>{}.obs;
 
+  RxString sponsorSearchText = ''.obs;
+  RxSet<String> selectedSponsorCatIds = <String>{}.obs;
+
+  // Pour la bottom sheet (filtres temporaires)
+  RxSet<String> localSelectedSponsorCatIds = <String>{}.obs;
+
   // Points user
   RxInt buyerPoints = 0.obs;
 
@@ -94,12 +100,17 @@ class ShopEstablishmentScreenController extends GetxController
     // watchers pour entreprises
     ever(enterpriseSearchText, (_) => filterEstablishments());
     ever(selectedEnterpriseCatIds, (_) => filterEstablishments());
+
+    // watchers pour sponsors
+    ever(sponsorSearchText, (_) => filterEstablishments());
+    ever(selectedSponsorCatIds, (_) => filterEstablishments());
   }
 
   @override
   void onClose() {
     _estabSub?.cancel();
     _buyerPointsSub?.cancel();
+    donationCtrl.dispose();
     super.onClose();
   }
 
@@ -278,11 +289,21 @@ class ShopEstablishmentScreenController extends GetxController
   // ----------------------------------------------------------------
   void filterEstablishments() {
     final tab = selectedTabIndex.value;
-    // On regarde si on est sur onglet 2 (Entreprises)
-    final lowerSearch =
-        (tab == 2 ? enterpriseSearchText.value : searchText.value)
-            .trim()
-            .toLowerCase();
+
+    // Déterminer quel texte de recherche utiliser selon l'onglet
+    String lowerSearch = '';
+    switch (tab) {
+      case 0: // Entreprises
+        lowerSearch = enterpriseSearchText.value.trim().toLowerCase();
+        break;
+      case 1: // Boutiques
+      case 2: // Associations
+        lowerSearch = searchText.value.trim().toLowerCase();
+        break;
+      case 3: // Sponsors
+        lowerSearch = sponsorSearchText.value.trim().toLowerCase();
+        break;
+    }
 
     final raw = allEstablishments;
     final result = <Establishment>[];
@@ -293,20 +314,23 @@ class ShopEstablishmentScreenController extends GetxController
 
     for (final e in raw) {
       // Exclure l'établissement de l'utilisateur connecté
-      if (e.userId == currentUserId && tab != 2) {
-        continue; // Ne pas afficher sa propre boutique/association
+      // SAUF pour les entreprises (tab 0)
+      if (e.userId == currentUserId && tab != 0) {
+        continue;
       }
 
-      // Récupérer typeName => "Boutique"/"Association"/"Entreprise"/"INVISIBLE"
+      // Récupérer typeName
       final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
+      final isEnt = (tName == 'Entreprise');
       final isBoutique = (tName == 'Boutique');
       final isAsso = (tName == 'Association');
-      final isEnt = (tName == 'Entreprise');
+      final isSponsor = (tName == 'Sponsor');
 
-      // Filtrer par tab
-      if (tab == 0 && !isBoutique) continue; // Boutiques seulement
-      if (tab == 1 && !isAsso) continue; // Asso seulement
-      if (tab == 2 && !isEnt) continue; // Entreprises seulement
+      // Filtrer par tab (nouvel ordre)
+      if (tab == 0 && !isEnt) continue; // Entreprises
+      if (tab == 1 && !isBoutique) continue; // Boutiques
+      if (tab == 2 && !isAsso) continue; // Associations
+      if (tab == 3 && !isSponsor) continue; // Sponsors
 
       // Filtre par recherche
       if (lowerSearch.isNotEmpty) {
@@ -319,25 +343,33 @@ class ShopEstablishmentScreenController extends GetxController
       }
 
       // Filtre par catégorie
-      if (tab == 2) {
-        // => entreprises => e.enterpriseCategoryIds
-        if (selectedEnterpriseCatIds.isNotEmpty) {
-          final eCats = e.enterpriseCategoryIds ?? [];
-          final hasIntersection = eCats.any(
-            (cid) => selectedEnterpriseCatIds.contains(cid),
-          );
-          if (!hasIntersection) continue;
-        }
-      } else {
-        // => boutiques/assos => e.categoryId
-        if (selectedCatIds.isNotEmpty) {
-          if (!selectedCatIds.contains(e.categoryId)) {
-            continue;
+      switch (tab) {
+        case 0: // Entreprises - utilisent enterprise_categories
+          if (selectedEnterpriseCatIds.isNotEmpty) {
+            final eCats = e.enterpriseCategoryIds ?? [];
+            final hasIntersection = eCats.any(
+              (cid) => selectedEnterpriseCatIds.contains(cid),
+            );
+            if (!hasIntersection) continue;
           }
-        }
+          break;
+        case 1: // Boutiques
+        case 2: // Associations
+          if (selectedCatIds.isNotEmpty) {
+            if (!selectedCatIds.contains(e.categoryId)) {
+              continue;
+            }
+          }
+          break;
+        case 3: // Sponsors
+          if (selectedSponsorCatIds.isNotEmpty) {
+            if (!selectedSponsorCatIds.contains(e.categoryId)) {
+              continue;
+            }
+          }
+          break;
       }
 
-      // On garde
       result.add(e);
     }
 
@@ -349,10 +381,17 @@ class ShopEstablishmentScreenController extends GetxController
   // ----------------------------------------------------------------
   void setSearchText(String val) {
     final tab = selectedTabIndex.value;
-    if (tab == 2) {
-      enterpriseSearchText.value = val;
-    } else {
-      searchText.value = val;
+    switch (tab) {
+      case 0: // Entreprises
+        enterpriseSearchText.value = val;
+        break;
+      case 1: // Boutiques
+      case 2: // Associations
+        searchText.value = val;
+        break;
+      case 3: // Sponsors
+        sponsorSearchText.value = val;
+        break;
     }
   }
 
@@ -369,12 +408,30 @@ class ShopEstablishmentScreenController extends GetxController
 
     final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
     final isAssoc = (tName == 'Association');
+    final isSponsor = (tName == 'Sponsor');
+
+    String title = 'Acheter des bons';
+    String confirmText = 'Acheter';
+    Color confirmColor = CustomTheme.lightScheme().primary;
+    IconData icon = Icons.shopping_cart;
+
+    if (isAssoc) {
+      title = 'Faire un don';
+      confirmText = 'Donner';
+      confirmColor = Colors.green;
+      icon = Icons.volunteer_activism;
+    } else if (isSponsor) {
+      title = 'Soutenir le sponsor';
+      confirmText = 'Soutenir';
+      confirmColor = Colors.purple;
+      icon = Icons.handshake;
+    }
 
     openAlertDialog(
-      isAssoc ? 'Faire un don' : 'Acheter des bons',
-      confirmText: isAssoc ? 'Donner' : 'Acheter',
-      confirmColor: isAssoc ? Colors.green : CustomTheme.lightScheme().primary,
-      icon: isAssoc ? Icons.volunteer_activism : Icons.shopping_cart,
+      title,
+      confirmText: confirmText,
+      confirmColor: confirmColor,
+      icon: icon,
     );
   }
 
@@ -1005,10 +1062,18 @@ class ShopEstablishmentScreenController extends GetxController
   @override
   void variablesToResetToBottomSheet() {
     final tab = selectedTabIndex.value;
-    if (tab == 0 || tab == 1) {
-      localSelectedCatIds.value = Set.from(selectedCatIds);
-    } else {
-      localSelectedEnterpriseCatIds.value = Set.from(selectedEnterpriseCatIds);
+    switch (tab) {
+      case 0: // Entreprises
+        localSelectedEnterpriseCatIds.value =
+            Set.from(selectedEnterpriseCatIds);
+        break;
+      case 1: // Boutiques
+      case 2: // Associations
+        localSelectedCatIds.value = Set.from(selectedCatIds);
+        break;
+      case 3: // Sponsors
+        localSelectedSponsorCatIds.value = Set.from(selectedSponsorCatIds);
+        break;
     }
   }
 
@@ -1018,110 +1083,122 @@ class ShopEstablishmentScreenController extends GetxController
       // Statistiques des catégories
       Obx(() {
         final tab = selectedTabIndex.value;
-        final categories = tab == 2 ? enterpriseCategoriesMap : categoriesMap;
-        final totalEstablishments = displayedEstablishments.length;
 
-        if (categories.isNotEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.blue.withOpacity(0.05),
-                  Colors.blue.withOpacity(0.02),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.blue.withOpacity(0.1),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.insights,
-                      color: Colors.blue[700],
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Statistiques',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$totalEstablishments établissement${totalEstablishments > 1 ? 's' : ''} trouvé${totalEstablishments > 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  '${categories.length} catégorie${categories.length > 1 ? 's' : ''} disponible${categories.length > 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          );
+        // Déterminer quelles catégories afficher
+        Map<String, String> categories;
+        RxSet<String> selectedIds;
+
+        switch (tab) {
+          case 0: // Entreprises
+            categories = enterpriseCategoriesMap;
+            selectedIds = localSelectedEnterpriseCatIds;
+            break;
+          case 1: // Boutiques
+          case 2: // Associations
+            categories = categoriesMap;
+            selectedIds = localSelectedCatIds;
+            break;
+          case 3: // Sponsors
+            categories =
+                categoriesMap; // Sponsors utilisent les mêmes catégories
+            selectedIds = localSelectedSponsorCatIds;
+            break;
+          default:
+            categories = {};
+            selectedIds = RxSet<String>();
         }
-        return const SizedBox.shrink();
-      }),
 
-      const SizedBox(height: 20),
+        final totalCategories = categories.length;
 
-      // Section des catégories
-      Obx(() => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                CustomTheme.lightScheme().primary.withOpacity(0.05),
+                Colors.transparent,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
             children: [
-              // Titre de section
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(
-                    Icons.category,
-                    size: 20,
-                    color: Colors.grey[700],
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total catégories',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        '$totalCategories',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Catégories disponibles',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
-                    ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.grey[300],
                   ),
+                  Obx(() {
+                    // Recalculer le nombre sélectionné en temps réel
+                    int currentSelectedCount = 0;
+                    switch (selectedTabIndex.value) {
+                      case 0:
+                        currentSelectedCount =
+                            localSelectedEnterpriseCatIds.length;
+                        break;
+                      case 1:
+                      case 2:
+                        currentSelectedCount = localSelectedCatIds.length;
+                        break;
+                      case 3:
+                        currentSelectedCount =
+                            localSelectedSponsorCatIds.length;
+                        break;
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sélectionnées',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          '$currentSelectedCount',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: currentSelectedCount > 0
+                                ? CustomTheme.lightScheme().primary
+                                : Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                 ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Chips de catégories avec design amélioré
-              AnimatedSize(
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 400),
-                  child: SingleChildScrollView(
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: _buildImprovedCategoryChips(),
-                    ),
-                  ),
-                ),
               ),
             ],
-          )),
+          ),
+        );
+      }),
 
       const SizedBox(height: 20),
 
@@ -1155,27 +1232,76 @@ class ShopEstablishmentScreenController extends GetxController
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Sélectionner toutes les catégories
-                      final tab = selectedTabIndex.value;
-                      if (tab == 2) {
-                        localSelectedEnterpriseCatIds.value =
-                            Set.from(enterpriseCategoriesMap.keys);
-                      } else {
-                        localSelectedCatIds.value =
-                            Set.from(categoriesMap.keys);
-                      }
-                    },
-                    icon: const Icon(Icons.select_all, size: 18),
-                    label: const Text('Tout sélectionner'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: CustomTheme.lightScheme().primary,
-                      side: BorderSide(
-                        color: CustomTheme.lightScheme().primary,
+                  child: Obx(() {
+                    // Déterminer si tout est sélectionné
+                    bool allSelected = false;
+                    int totalCount = 0;
+
+                    switch (selectedTabIndex.value) {
+                      case 0: // Entreprises
+                        totalCount = enterpriseCategoriesMap.length;
+                        allSelected =
+                            localSelectedEnterpriseCatIds.length == totalCount;
+                        break;
+                      case 1: // Boutiques
+                      case 2: // Associations
+                        totalCount = categoriesMap.length;
+                        allSelected = localSelectedCatIds.length == totalCount;
+                        break;
+                      case 3: // Sponsors
+                        totalCount = categoriesMap.length;
+                        allSelected =
+                            localSelectedSponsorCatIds.length == totalCount;
+                        break;
+                    }
+
+                    return OutlinedButton.icon(
+                      onPressed: () {
+                        // Sélectionner toutes les catégories
+                        final tab = selectedTabIndex.value;
+                        switch (tab) {
+                          case 0: // Entreprises
+                            if (allSelected) {
+                              localSelectedEnterpriseCatIds.clear();
+                            } else {
+                              localSelectedEnterpriseCatIds.value =
+                                  Set.from(enterpriseCategoriesMap.keys);
+                            }
+                            break;
+                          case 1: // Boutiques
+                          case 2: // Associations
+                            if (allSelected) {
+                              localSelectedCatIds.clear();
+                            } else {
+                              localSelectedCatIds.value =
+                                  Set.from(categoriesMap.keys);
+                            }
+                            break;
+                          case 3: // Sponsors
+                            if (allSelected) {
+                              localSelectedSponsorCatIds.clear();
+                            } else {
+                              localSelectedSponsorCatIds.value =
+                                  Set.from(categoriesMap.keys);
+                            }
+                            break;
+                        }
+                      },
+                      icon: Icon(
+                        allSelected ? Icons.deselect : Icons.select_all,
+                        size: 18,
                       ),
-                    ),
-                  ),
+                      label: Text(allSelected
+                          ? 'Tout désélectionner'
+                          : 'Tout sélectionner'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: CustomTheme.lightScheme().primary,
+                        side: BorderSide(
+                          color: CustomTheme.lightScheme().primary,
+                        ),
+                      ),
+                    );
+                  }),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1183,17 +1309,28 @@ class ShopEstablishmentScreenController extends GetxController
                     onPressed: () {
                       // Inverser la sélection
                       final tab = selectedTabIndex.value;
-                      if (tab == 2) {
-                        final allKeys = enterpriseCategoriesMap.keys.toSet();
-                        final currentSelection =
-                            localSelectedEnterpriseCatIds.toSet();
-                        localSelectedEnterpriseCatIds.value =
-                            allKeys.difference(currentSelection);
-                      } else {
-                        final allKeys = categoriesMap.keys.toSet();
-                        final currentSelection = localSelectedCatIds.toSet();
-                        localSelectedCatIds.value =
-                            allKeys.difference(currentSelection);
+                      switch (tab) {
+                        case 0: // Entreprises
+                          final allKeys = enterpriseCategoriesMap.keys.toSet();
+                          final currentSelection =
+                              localSelectedEnterpriseCatIds.toSet();
+                          localSelectedEnterpriseCatIds.value =
+                              allKeys.difference(currentSelection);
+                          break;
+                        case 1: // Boutiques
+                        case 2: // Associations
+                          final allKeys = categoriesMap.keys.toSet();
+                          final currentSelection = localSelectedCatIds.toSet();
+                          localSelectedCatIds.value =
+                              allKeys.difference(currentSelection);
+                          break;
+                        case 3: // Sponsors
+                          final allKeys = categoriesMap.keys.toSet();
+                          final currentSelection =
+                              localSelectedSponsorCatIds.toSet();
+                          localSelectedSponsorCatIds.value =
+                              allKeys.difference(currentSelection);
+                          break;
                       }
                     },
                     icon: const Icon(Icons.swap_horiz, size: 18),
@@ -1208,14 +1345,38 @@ class ShopEstablishmentScreenController extends GetxController
           ],
         ),
       ),
+
+      const SizedBox(height: 20),
+
+      // Liste des catégories
+      ..._buildImprovedCategoryChips(),
     ];
   }
 
+  // Ajoutez cette méthode qui manquait :
   List<Widget> _buildImprovedCategoryChips() {
     final tab = selectedTabIndex.value;
-    final categories = tab == 2 ? enterpriseCategoriesMap : categoriesMap;
-    final selectedIds =
-        tab == 2 ? localSelectedEnterpriseCatIds : localSelectedCatIds;
+
+    Map<String, String> categories;
+    RxSet<String> selectedIds;
+
+    switch (tab) {
+      case 0: // Entreprises
+        categories = enterpriseCategoriesMap;
+        selectedIds = localSelectedEnterpriseCatIds;
+        break;
+      case 1: // Boutiques
+      case 2: // Associations
+        categories = categoriesMap;
+        selectedIds = localSelectedCatIds;
+        break;
+      case 3: // Sponsors
+        categories = categoriesMap;
+        selectedIds = localSelectedSponsorCatIds;
+        break;
+      default:
+        return [];
+    }
 
     if (categories.isEmpty) {
       return [
@@ -1244,87 +1405,95 @@ class ShopEstablishmentScreenController extends GetxController
     }
 
     return categories.entries.map((entry) {
-      final isSelected = selectedIds.contains(entry.key);
+      return Obx(() {
+        final isSelected = selectedIds.contains(entry.key);
 
-      return TweenAnimationBuilder<double>(
-        duration: const Duration(milliseconds: 200),
-        tween: Tween(
-          begin: isSelected ? 0.95 : 1.0,
-          end: 1.0,
-        ),
-        builder: (context, scale, child) {
-          return Transform.scale(
-            scale: scale,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  if (isSelected) {
-                    selectedIds.remove(entry.key);
-                  } else {
-                    selectedIds.add(entry.key);
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? LinearGradient(
-                            colors: [
-                              CustomTheme.lightScheme()
-                                  .primary
-                                  .withOpacity(0.2),
-                              CustomTheme.lightScheme()
-                                  .primary
-                                  .withOpacity(0.1),
-                            ],
-                          )
-                        : null,
-                    color: isSelected ? null : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected
-                          ? CustomTheme.lightScheme().primary
-                          : Colors.grey[300]!,
-                      width: isSelected ? 2 : 1,
+        return TweenAnimationBuilder<double>(
+          duration: const Duration(milliseconds: 200),
+          tween: Tween(
+            begin: isSelected ? 0.95 : 1.0,
+            end: 1.0,
+          ),
+          builder: (context, scale, child) {
+            return Transform.scale(
+              scale: scale,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    if (isSelected) {
+                      selectedIds.remove(entry.key);
+                    } else {
+                      selectedIds.add(entry.key);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isSelected
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        size: 20,
+                    decoration: BoxDecoration(
+                      gradient: isSelected
+                          ? LinearGradient(
+                              colors: [
+                                CustomTheme.lightScheme()
+                                    .primary
+                                    .withOpacity(0.2),
+                                CustomTheme.lightScheme()
+                                    .primary
+                                    .withOpacity(0.1),
+                              ],
+                            )
+                          : null,
+                      color: isSelected ? null : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
                         color: isSelected
                             ? CustomTheme.lightScheme().primary
-                            : Colors.grey[400],
+                            : Colors.grey[300]!,
+                        width: isSelected ? 2 : 1,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        entry.value,
-                        style: TextStyle(
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected
-                              ? CustomTheme.lightScheme().primary
-                              : Colors.grey[800],
+                    ),
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            isSelected
+                                ? Icons.check_circle
+                                : Icons.radio_button_unchecked,
+                            size: 20,
+                            color: isSelected
+                                ? CustomTheme.lightScheme().primary
+                                : Colors.grey[400],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            entry.value,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? CustomTheme.lightScheme().primary
+                                  : Colors.grey[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        },
-      );
+            );
+          },
+        );
+      });
     }).toList();
   }
 
@@ -1334,10 +1503,18 @@ class ShopEstablishmentScreenController extends GetxController
 
     // Appliquer les filtres temporaires aux filtres réels
     final tab = selectedTabIndex.value;
-    if (tab == 2) {
-      selectedEnterpriseCatIds.value = Set.from(localSelectedEnterpriseCatIds);
-    } else {
-      selectedCatIds.value = Set.from(localSelectedCatIds);
+    switch (tab) {
+      case 0: // Entreprises
+        selectedEnterpriseCatIds.value =
+            Set.from(localSelectedEnterpriseCatIds);
+        break;
+      case 1: // Boutiques
+      case 2: // Associations
+        selectedCatIds.value = Set.from(localSelectedCatIds);
+        break;
+      case 3: // Sponsors
+        selectedSponsorCatIds.value = Set.from(localSelectedSponsorCatIds);
+        break;
     }
 
     // Refiltrer les établissements
@@ -1347,8 +1524,19 @@ class ShopEstablishmentScreenController extends GetxController
     HapticFeedback.mediumImpact();
 
     // Message de confirmation
-    final filterCount =
-        tab == 2 ? selectedEnterpriseCatIds.length : selectedCatIds.length;
+    int filterCount = 0;
+    switch (tab) {
+      case 0:
+        filterCount = selectedEnterpriseCatIds.length;
+        break;
+      case 1:
+      case 2:
+        filterCount = selectedCatIds.length;
+        break;
+      case 3:
+        filterCount = selectedSponsorCatIds.length;
+        break;
+    }
 
     if (filterCount > 0) {
       UniquesControllers().data.snackbar(
