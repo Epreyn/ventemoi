@@ -697,121 +697,10 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                             ),
                                           ],
                                         ),
-                                        const CustomSpace(heightMultiplier: 1),
-                                        Container(
-                                          padding: EdgeInsets.all(
-                                            UniquesControllers()
-                                                    .data
-                                                    .baseSpace *
-                                                1.5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue.shade50,
-                                            borderRadius:
-                                                BorderRadius.circular(15),
-                                            border: Border.all(
-                                              color: Colors.blue.shade200,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.info_outline_rounded,
-                                                color: Colors.blue.shade700,
-                                                size: 20,
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: Text(
-                                                  '2 slots gratuits • 5€/slot supplémentaire',
-                                                  style: TextStyle(
-                                                    fontSize:
-                                                        UniquesControllers()
-                                                                .data
-                                                                .baseSpace *
-                                                            1.4,
-                                                    color: Colors.blue.shade700,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const CustomSpace(heightMultiplier: 3),
+                                        const CustomSpace(heightMultiplier: 2),
                                         _buildEnterpriseCategoriesSection(
                                             ec, data!),
                                         const CustomSpace(heightMultiplier: 2),
-                                        Center(
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  CustomTheme.lightScheme()
-                                                      .primary,
-                                                  CustomTheme.lightScheme()
-                                                      .primary
-                                                      .withOpacity(0.8),
-                                                ],
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color:
-                                                      CustomTheme.lightScheme()
-                                                          .primary
-                                                          .withOpacity(0.3),
-                                                  blurRadius: 15,
-                                                  offset: const Offset(0, 5),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Material(
-                                              color: Colors.transparent,
-                                              child: InkWell(
-                                                onTap: ec.addCategorySlot,
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                child: Padding(
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal:
-                                                        UniquesControllers()
-                                                                .data
-                                                                .baseSpace *
-                                                            3,
-                                                    vertical:
-                                                        UniquesControllers()
-                                                                .data
-                                                                .baseSpace *
-                                                            1.5,
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.add_rounded,
-                                                        color: Colors.white,
-                                                        size: 20,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      const Text(
-                                                        'AJOUTER UN SLOT',
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          letterSpacing: 1,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
                                       ],
                                     );
                                   } else {
@@ -1087,61 +976,12 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
 
         return Obx(() {
           final slots = ec.enterpriseCategorySlots.value;
-          final hasModifications =
-              ec.categorySelectionController.hasModifications.value;
+          final hasModifications = ec.hasModifications.value;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Titre de section
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.business_center_rounded,
-                      color: Colors.blue,
-                      size: 24,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Métiers & Services',
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 2,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  Spacer(),
-                  // Indicateur de slots
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Text(
-                      '$slots slots',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              CustomSpace(heightMultiplier: 3),
-
               // Widget de sélection en cascade
-              // Remplacez l'appel au widget par :
               EnterpriseCategoryCascadingSelector(
                 categories: categories,
                 selectedIds: ec.selectedEnterpriseCategoryIds,
@@ -1154,17 +994,18 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
               if (hasModifications)
                 Container(
                   margin: EdgeInsets.only(
-                    top: UniquesControllers().data.baseSpace * 3,
+                    top: UniquesControllers().data.baseSpace,
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: ec.saveEnterpriseCategoriesChanges,
-                          icon: Icon(Icons.save),
+                          icon: Icon(Icons.save, color: Colors.white),
                           label: Text('Enregistrer les modifications'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
                             padding: EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -1178,6 +1019,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                         child: Text('Annuler'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey,
+                          foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 12,
@@ -1192,7 +1034,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                 ),
 
               // Option pour acheter des slots supplémentaires
-              if (slots < 10) // Limite max
+              if (slots < 5) // Limite max
                 Container(
                   margin: EdgeInsets.only(top: 16),
                   child: Card(

@@ -1,5 +1,4 @@
-// Exemple d'intégration dans ProEstablishmentProfileScreen
-// lib/screens/pro_establishment_profile_screen/widgets/enterprise_categories_section.dart
+// lib/screens/pro_establishment_profile_screen/widgets/pro_establishment_enterprise_categories_section.dart
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -32,10 +31,6 @@ class ProEstablishmentEnterpriseCategoriesSection extends StatelessWidget {
           }
 
           final categories = snapshot.data!;
-
-          // Initialiser les catégories sélectionnées depuis les données du stream
-          // Ceci doit être fait dans le StreamBuilder principal de la vue
-          // où les données de l'établissement sont chargées
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,13 +109,15 @@ class ProEstablishmentEnterpriseCategoriesSection extends StatelessWidget {
 
                     SizedBox(height: 24),
 
-                    EnterpriseCategoryCascadingSelector(
-                      categories: categories,
-                      selectedIds: controller.selectedEnterpriseCategoryIds,
-                      onToggle: controller.toggleEnterpriseCategory,
-                      onRemove: controller.removeEnterpriseCategory,
-                      maxSelections: controller.enterpriseCategorySlots.value,
-                    ),
+                    // Sélecteur de catégories
+                    Obx(() => EnterpriseCategoryCascadingSelector(
+                          categories: categories,
+                          selectedIds: controller.selectedEnterpriseCategoryIds,
+                          onToggle: controller.toggleEnterpriseCategory,
+                          onRemove: controller.removeEnterpriseCategory,
+                          maxSelections:
+                              controller.enterpriseCategorySlots.value,
+                        )),
 
                     // Message d'information selon l'abonnement
                     if (controller.subscriptionStatus.value.isNotEmpty)
@@ -159,51 +156,55 @@ class ProEstablishmentEnterpriseCategoriesSection extends StatelessWidget {
               ),
 
               // Boutons d'action
-              if (controller.hasModifications.value)
-                Container(
-                  margin: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () =>
-                              controller.saveEnterpriseCategoriesChanges(),
+              Obx(() {
+                if (controller.hasModifications.value) {
+                  return Container(
+                    margin: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed:
+                                controller.saveEnterpriseCategoriesChanges,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.save),
+                                SizedBox(width: 8),
+                                Text('Enregistrer les modifications'),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed:
+                              controller.resetEnterpriseCategoriesChanges,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.grey,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.save),
-                              SizedBox(width: 8),
-                              Text('Enregistrer les modifications'),
-                            ],
-                          ),
+                          child: Text('Annuler'),
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: () =>
-                            controller.resetEnterpriseCategoriesChanges(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text('Annuler'),
-                      ),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }
+                return SizedBox.shrink();
+              }),
             ],
           );
         },
@@ -296,169 +297,11 @@ class ProEstablishmentEnterpriseCategoriesSection extends StatelessWidget {
     if (endDate != null) {
       final daysLeft = endDate.difference(DateTime.now()).inDays;
       if (daysLeft > 0) {
-        return 'Abonnement ${controller.subscriptionStatus.value} actif - ${daysLeft} jours restants';
+        return 'Abonnement ${controller.subscriptionStatus.value} actif - $daysLeft jours restants';
       } else {
         return 'Votre abonnement a expiré';
       }
     }
     return 'Abonnement ${controller.subscriptionStatus.value}';
-  }
-}
-
-// Méthodes à ajouter dans ProEstablishmentProfileScreenController
-extension ProEstablishmentProfileControllerExtension
-    on ProEstablishmentProfileScreenController {
-  // Liste observable des IDs sélectionnés
-  RxList<String> get selectedEnterpriseCategoryIds {
-    // À initialiser dans onInit() du controller
-    if (!Get.isRegistered<RxList<String>>(
-        tag: 'selected_enterprise_category_ids')) {
-      Get.put(RxList<String>([]), tag: 'selected_enterprise_category_ids');
-    }
-    return Get.find<RxList<String>>(tag: 'selected_enterprise_category_ids');
-  }
-
-  // Indicateur de modifications non sauvegardées
-  RxBool get hasModifications {
-    if (!Get.isRegistered<RxBool>(
-        tag: 'has_enterprise_categories_modifications')) {
-      Get.put(RxBool(false), tag: 'has_enterprise_categories_modifications');
-    }
-    return Get.find<RxBool>(tag: 'has_enterprise_categories_modifications');
-  }
-
-  // Sauvegarder les changements
-  Future<void> saveEnterpriseCategoriesChanges() async {
-    UniquesControllers().data.isInAsyncCall.value = true;
-
-    try {
-      await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('establishments')
-          .doc(establishmentDocId)
-          .update({
-        'enterprise_categories': selectedEnterpriseCategoryIds,
-      });
-
-      hasModifications.value = false;
-
-      UniquesControllers().data.snackbar(
-            'Succès',
-            'Vos métiers ont été mis à jour',
-            false,
-          );
-    } catch (e) {
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Impossible de sauvegarder les modifications',
-            true,
-          );
-    } finally {
-      UniquesControllers().data.isInAsyncCall.value = false;
-    }
-  }
-
-  // Annuler les changements et recharger depuis Firestore
-  Future<void> resetEnterpriseCategoriesChanges() async {
-    if (establishmentDocId == null) return;
-
-    try {
-      // Récupérer les données actuelles depuis Firestore
-      final doc = await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('establishments')
-          .doc(establishmentDocId)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
-        final List<dynamic>? entCats =
-            data['enterprise_categories'] as List<dynamic>?;
-        final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
-
-        // Réinitialiser les IDs sélectionnés
-        selectedEnterpriseCategoryIds.value = catIds;
-
-        // Réinitialiser les dropdowns existants si vous utilisez encore cette approche
-        final slots = data['enterprise_category_slots'] ?? 2;
-        _initializeCategoryDropdowns(slots, catIds);
-      }
-
-      hasModifications.value = false;
-    } catch (e) {
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Impossible de recharger les données',
-            true,
-          );
-    }
-  }
-
-  // Méthode à ajouter dans ProEstablishmentProfileScreenController
-
-  void _initializeCategoryDropdowns(
-      int slots, List<String>? existingCategoryIds) {
-    selectedEnterpriseCategories.clear();
-
-    for (int i = 0; i < slots; i++) {
-      selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
-    }
-
-    if (existingCategoryIds != null) {
-      for (int i = 0; i < existingCategoryIds.length && i < slots; i++) {
-        _loadCategoryById(existingCategoryIds[i], i);
-      }
-    }
-  }
-
-  Future<void> _loadCategoryById(String catId, int index) async {
-    if (catId.isEmpty) return;
-    final snap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('enterprise_categories')
-        .doc(catId)
-        .get();
-    if (snap.exists) {
-      final cat = EnterpriseCategory.fromDocument(snap);
-      if (index < selectedEnterpriseCategories.length) {
-        selectedEnterpriseCategories[index].value = cat;
-      }
-    }
-  }
-
-  void initializeEnterpriseCategoriesFromStream(Map<String, dynamic> data) {
-    // NE PAS réinitialiser si l'utilisateur a des modifications en cours
-    if (hasModifications.value) {
-      print('⚠️ Modifications en cours, pas de réinitialisation');
-      return;
-    }
-
-    final List<dynamic>? entCats =
-        data['enterprise_categories'] as List<dynamic>?;
-    final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
-
-    print('🔍 Catégories reçues depuis Firestore: $catIds');
-
-    // Initialiser seulement si les valeurs ont changé
-    if (!_listEquals(selectedEnterpriseCategoryIds, catIds)) {
-      selectedEnterpriseCategoryIds.clear();
-      selectedEnterpriseCategoryIds.addAll(catIds);
-      hasModifications.value = false;
-
-      print(
-          '✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
-    }
-  }
-
-  // Helper pour comparer deux listes
-  bool _listEquals(List<String> a, List<String> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }

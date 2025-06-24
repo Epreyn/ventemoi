@@ -591,7 +591,7 @@ class RegisterScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Parrainage d\'association',
+                        'Affilier une association',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -599,7 +599,7 @@ class RegisterScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Soutenez une association dès votre inscription',
+                        'Soutenez une association gratuitement et sans frais',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],

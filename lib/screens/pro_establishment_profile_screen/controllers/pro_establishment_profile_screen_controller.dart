@@ -1,3 +1,5 @@
+// lib/screens/pro_establishment_profile_screen/controllers/pro_establishment_profile_screen_controller.dart
+
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -8,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
-import '../../../controllers/enterprise_category_selection_controller.dart';
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
@@ -24,8 +25,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   String customBottomAppBarTag = 'pro-establishment-form-bottom-app-bar';
   double maxFormWidth = 350.0;
 
-  late final RxList<String> _selectedEnterpriseCategoryIds;
-  late final RxBool _hasModifications;
+  // Variables pour les catégories entreprise sélectionnées
+  final RxList<String> selectedEnterpriseCategoryIds = <String>[].obs;
+  final RxBool hasModifications = false.obs;
 
   // Champs du formulaire
   final nameCtrl = TextEditingController();
@@ -93,28 +95,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   RxString subscriptionStatus = ''.obs;
   Rx<DateTime?> subscriptionEndDate = Rx<DateTime?>(null);
 
-  RxList<String> get selectedEnterpriseCategoryIds =>
-      _selectedEnterpriseCategoryIds;
-  RxBool get hasModifications => _hasModifications;
-
-  late final EnterpriseCategorySelectionController categorySelectionController;
-  String? _categorySelectionControllerTag;
-
   @override
   void onInit() {
     super.onInit();
-
-    _categorySelectionControllerTag =
-        'enterprise_category_selection_${DateTime.now().millisecondsSinceEpoch}';
-
-    // Initialiser le controller de sélection avec le tag
-    categorySelectionController = Get.put(
-      EnterpriseCategorySelectionController(),
-      tag: _categorySelectionControllerTag,
-    );
-
-    _selectedEnterpriseCategoryIds = RxList<String>([]);
-    _hasModifications = RxBool(false);
 
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid != null) {
@@ -122,27 +105,150 @@ class ProEstablishmentProfileScreenController extends GetxController
     }
   }
 
-  @override
-  void onClose() {
-    if (_categorySelectionControllerTag != null) {
-      Get.delete<EnterpriseCategorySelectionController>(
-        tag: _categorySelectionControllerTag,
-      );
-    }
-    super.onClose();
-  }
-
-  // ------------------------------------------------
   // Charger le userType
-  // ------------------------------------------------
   Future<void> _loadUserType(String uid) async {
     final userType = await getUserTypeByUserId(uid);
     currentUserType.value = userType;
   }
 
-  // ------------------------------------------------
-  // Initialiser les dropdowns de catégories
-  // ------------------------------------------------
+  // Méthodes pour gérer les catégories entreprise
+  void addEnterpriseCategory(String categoryId) {
+    if (!selectedEnterpriseCategoryIds.contains(categoryId) &&
+        selectedEnterpriseCategoryIds.length < enterpriseCategorySlots.value) {
+      selectedEnterpriseCategoryIds.add(categoryId);
+      hasModifications.value = true;
+    }
+  }
+
+  void removeEnterpriseCategory(String categoryId) {
+    selectedEnterpriseCategoryIds.remove(categoryId);
+    hasModifications.value = true;
+  }
+
+  // Initialiser les catégories depuis le stream
+  void initializeEnterpriseCategoriesFromStream(Map<String, dynamic> data) {
+    // NE PAS réinitialiser si l'utilisateur a des modifications en cours
+    if (hasModifications.value) {
+      print('⚠️ Modifications en cours, pas de réinitialisation');
+      return;
+    }
+
+    final List<dynamic>? entCats =
+        data['enterprise_categories'] as List<dynamic>?;
+    final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
+
+    print('🔍 Catégories reçues depuis Firestore: $catIds');
+
+    // Initialiser seulement si les valeurs ont changé
+    if (!_listEquals(selectedEnterpriseCategoryIds, catIds)) {
+      selectedEnterpriseCategoryIds.clear();
+      selectedEnterpriseCategoryIds.addAll(catIds);
+      hasModifications.value = false;
+
+      print(
+          '✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
+    }
+  }
+
+  // Helper pour comparer deux listes
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  // Sauvegarder les changements de catégories entreprise
+  Future<void> saveEnterpriseCategoriesChanges() async {
+    if (establishmentDocId == null) {
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Aucun établissement trouvé',
+            true,
+          );
+      return;
+    }
+
+    UniquesControllers().data.isInAsyncCall.value = true;
+
+    try {
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .doc(establishmentDocId)
+          .update({
+        'enterprise_categories': selectedEnterpriseCategoryIds,
+      });
+
+      hasModifications.value = false;
+
+      UniquesControllers().data.snackbar(
+            'Succès',
+            'Vos métiers ont été mis à jour',
+            false,
+          );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Impossible de sauvegarder les modifications: $e',
+            true,
+          );
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  // Annuler les changements et recharger depuis Firestore
+  Future<void> resetEnterpriseCategoriesChanges() async {
+    if (establishmentDocId == null) return;
+
+    UniquesControllers().data.isInAsyncCall.value = true;
+
+    try {
+      // Récupérer les données actuelles depuis Firestore
+      final doc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .doc(establishmentDocId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        final List<dynamic>? entCats =
+            data['enterprise_categories'] as List<dynamic>?;
+        final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
+
+        // Réinitialiser les IDs sélectionnés
+        selectedEnterpriseCategoryIds.clear();
+        selectedEnterpriseCategoryIds.addAll(catIds);
+
+        // Si vous utilisez encore l'ancien système de dropdowns
+        final slots = data['enterprise_category_slots'] ?? 2;
+        _initializeCategoryDropdowns(slots, catIds);
+      }
+
+      hasModifications.value = false;
+
+      UniquesControllers().data.snackbar(
+            'Info',
+            'Modifications annulées',
+            false,
+          );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Impossible de recharger les données',
+            true,
+          );
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  // Initialiser les dropdowns de catégories (ancien système)
   void _initializeCategoryDropdowns(
       int slots, List<String>? existingCategoryIds) {
     selectedEnterpriseCategories.clear();
@@ -174,9 +280,7 @@ class ProEstablishmentProfileScreenController extends GetxController
     }
   }
 
-  // ------------------------------------------------
   // Streams
-  // ------------------------------------------------
   Stream<Map<String, dynamic>?> getEstablishmentDocStream() {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid == null) return const Stream.empty();
@@ -209,7 +313,7 @@ class ProEstablishmentProfileScreenController extends GetxController
       final slots = data['enterprise_category_slots'] ?? 2;
       enterpriseCategorySlots.value = slots;
 
-      // Initialiser les dropdowns
+      // Initialiser les dropdowns (ancien système)
       final List<dynamic>? entCats =
           data['enterprise_categories'] as List<dynamic>?;
       final catIds = entCats?.map((e) => e.toString()).toList();
@@ -261,6 +365,7 @@ class ProEstablishmentProfileScreenController extends GetxController
     if (!snapUser.exists) return null;
     final userData = snapUser.data()!;
     final userTypeId = userData['user_type_id'] ?? '';
+
     if (userTypeId.isEmpty) return null;
 
     final snapType = await UniquesControllers()
@@ -270,404 +375,89 @@ class ProEstablishmentProfileScreenController extends GetxController
         .doc(userTypeId)
         .get();
     if (!snapType.exists) return null;
+
     return UserType.fromDocument(snapType);
   }
 
-  // ------------------------------------------------
-  // Obtenir le prix de l'abonnement
-  // ------------------------------------------------
-  String getSubscriptionPrice() {
-    final userType = currentUserType.value;
-    if (userType == null) return '0';
+  // Sauvegarder le profil complet
+  Future<void> saveEstablishmentProfile() async {
+    if (!formKey.currentState!.validate()) return;
 
-    // Les tarifs sont mensuels après la première année
-    switch (userType.name) {
-      case 'Boutique':
-      case 'Commerçant':
-      case 'Entreprise':
-        return '50'; // 50€/mois après la 1ère année
-      case 'Association':
-        return '0'; // Gratuit
-      default:
-        return '0';
-    }
-  }
-
-  String getFirstYearPrice() {
-    final userType = currentUserType.value;
-    if (userType == null) return '0';
-
-    // Prix de la première année (adhésion + cotisation)
-    switch (userType.name) {
-      case 'Boutique':
-      case 'Commerçant':
-      case 'Entreprise':
-        return '930'; // 450€ adhésion + 40€/mois x 12 = 930€ HT
-      case 'Association':
-        return '0'; // Gratuit
-      default:
-        return '0';
-    }
-  }
-
-  // ------------------------------------------------
-  // Pick banner / logo
-  // ------------------------------------------------
-  Future<void> pickBanner() async {
-    final result = await FilePicker.platform
-        .pickFiles(type: FileType.image, allowMultiple: false);
-    if (result == null || result.files.isEmpty) return;
-    final picked = result.files.first;
-
-    isPickedBanner.value = true;
-
-    if (!kIsWeb && picked.path != null) {
-      bannerFile.value = File(picked.path!);
-      bannerBytes.value = null;
-    } else if (kIsWeb && picked.bytes != null) {
-      bannerFile.value = null;
-      bannerBytes.value = picked.bytes;
-    }
-  }
-
-  Future<void> pickLogo() async {
-    final result = await FilePicker.platform
-        .pickFiles(type: FileType.image, allowMultiple: false);
-    if (result == null || result.files.isEmpty) return;
-    final picked = result.files.first;
-
-    isPickedLogo.value = true;
-
-    if (!kIsWeb && picked.path != null) {
-      logoFile.value = File(picked.path!);
-      logoBytes.value = null;
-    } else if (kIsWeb && picked.bytes != null) {
-      logoFile.value = null;
-      logoBytes.value = picked.bytes;
-    }
-  }
-
-  // ------------------------------------------------
-  // Ajouter une catégorie (paiement Stripe)
-  // ------------------------------------------------
-  Future<void> addCategorySlot() async {
     UniquesControllers().data.isInAsyncCall.value = true;
 
     try {
-      // TODO: Intégrer Stripe ici pour le paiement du slot
-      await Future.delayed(const Duration(seconds: 2));
+      final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (uid == null) {
+        throw Exception('Utilisateur non connecté');
+      }
 
-      enterpriseCategorySlots.value++;
-      selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
+      // Upload des images
+      final String newBannerUrl = await _uploadBanner(uid) ?? bannerUrl.value;
+      final String newLogoUrl = await _uploadLogo(uid) ?? logoUrl.value;
 
+      // Préparer les données
+      final Map<String, dynamic> dataToSave = {
+        'name': nameCtrl.text.trim(),
+        'description': descriptionCtrl.text.trim(),
+        'address': addressCtrl.text.trim(),
+        'email': emailCtrl.text.trim(),
+        'telephone': phoneCtrl.text.trim(),
+        'video_url': videoCtrl.text.trim(),
+        'banner_url': newBannerUrl,
+        'logo_url': newLogoUrl,
+        'category_id': currentCategory.value?.id ?? '',
+        'enterprise_categories': selectedEnterpriseCategoryIds,
+      };
+
+      // Sauvegarder
       if (establishmentDocId != null) {
         await UniquesControllers()
             .data
             .firebaseFirestore
             .collection('establishments')
             .doc(establishmentDocId)
-            .update({
-          'enterprise_category_slots': enterpriseCategorySlots.value,
-        });
+            .update(dataToSave);
+      } else {
+        // Créer un nouvel établissement
+        dataToSave['user_id'] = uid;
+        dataToSave['has_accepted_contract'] = false;
+        dataToSave['enterprise_category_slots'] = 2;
+
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .add(dataToSave);
       }
 
+      // Réinitialiser les états
+      isPickedBanner.value = false;
+      isPickedLogo.value = false;
+      hasModifications.value = false;
+
       UniquesControllers().data.snackbar(
-          'Succès', 'Nouveau slot de catégorie ajouté avec succès', false);
+            'Succès',
+            'Profil établissement sauvegardé',
+            false,
+          );
     } catch (e) {
-      UniquesControllers().data.snackbar('Erreur', e.toString(), true);
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            e.toString(),
+            true,
+          );
     } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
 
-  // ------------------------------------------------
-  // Obtenir les catégories sélectionnées
-  // ------------------------------------------------
-  List<String> getSelectedCategoryIds() {
-    final ids = <String>[];
-    for (final catObs in selectedEnterpriseCategories) {
-      final cat = catObs.value;
-      if (cat != null) {
-        ids.add(cat.id);
-      }
-    }
-    return ids;
-  }
-
-  // ------------------------------------------------
-  // Enregistrement
-  // ------------------------------------------------
-  Future<void> saveEstablishmentProfile() async {
-    if (!formKey.currentState!.validate()) {
-      return;
-    }
-
-    // Si pas encore accepté les CGU ou pas d'abonnement actif
-    if (!hasAcceptedContract.value || !hasActiveSubscription.value) {
-      String? paymentOption;
-      await showDialog(
-        context: Get.context!,
-        barrierDismissible: false,
-        builder: (context) => CGUPaymentDialog(
-          userType: currentUserType.value?.name ?? '',
-          onConfirm: (String paymentOption) async {
-            // Le dialog gère le choix de l'option de paiement en interne
-            await _processPaymentAndSave(paymentOption);
-          },
-        ),
-      );
-    } else {
-      // Si déjà accepté et abonnement actif, sauvegarder directement
-      await _saveProfileToFirestore();
-    }
-  }
-
-  // ------------------------------------------------
-  // Traiter le paiement et sauvegarder
-  // ------------------------------------------------
-  Future<void> _processPaymentAndSave(String paymentOption) async {
-    UniquesControllers().data.isInAsyncCall.value = true;
-
-    try {
-      // TODO: Intégrer Stripe ici pour le paiement de l'abonnement
-      // Utiliser paymentOption ('monthly' ou 'annual') pour déterminer le montant et la fréquence
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Mettre à jour les statuts
-      hasAcceptedContract.value = true;
-      hasActiveSubscription.value = true;
-      subscriptionStatus.value = 'active';
-      subscriptionEndDate.value =
-          DateTime.now().add(const Duration(days: 365)); // 1 an d'engagement
-
-      // Stocker le type de paiement choisi
-      // paymentOption sera 'monthly' ou 'annual'
-
-      // Sauvegarder avec les nouveaux statuts
-      await _saveProfileToFirestore(
-          isFirstActivation: true, paymentOption: paymentOption);
-    } catch (e) {
-      UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar(
-          'Erreur de paiement', 'Le paiement a échoué : ${e.toString()}', true);
-    }
-  }
-
-  // ------------------------------------------------
-  // Sauvegarder le profil
-  // ------------------------------------------------
-  Future<void> _saveProfileToFirestore(
-      {bool isFirstActivation = false, String? paymentOption}) async {
-    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return;
-
-    UniquesControllers().data.isInAsyncCall.value = true;
-
-    try {
-      establishmentDocId ??= await _createEstablishmentDocIfNeeded(uid);
-
-      // Gérer les uploads
-      final newBannerUrl = await _handleBannerUpload(uid);
-      final newLogoUrl = await _handleLogoUpload(uid);
-
-      // Récupérer le userType
-      final userType = currentUserType.value;
-
-      final dataToUpdate = {
-        'name': nameCtrl.text.trim(),
-        'description': descriptionCtrl.text.trim(),
-        'address': addressCtrl.text.trim(),
-        'email': emailCtrl.text.trim(),
-        'telephone': phoneCtrl.text.trim(),
-        'banner_url': newBannerUrl,
-        'logo_url': newLogoUrl,
-        'video_url': videoCtrl.text.trim(),
-        'category_id': currentCategory.value?.id ?? '',
-        'enterprise_categories': selectedEnterpriseCategoryIds,
-        'enterprise_category_slots': enterpriseCategorySlots.value,
-        'has_accepted_contract': hasAcceptedContract.value,
-        'has_active_subscription': hasActiveSubscription.value,
-        'subscription_status': subscriptionStatus.value,
-        'subscription_end_date': subscriptionEndDate.value != null
-            ? Timestamp.fromDate(subscriptionEndDate.value!)
-            : null,
-        'is_visible_in_shop':
-            hasAcceptedContract.value && hasActiveSubscription.value,
-        'updated_at': FieldValue.serverTimestamp(),
-      };
-
-      // Ajouter l'option de paiement si fournie
-      if (paymentOption != null) {
-        dataToUpdate['payment_option'] = paymentOption;
-      }
-
-      if (userType != null && userType.name == 'Entreprise') {
-        dataToUpdate['enterprise_categories'] = getSelectedCategoryIds();
-      }
-
-      await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('establishments')
-          .doc(establishmentDocId)
-          .update(dataToUpdate);
-
-      // Si c'est la première activation, gérer le parrainage
-      if (isFirstActivation && emailCtrl.text.trim().isNotEmpty) {
-        await _handleSponsorshipRewardIfAny(uid, emailCtrl.text.trim());
-      }
-
-      // Reset
-      isPickedBanner.value = false;
-      isPickedLogo.value = false;
-
-      UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar(
-          'Succès',
-          isFirstActivation
-              ? 'Votre établissement est maintenant visible dans le shop !'
-              : 'Fiche mise à jour avec succès',
-          false);
-    } catch (e) {
-      UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Erreur', e.toString(), true);
-    }
-  }
-
-  // ------------------------------------------------
-  // Gérer le parrainage
-  // ------------------------------------------------
-  Future<void> _handleSponsorshipRewardIfAny(
-      String uid, String userEmail) async {
-    if (userEmail.isEmpty) return;
-
-    final snap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('sponsorships')
-        .where('sponsoredEmails', arrayContains: userEmail.toLowerCase())
-        .get();
-
-    if (snap.docs.isEmpty) {
-      return;
-    }
-
-    final sponsorshipDoc = snap.docs.first;
-    final sponsorData = sponsorshipDoc.data();
-    final sponsorUid = sponsorData['user_id'] ?? '';
-    if (sponsorUid.isEmpty) {
-      return;
-    }
-
-    // +100€ en bons cadeaux pour le parrain (entreprise/commerce)
-    final sponsorWalletSnap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('wallets')
-        .where('user_id', isEqualTo: sponsorUid)
-        .limit(1)
-        .get();
-
-    if (sponsorWalletSnap.docs.isEmpty) {
-      await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('wallets')
-          .doc()
-          .set({
-        'user_id': sponsorUid,
-        'points': 0,
-        'coupons': 2, // 100€ = 2 bons de 50€
-      });
-    } else {
-      final walletRef = sponsorWalletSnap.docs.first.reference;
-      await walletRef.update({
-        'coupons': FieldValue.increment(2), // 100€ = 2 bons de 50€
-      });
-    }
-
-    // Envoyer un mail au sponsor
-    final sponsorUserSnap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(sponsorUid)
-        .get();
-
-    if (sponsorUserSnap.exists) {
-      final sponsorUserData = sponsorUserSnap.data()!;
-      final sponsorEmail = (sponsorUserData['email'] ?? '').toString();
-      final sponsorName = (sponsorUserData['name'] ?? 'Sponsor').toString();
-
-      if (sponsorEmail.isNotEmpty) {
-        await sendSponsorshipMailAboutEnterprise(
-            sponsorName: sponsorName,
-            sponsorEmail: sponsorEmail,
-            userEmail: userEmail);
-      }
-    }
-  }
-
-  // ------------------------------------------------
-  // Création doc si inexistant
-  // ------------------------------------------------
-  Future<String> _createEstablishmentDocIfNeeded(String uid) async {
-    if (establishmentDocId != null) return establishmentDocId!;
-
-    final docRef = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('establishments')
-        .add({
-      'user_id': uid,
-      'name': '',
-      'description': '',
-      'address': '',
-      'email': '',
-      'telephone': '',
-      'banner_url': '',
-      'logo_url': '',
-      'category_id': '',
-      'enterprise_categories': [],
-      'enterprise_category_slots': 2,
-      'video_url': '',
-      'has_accepted_contract': false,
-      'has_active_subscription': false,
-      'subscription_status': '',
-      'subscription_end_date': null,
-      'is_visible_in_shop': false,
-      'payment_option': 'monthly', // Option par défaut
-      'created_at': FieldValue.serverTimestamp(),
-      'updated_at': FieldValue.serverTimestamp(),
-    });
-
-    return docRef.id;
-  }
-
-  // ------------------------------------------------
-  // Upload Bannières / Logos
-  // ------------------------------------------------
-  Future<String> _handleBannerUpload(String uid) async {
-    String newBannerUrl = bannerUrl.value;
-    if (isPickedBanner.value) {
-      newBannerUrl = await _uploadBanner(uid);
-    }
-    return newBannerUrl;
-  }
-
-  Future<String> _handleLogoUpload(String uid) async {
-    String newLogoUrl = logoUrl.value;
-    if (isPickedLogo.value) {
-      newLogoUrl = await _uploadLogo(uid);
-    }
-    return newLogoUrl;
-  }
-
-  Future<String> _uploadBanner(String uid) async {
-    String url = bannerUrl.value;
+  // Upload banner
+  Future<String?> _uploadBanner(String uid) async {
+    String? url;
     try {
       if (bannerFile.value != null) {
-        final fileName = p.basename(bannerFile.value!.path);
+        final ext = p.extension(bannerFile.value!.path);
+        final fileName = 'banner_${DateTime.now().millisecondsSinceEpoch}$ext';
         final ref = UniquesControllers()
             .data
             .firebaseStorage
@@ -688,16 +478,18 @@ class ProEstablishmentProfileScreenController extends GetxController
         });
       }
     } catch (e) {
-      UniquesControllers().data.snackbar('Erreur Bannière', e.toString(), true);
+      UniquesControllers().data.snackbar('Erreur Banner', e.toString(), true);
     }
     return url;
   }
 
-  Future<String> _uploadLogo(String uid) async {
-    String url = logoUrl.value;
+  // Upload logo
+  Future<String?> _uploadLogo(String uid) async {
+    String? url;
     try {
       if (logoFile.value != null) {
-        final fileName = p.basename(logoFile.value!.path);
+        final ext = p.extension(logoFile.value!.path);
+        final fileName = 'logo_${DateTime.now().millisecondsSinceEpoch}$ext';
         final ref = UniquesControllers()
             .data
             .firebaseStorage
@@ -723,9 +515,194 @@ class ProEstablishmentProfileScreenController extends GetxController
     return url;
   }
 
-  // ------------------------------------------------
-  // Widgets d'affichage (logo / banner)
-  // ------------------------------------------------
+  // Picker pour les images
+  Future<void> pickFile(bool isLogo) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+    );
+
+    if (result != null) {
+      if (kIsWeb) {
+        final bytes = result.files.first.bytes;
+        if (bytes != null) {
+          if (isLogo) {
+            logoBytes.value = bytes;
+            isPickedLogo.value = true;
+          } else {
+            bannerBytes.value = bytes;
+            isPickedBanner.value = true;
+          }
+        }
+      } else {
+        final path = result.files.single.path;
+        if (path != null) {
+          if (isLogo) {
+            logoFile.value = File(path);
+            isPickedLogo.value = true;
+          } else {
+            bannerFile.value = File(path);
+            isPickedBanner.value = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Dans ProEstablishmentProfileScreenController
+
+  // Méthodes pour picker logo et banner
+  void pickLogo() {
+    pickFile(true); // true pour logo
+  }
+
+  void pickBanner() {
+    pickFile(false); // false pour banner
+  }
+
+  // Méthode pour ajouter un slot de catégorie (pour EnterpriseCategorySlotsWidget)
+  void addCategorySlot() {
+    // Implémenter l'ajout de slot supplémentaire
+    openPaymentDialog(
+      title: 'Slot supplémentaire',
+      description: 'Ajouter un slot de catégorie supplémentaire pour 5€',
+      price: additionalSlotPrice,
+      onPaymentSuccess: () {
+        // Le PaymentListener gérera la mise à jour automatiquement
+        Get.snackbar(
+          'Paiement en cours',
+          'Votre slot supplémentaire sera ajouté après confirmation du paiement',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      },
+    );
+  }
+
+  // Dans ProEstablishmentProfileScreenController
+
+  void openPaymentDialog({
+    required String title,
+    required String description,
+    required int price,
+    required VoidCallback onPaymentSuccess,
+  }) {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.payment, color: Colors.orange),
+            SizedBox(width: 12),
+            Text(title),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(description),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Prix :',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    '${(price / 100).toStringAsFixed(2)} €',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('Annuler'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Get.back();
+              // Implémenter le paiement Stripe ici
+              _processPayment(price, onPaymentSuccess);
+            },
+            icon: Icon(Icons.credit_card),
+            label: Text('Payer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Méthode pour traiter le paiement
+  Future<void> _processPayment(int price, VoidCallback onSuccess) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // TODO: Implémenter l'intégration Stripe ici
+      // Pour le moment, simuler un succès
+      await Future.delayed(Duration(seconds: 2));
+
+      onSuccess();
+
+      UniquesControllers().data.snackbar(
+            'Succès',
+            'Paiement effectué avec succès',
+            false,
+          );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Erreur lors du paiement: $e',
+            true,
+          );
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  void toggleEnterpriseCategory(String categoryId) {
+    if (selectedEnterpriseCategoryIds.contains(categoryId)) {
+      removeEnterpriseCategory(categoryId);
+    } else if (selectedEnterpriseCategoryIds.length <
+        enterpriseCategorySlots.value) {
+      addEnterpriseCategory(categoryId);
+    } else {
+      Get.snackbar(
+        'Limite atteinte',
+        'Vous avez atteint le maximum de ${enterpriseCategorySlots.value} catégories',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  // Widgets d'affichage des images
   Widget buildLogoWidget() {
     if (isPickedLogo.value) {
       if (logoFile.value != null) {
@@ -796,11 +773,20 @@ class ProEstablishmentProfileScreenController extends GetxController
   }) {
     DecorationImage? image;
     if (file != null) {
-      image = DecorationImage(image: FileImage(file), fit: BoxFit.cover);
+      image = DecorationImage(
+        image: FileImage(file),
+        fit: BoxFit.cover,
+      );
     } else if (bytes != null) {
-      image = DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover);
+      image = DecorationImage(
+        image: MemoryImage(bytes),
+        fit: BoxFit.cover,
+      );
     } else if (url != null && url.isNotEmpty) {
-      image = DecorationImage(image: NetworkImage(url), fit: BoxFit.cover);
+      image = DecorationImage(
+        image: NetworkImage(url),
+        fit: BoxFit.cover,
+      );
     }
 
     if (isBanner && maxFormWidth != null) {
@@ -812,36 +798,30 @@ class ProEstablishmentProfileScreenController extends GetxController
             borderRadius:
                 BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
             image: image,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      return Center(
-        child: Container(
-          height: size,
-          width: size,
-          decoration: BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
-            image: image,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 2,
+            ),
           ),
         ),
       );
     }
+
+    return Center(
+      child: Container(
+        height: size,
+        width: size,
+        decoration: BoxDecoration(
+          borderRadius:
+              BorderRadius.circular(UniquesControllers().data.baseSpace * 2),
+          image: image,
+          border: Border.all(
+            color: Colors.grey.shade300,
+            width: 2,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildPlaceholder({
@@ -920,59 +900,6 @@ class ProEstablishmentProfileScreenController extends GetxController
     );
   }
 
-  void initializeEnterpriseCategoriesFromStream(Map<String, dynamic> data) {
-    // NE PAS réinitialiser si l'utilisateur a des modifications en cours
-    if (hasModifications.value) {
-      print('⚠️ Modifications en cours, pas de réinitialisation');
-      return;
-    }
-
-    final List<dynamic>? entCats =
-        data['enterprise_categories'] as List<dynamic>?;
-    final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
-
-    print('🔍 Catégories reçues depuis Firestore: $catIds');
-
-    // Initialiser seulement si les valeurs ont changé
-    if (!_listEquals(selectedEnterpriseCategoryIds, catIds)) {
-      selectedEnterpriseCategoryIds.clear();
-      selectedEnterpriseCategoryIds.addAll(catIds);
-      hasModifications.value = false;
-
-      print(
-          '✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
-    }
-  }
-  // Dans ProEstablishmentProfileScreenController
-
-  // Ajoutez ces méthodes directement dans le controller
-  void addEnterpriseCategory(String categoryId) {
-    if (!selectedEnterpriseCategoryIds.contains(categoryId) &&
-        selectedEnterpriseCategoryIds.length < enterpriseCategorySlots.value) {
-      selectedEnterpriseCategoryIds.add(categoryId);
-      hasModifications.value = true;
-    }
-  }
-
-  void removeEnterpriseCategory(String categoryId) {
-    selectedEnterpriseCategoryIds.remove(categoryId);
-    hasModifications.value = true;
-  }
-
-  void toggleEnterpriseCategory(String categoryId) {
-    if (selectedEnterpriseCategoryIds.contains(categoryId)) {
-      removeEnterpriseCategory(categoryId);
-    } else if (selectedEnterpriseCategoryIds.length <
-        enterpriseCategorySlots.value) {
-      addEnterpriseCategory(categoryId);
-    } else {
-      Get.snackbar(
-        'Limite atteinte',
-        'Vous avez atteint le maximum de ${enterpriseCategorySlots.value} catégories',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-      );
-    }
-  }
+  // Reste des méthodes du controller...
+  // (openPaymentDialog, bottomSheetChildren, etc.)
 }

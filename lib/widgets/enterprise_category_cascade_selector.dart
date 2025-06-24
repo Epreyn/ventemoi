@@ -93,11 +93,19 @@ class EnterpriseCategoryCascadingSelector extends StatelessWidget {
               onPressed: selectedIds.length >= maxSelections
                   ? null
                   : () => _showCategorySelector(context),
-              icon: Icon(Icons.add_business),
+              icon: Icon(Icons.add_business,
+                  color: selectedIds.length >= maxSelections
+                      ? Colors.grey
+                      : Colors.white),
               label: Text(
                 selectedIds.length >= maxSelections
                     ? 'Maximum atteint ($maxSelections)'
                     : 'Ajouter un métier',
+                style: TextStyle(
+                  color: selectedIds.length >= maxSelections
+                      ? Colors.grey
+                      : Colors.white,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
