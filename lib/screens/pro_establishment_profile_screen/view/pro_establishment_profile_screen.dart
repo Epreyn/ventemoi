@@ -15,6 +15,7 @@ import '../../../features/custom_places_autocompletion/view/custom_places_autoco
 import '../../../features/custom_space/view/custom_space.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
+import '../../../widgets/enterprise_category_cascade_selector.dart';
 import '../controllers/pro_establishment_profile_screen_controller.dart';
 import 'package:ventemoi/firebase_options.dart';
 
@@ -69,6 +70,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                 ec.currentCategory.value = cat;
               });
             }
+            ec.initializeEnterpriseCategoriesFromStream(data);
           }
 
           return Center(
@@ -736,7 +738,8 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                           ),
                                         ),
                                         const CustomSpace(heightMultiplier: 3),
-                                        _buildEnterpriseMultipleSelection(ec),
+                                        _buildEnterpriseCategoriesSection(
+                                            ec, data!),
                                         const CustomSpace(heightMultiplier: 2),
                                         Center(
                                           child: Container(
@@ -1063,6 +1066,169 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildEnterpriseCategoriesSection(
+    ProEstablishmentProfileScreenController ec,
+    Map<String, dynamic> establishmentData,
+  ) {
+    // Initialiser les catégories depuis les données du stream
+    ec.initializeEnterpriseCategoriesFromStream(establishmentData);
+
+    return StreamBuilder<List<EnterpriseCategory>>(
+      stream: ec.getEnterpriseCategoriesStream(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        final categories = snapshot.data!;
+
+        return Obx(() {
+          final slots = ec.enterpriseCategorySlots.value;
+          final hasModifications =
+              ec.categorySelectionController.hasModifications.value;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Titre de section
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.business_center_rounded,
+                      color: Colors.blue,
+                      size: 24,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Métiers & Services',
+                    style: TextStyle(
+                      fontSize: UniquesControllers().data.baseSpace * 2,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  Spacer(),
+                  // Indicateur de slots
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue[200]!),
+                    ),
+                    child: Text(
+                      '$slots slots',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              CustomSpace(heightMultiplier: 3),
+
+              // Widget de sélection en cascade
+              // Remplacez l'appel au widget par :
+              EnterpriseCategoryCascadingSelector(
+                categories: categories,
+                selectedIds: ec.selectedEnterpriseCategoryIds,
+                onToggle: ec.toggleEnterpriseCategory,
+                onRemove: ec.removeEnterpriseCategory,
+                maxSelections: slots,
+              ),
+
+              // Boutons d'action si modifications
+              if (hasModifications)
+                Container(
+                  margin: EdgeInsets.only(
+                    top: UniquesControllers().data.baseSpace * 3,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: ec.saveEnterpriseCategoriesChanges,
+                          icon: Icon(Icons.save),
+                          label: Text('Enregistrer les modifications'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: ec.resetEnterpriseCategoriesChanges,
+                        child: Text('Annuler'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Option pour acheter des slots supplémentaires
+              if (slots < 10) // Limite max
+                Container(
+                  margin: EdgeInsets.only(top: 16),
+                  child: Card(
+                    elevation: 0,
+                    color: Colors.amber[50],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.amber[200]!),
+                    ),
+                    child: ListTile(
+                      leading: Icon(Icons.add_circle_outline,
+                          color: Colors.amber[700]),
+                      title: Text(
+                        'Besoin de plus de catégories ?',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle:
+                          Text('Achetez des slots supplémentaires (5€/slot)'),
+                      trailing: TextButton(
+                        onPressed: () {
+                          // Implémenter l'achat de slots
+                          Get.snackbar(
+                            'Bientôt disponible',
+                            'L\'achat de slots supplémentaires sera bientôt disponible',
+                            snackPosition: SnackPosition.BOTTOM,
+                          );
+                        },
+                        child: Text('Acheter'),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        });
+      },
     );
   }
 }

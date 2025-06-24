@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../controllers/enterprise_category_selection_controller.dart';
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
@@ -22,6 +23,9 @@ class ProEstablishmentProfileScreenController extends GetxController
 
   String customBottomAppBarTag = 'pro-establishment-form-bottom-app-bar';
   double maxFormWidth = 350.0;
+
+  late final RxList<String> _selectedEnterpriseCategoryIds;
+  late final RxBool _hasModifications;
 
   // Champs du formulaire
   final nameCtrl = TextEditingController();
@@ -89,14 +93,43 @@ class ProEstablishmentProfileScreenController extends GetxController
   RxString subscriptionStatus = ''.obs;
   Rx<DateTime?> subscriptionEndDate = Rx<DateTime?>(null);
 
+  RxList<String> get selectedEnterpriseCategoryIds =>
+      _selectedEnterpriseCategoryIds;
+  RxBool get hasModifications => _hasModifications;
+
+  late final EnterpriseCategorySelectionController categorySelectionController;
+  String? _categorySelectionControllerTag;
+
   @override
   void onInit() {
     super.onInit();
+
+    _categorySelectionControllerTag =
+        'enterprise_category_selection_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Initialiser le controller de sélection avec le tag
+    categorySelectionController = Get.put(
+      EnterpriseCategorySelectionController(),
+      tag: _categorySelectionControllerTag,
+    );
+
+    _selectedEnterpriseCategoryIds = RxList<String>([]);
+    _hasModifications = RxBool(false);
 
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid != null) {
       _loadUserType(uid);
     }
+  }
+
+  @override
+  void onClose() {
+    if (_categorySelectionControllerTag != null) {
+      Get.delete<EnterpriseCategorySelectionController>(
+        tag: _categorySelectionControllerTag,
+      );
+    }
+    super.onClose();
   }
 
   // ------------------------------------------------
@@ -450,7 +483,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         'logo_url': newLogoUrl,
         'video_url': videoCtrl.text.trim(),
         'category_id': currentCategory.value?.id ?? '',
-        'enterprise_categories': [],
+        'enterprise_categories': selectedEnterpriseCategoryIds,
         'enterprise_category_slots': enterpriseCategorySlots.value,
         'has_accepted_contract': hasAcceptedContract.value,
         'has_active_subscription': hasActiveSubscription.value,
@@ -885,5 +918,61 @@ class ProEstablishmentProfileScreenController extends GetxController
         ),
       ),
     );
+  }
+
+  void initializeEnterpriseCategoriesFromStream(Map<String, dynamic> data) {
+    // NE PAS réinitialiser si l'utilisateur a des modifications en cours
+    if (hasModifications.value) {
+      print('⚠️ Modifications en cours, pas de réinitialisation');
+      return;
+    }
+
+    final List<dynamic>? entCats =
+        data['enterprise_categories'] as List<dynamic>?;
+    final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
+
+    print('🔍 Catégories reçues depuis Firestore: $catIds');
+
+    // Initialiser seulement si les valeurs ont changé
+    if (!_listEquals(selectedEnterpriseCategoryIds, catIds)) {
+      selectedEnterpriseCategoryIds.clear();
+      selectedEnterpriseCategoryIds.addAll(catIds);
+      hasModifications.value = false;
+
+      print(
+          '✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
+    }
+  }
+  // Dans ProEstablishmentProfileScreenController
+
+  // Ajoutez ces méthodes directement dans le controller
+  void addEnterpriseCategory(String categoryId) {
+    if (!selectedEnterpriseCategoryIds.contains(categoryId) &&
+        selectedEnterpriseCategoryIds.length < enterpriseCategorySlots.value) {
+      selectedEnterpriseCategoryIds.add(categoryId);
+      hasModifications.value = true;
+    }
+  }
+
+  void removeEnterpriseCategory(String categoryId) {
+    selectedEnterpriseCategoryIds.remove(categoryId);
+    hasModifications.value = true;
+  }
+
+  void toggleEnterpriseCategory(String categoryId) {
+    if (selectedEnterpriseCategoryIds.contains(categoryId)) {
+      removeEnterpriseCategory(categoryId);
+    } else if (selectedEnterpriseCategoryIds.length <
+        enterpriseCategorySlots.value) {
+      addEnterpriseCategory(categoryId);
+    } else {
+      Get.snackbar(
+        'Limite atteinte',
+        'Vous avez atteint le maximum de ${enterpriseCategorySlots.value} catégories',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+    }
   }
 }
