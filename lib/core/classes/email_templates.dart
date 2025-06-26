@@ -1,5 +1,6 @@
 // Extension du ControllerMixin avec des templates d'emails modernes
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ventemoi/core/classes/controller_mixin.dart';
 
 extension EmailTemplates on ControllerMixin {

@@ -90,8 +90,8 @@ class PasswordScreen extends StatelessWidget {
                                 baseHeight: 420,
                                 expandScale: 1.15,
                                 delay: index * 1.0,
-                                opacity: 0.2,
-                                strokeWidth: 2.0,
+                                opacity: 0.1, // Opacité constante
+                                strokeWidth: 1.0, // Épaisseur constante
                               );
                             }),
 

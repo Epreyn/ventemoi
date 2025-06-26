@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/classes/unique_controllers.dart';
+import '../../../core/services/automatic_gift_voucher_service.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 
@@ -953,5 +954,68 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         ],
       ),
     );
+  }
+
+  Future<void> _processPayment() async {
+    if (!acceptedCGU.value) {
+      UniquesControllers().data.snackbar(
+            'CGU non acceptées',
+            'Vous devez accepter les conditions générales d\'utilisation',
+            true,
+          );
+      return;
+    }
+
+    paymentProcessing.value = true;
+    currentStep.value = 2;
+
+    try {
+      // Appeler la fonction onConfirm fournie par le parent
+      await widget.onConfirm(selectedPaymentOption.value);
+
+      // Récupérer les informations du commerce
+      final user = UniquesControllers().data.firebaseAuth.currentUser;
+      if (user != null) {
+        // Récupérer les données de l'établissement
+        final establishmentQuery = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .where('user_id', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+
+        if (establishmentQuery.docs.isNotEmpty) {
+          final establishmentData = establishmentQuery.docs.first.data();
+          final commerceName = establishmentData['name'] ?? 'Commerce';
+
+          // Attribuer automatiquement les 4 bons cadeaux
+          await AutomaticGiftVoucherService.attributeWelcomeVouchers(
+            commerceId: user.uid,
+            commerceName: commerceName,
+            commerceEmail: user.email ?? '',
+          );
+        }
+      }
+
+      // Afficher un message de succès
+      UniquesControllers().data.snackbar(
+            'Inscription réussie !',
+            'Votre abonnement est activé et 4 bons cadeaux ont été attribués',
+            false,
+          );
+
+      // Fermer la dialog après un court délai
+      await Future.delayed(const Duration(seconds: 2));
+      Get.back();
+    } catch (e) {
+      paymentProcessing.value = false;
+      currentStep.value = 1;
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Une erreur est survenue lors du paiement',
+            true,
+          );
+    }
   }
 }

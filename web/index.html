@@ -1,42 +1,28 @@
 <!doctype html>
-<html lang="fr">
+<html>
     <head>
         <base href="/" />
         <meta charset="UTF-8" />
-        <title>Vente Moi</title>
-
-        <!-- Mieux pour SEO / Internationalisation -->
-        <meta name="google" content="notranslate" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-
-        <!-- Paramètres pour Flutter Web -->
-        <meta
-            name="viewport"
-            content="width=device-width, user-scalable=no, maximum-scale=1.0"
-        />
-
-        <!-- iOS meta tags & icons -->
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-        <meta name="apple-mobile-web-app-title" content="VenteMoi" />
-        <link rel="apple-touch-icon" href="icons/Icon-192.png" />
-
-        <!-- Preconnect si on veut charger des fonts externes, images Firestore, etc. -->
-        <link rel="preconnect" href="https://fonts.gstatic.com" />
-        <link rel="preconnect" href="https://www.gstatic.com" />
-        <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
-
-        <!-- Manifest PWA -->
-        <link rel="manifest" href="manifest.json" />
-        <link rel="icon" type="image/png" href="icons/Icon-192.png" />
-        <meta name="generator" content="Flutter" />
+        <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
         <meta
             name="description"
             content="VenteMoi - Plateforme solidaire de bons d'achat"
         />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-        <!-- Script Google Maps (avec Places) -->
+        <!-- iOS meta tags & icons -->
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta name="apple-mobile-web-app-title" content="VenteMoi" />
+        <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" href="favicon.png" />
+
+        <title>VenteMoi</title>
+        <link rel="manifest" href="manifest.json" />
+
+        <!-- Script Google Maps -->
         <script>
             ((g) => {
                 var h,
@@ -86,44 +72,6 @@
             });
         </script>
 
-        <script>
-            // The value below is injected by flutter build, do not touch.
-            var serviceWorkerVersion = "{{flutter_service_worker_version}}";
-        </script>
-
-        <!-- Script pour améliorer la gestion des deep links et paramètres URL -->
-        <script>
-            // Fonction pour extraire les paramètres de l'URL
-            function getUrlParams() {
-                const params = new URLSearchParams(window.location.search);
-                const result = {};
-                for (const [key, value] of params) {
-                    result[key] = value;
-                }
-                return result;
-            }
-
-            // Écouter les changements d'URL (pour les single-page apps)
-            window.addEventListener("popstate", function (event) {
-                console.log("URL changed:", window.location.href);
-                console.log("Parameters:", getUrlParams());
-            });
-
-            // Log initial des paramètres (en mode développement)
-            window.addEventListener("DOMContentLoaded", function () {
-                if (
-                    window.location.hostname === "localhost" ||
-                    window.location.hostname === "127.0.0.1"
-                ) {
-                    console.log("Initial URL:", window.location.href);
-                    console.log("Initial parameters:", getUrlParams());
-                }
-            });
-        </script>
-
-        <!-- This script adds the flutter initialization JS code -->
-        <script src="flutter.js" defer></script>
-
         <style>
             body {
                 margin: 0;
@@ -134,34 +82,18 @@
                 background-color: #fafafa;
             }
 
-            /* Loader personnalisé pendant le chargement de Flutter */
-            .loading-container {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: #fafafa;
+            .loading {
                 display: flex;
-                align-items: center;
                 justify-content: center;
-                z-index: 9999;
-                opacity: 1;
-                transition: opacity 0.3s ease-out;
-            }
-
-            .loading-container.fade-out {
-                opacity: 0;
-            }
-
-            .loader-content {
-                text-align: center;
+                align-items: center;
+                height: 100vh;
+                flex-direction: column;
             }
 
             .loader-logo {
                 width: 120px;
                 height: 120px;
-                margin: 0 auto 20px;
+                margin-bottom: 20px;
                 background: linear-gradient(135deg, #ff9500 0%, #ff7a00 100%);
                 border-radius: 30%;
                 display: flex;
@@ -176,46 +108,7 @@
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
-                filter: brightness(0) invert(1); /* Rend l'image blanche */
-            }
-
-            /* Alternative sans filtre si vous voulez garder les couleurs du logo */
-            /* .loader-logo img {
-                width: 100%;
-                height: 100%;
-                object-fit: contain;
-            } */
-
-            .loader-spinner {
-                width: 50px;
-                height: 50px;
-                margin: 20px auto;
-                border: 3px solid #f3f3f3;
-                border-top: 3px solid #ff7a00;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-
-            .loading-text {
-                margin-top: 20px;
-                color: #666;
-                font-size: 16px;
-                font-weight: 500;
-            }
-
-            .loading-subtext {
-                margin-top: 8px;
-                color: #999;
-                font-size: 14px;
-            }
-
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
-                100% {
-                    transform: rotate(360deg);
-                }
+                filter: brightness(0) invert(1);
             }
 
             @keyframes pulse {
@@ -229,64 +122,27 @@
                     transform: scale(1);
                 }
             }
-
-            /* Pour cacher le loader quand Flutter est prêt */
-            .hidden {
-                display: none !important;
-            }
         </style>
+
+        <!-- This script adds the flutter initialization JS code -->
+        <script src="flutter.js" defer></script>
     </head>
     <body>
-        <!-- Loader pendant le chargement -->
-        <div id="loading" class="loading-container">
-            <div class="loader-content">
-                <div class="loader-logo">
-                    <img src="icons/Icon-192.png" alt="VenteMoi Logo" />
-                </div>
-                <div class="loader-spinner"></div>
-                <div class="loading-text">Chargement de VenteMoi...</div>
-                <div class="loading-subtext">Veuillez patienter</div>
+        <div class="loading">
+            <div class="loader-logo">
+                <img src="icons/Icon-192.png" alt="VenteMoi Logo" />
             </div>
+            <p>Chargement de VenteMoi...</p>
         </div>
-
-        <noscript>
-            <div
-                style="
-                    padding: 20px;
-                    text-align: center;
-                    background: #fff3cd;
-                    color: #856404;
-                "
-            >
-                Ce site requiert JavaScript pour fonctionner correctement.
-                Veuillez activer JavaScript dans les paramètres de votre
-                navigateur.
-            </div>
-        </noscript>
 
         <script>
             window.addEventListener("load", function (ev) {
-                // Download main.dart.js
-                // Note: Nous utilisons loadEntrypoint malgré le warning de dépréciation
-                // car la nouvelle API load() nécessite _flutter.buildConfig qui n'est pas
-                // disponible dans certaines versions de Flutter. Cela fonctionne correctement.
+                // Download main.dart.js sans service worker
                 _flutter.loader.loadEntrypoint({
-                    serviceWorker: {
-                        serviceWorkerVersion: serviceWorkerVersion,
-                    },
                     onEntrypointLoaded: function (engineInitializer) {
                         engineInitializer
                             .initializeEngine()
                             .then(function (appRunner) {
-                                // Faire disparaître le loader avec une animation
-                                const loader =
-                                    document.getElementById("loading");
-                                if (loader) {
-                                    loader.classList.add("fade-out");
-                                    setTimeout(function () {
-                                        loader.classList.add("hidden");
-                                    }, 300);
-                                }
                                 appRunner.runApp();
                             });
                     },

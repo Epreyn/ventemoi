@@ -65,8 +65,8 @@ class LoginScreen extends StatelessWidget {
                                     1.15, // Toujours la même expansion finale
                                 delay: index *
                                     1.0, // Espacement temporel entre les cercles
-                                opacity: 0.3, // Opacité constante
-                                strokeWidth: 2.0, // Épaisseur constante
+                                opacity: 0.1, // Opacité constante
+                                strokeWidth: 1.0, // Épaisseur constante
                               );
                             }),
 
