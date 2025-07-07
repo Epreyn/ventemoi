@@ -121,10 +121,10 @@ class AdminSellsScreen extends StatelessWidget {
             ),
             SizedBox(width: 16),
             _buildStatChip(
-              label: 'Réclamées',
-              value: stats['reclaimed'] ?? 0,
+              label: 'Dons',
+              value: stats['donations'] ?? 0,
               color: Colors.green[600]!,
-              icon: Icons.check_circle,
+              icon: Icons.volunteer_activism,
             ),
             SizedBox(width: 16),
             _buildStatChip(
@@ -262,7 +262,7 @@ class AdminSellsScreen extends StatelessWidget {
   }
 
   Widget _buildSortMenu(AdminSellsScreenController cc) {
-    final sortLabels = ['Acheteur', 'Vendeur', 'Bons', 'Date'];
+    final sortLabels = ['Acheteur', 'Vendeur', 'Montant', 'Date'];
 
     return Container(
       decoration: BoxDecoration(
@@ -393,6 +393,17 @@ class AdminSellsScreen extends StatelessWidget {
               ],
             ),
           ),
+          PopupMenuItem<String>(
+            value: 'donations',
+            child: Row(
+              children: [
+                Icon(Icons.volunteer_activism,
+                    size: 16, color: Colors.green[600]),
+                SizedBox(width: 12),
+                Text('Dons'),
+              ],
+            ),
+          ),
         ],
         onSelected: (value) {
           cc.filterReclaimed.value = value;
@@ -407,6 +418,8 @@ class AdminSellsScreen extends StatelessWidget {
         return Icons.check_circle;
       case 'pending':
         return Icons.pending;
+      case 'donations':
+        return Icons.volunteer_activism;
       default:
         return Icons.all_inclusive;
     }
@@ -418,6 +431,8 @@ class AdminSellsScreen extends StatelessWidget {
         return Colors.green[600]!;
       case 'pending':
         return Colors.orange[600]!;
+      case 'donations':
+        return Colors.green[600]!;
       default:
         return Colors.grey[700]!;
     }
@@ -429,6 +444,8 @@ class AdminSellsScreen extends StatelessWidget {
         return 'Réclamées';
       case 'pending':
         return 'En attente';
+      case 'donations':
+        return 'Dons';
       default:
         return 'Toutes';
     }
@@ -438,7 +455,10 @@ class AdminSellsScreen extends StatelessWidget {
   Widget _buildCompactPurchaseCard(
       Purchase purchase, AdminSellsScreenController cc) {
     final isReclaimed = purchase.isReclaimed;
-    final primaryColor = isReclaimed ? Colors.green[600]! : Colors.orange[600]!;
+    final isDonation = purchase.isDonation;
+    final primaryColor = isDonation
+        ? Colors.green[600]!
+        : (isReclaimed ? Colors.green[600]! : Colors.orange[600]!);
 
     return Container(
       decoration: BoxDecoration(
@@ -467,7 +487,7 @@ class AdminSellsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // En-tête avec code
+                // En-tête avec code ou type
                 Row(
                   children: [
                     Container(
@@ -479,7 +499,9 @@ class AdminSellsScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: Icon(
-                          Icons.receipt_long,
+                          isDonation
+                              ? Icons.volunteer_activism
+                              : Icons.receipt_long,
                           color: primaryColor,
                           size: 20,
                         ),
@@ -491,7 +513,9 @@ class AdminSellsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Code: ${purchase.reclamationPassword}',
+                            isDonation
+                                ? 'Don à une association'
+                                : 'Code: ${purchase.reclamationPassword}',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -528,14 +552,16 @@ class AdminSellsScreen extends StatelessWidget {
                       children: [
                         _buildParticipantRow(
                           icon: Icons.shopping_bag,
-                          label: 'Acheteur',
+                          label: isDonation ? 'Donateur' : 'Acheteur',
                           value: names['buyer']!,
                           color: Colors.blue[600]!,
                         ),
                         SizedBox(height: 8),
                         _buildParticipantRow(
-                          icon: Icons.store,
-                          label: 'Vendeur',
+                          icon: isDonation
+                              ? Icons.volunteer_activism
+                              : Icons.store,
+                          label: isDonation ? 'Bénéficiaire' : 'Vendeur',
                           value: names['seller']!,
                           color: Colors.purple[600]!,
                         ),
@@ -546,33 +572,41 @@ class AdminSellsScreen extends StatelessWidget {
 
                 Spacer(),
 
-                // Footer avec bons et statut
+                // Footer avec montant et statut
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Nombre de bons
+                    // Montant
                     Container(
                       padding:
                           EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.blue[50],
+                        color: isDonation ? Colors.green[50] : Colors.blue[50],
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.confirmation_number,
+                            isDonation
+                                ? Icons.monetization_on
+                                : Icons.confirmation_number,
                             size: 14,
-                            color: Colors.blue[700],
+                            color: isDonation
+                                ? Colors.green[700]
+                                : Colors.blue[700],
                           ),
                           SizedBox(width: 4),
                           Text(
-                            '${purchase.couponsCount} bons',
+                            isDonation
+                                ? '${purchase.couponsCount} points'
+                                : '${purchase.couponsCount} bons',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue[700],
+                              color: isDonation
+                                  ? Colors.green[700]
+                                  : Colors.blue[700],
                             ),
                           ),
                         ],
@@ -590,13 +624,19 @@ class AdminSellsScreen extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isReclaimed ? Icons.check_circle : Icons.pending,
+                            isDonation
+                                ? Icons.check_circle
+                                : (isReclaimed
+                                    ? Icons.check_circle
+                                    : Icons.pending),
                             size: 14,
                             color: primaryColor,
                           ),
                           SizedBox(width: 4),
                           Text(
-                            isReclaimed ? 'Réclamée' : 'En attente',
+                            isDonation
+                                ? 'Don effectué'
+                                : (isReclaimed ? 'Réclamée' : 'En attente'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -653,7 +693,10 @@ class AdminSellsScreen extends StatelessWidget {
   Widget _buildListPurchaseCard(
       Purchase purchase, AdminSellsScreenController cc, bool isTablet) {
     final isReclaimed = purchase.isReclaimed;
-    final primaryColor = isReclaimed ? Colors.green[600]! : Colors.orange[600]!;
+    final isDonation = purchase.isDonation;
+    final primaryColor = isDonation
+        ? Colors.green[600]!
+        : (isReclaimed ? Colors.green[600]! : Colors.orange[600]!);
 
     return Container(
       decoration: BoxDecoration(
@@ -687,7 +730,9 @@ class AdminSellsScreen extends StatelessWidget {
                   ),
                   child: Center(
                     child: Icon(
-                      Icons.receipt_long,
+                      isDonation
+                          ? Icons.volunteer_activism
+                          : Icons.receipt_long,
                       color: primaryColor,
                       size: isTablet ? 28 : 24,
                     ),
@@ -704,7 +749,9 @@ class AdminSellsScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'Code: ${purchase.reclamationPassword}',
+                              isDonation
+                                  ? 'Don à une association'
+                                  : 'Code: ${purchase.reclamationPassword}',
                               style: TextStyle(
                                 fontSize: isTablet ? 17 : 16,
                                 fontWeight: FontWeight.w600,
@@ -724,15 +771,21 @@ class AdminSellsScreen extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  isReclaimed
+                                  isDonation
                                       ? Icons.check_circle
-                                      : Icons.pending,
+                                      : (isReclaimed
+                                          ? Icons.check_circle
+                                          : Icons.pending),
                                   size: 12,
                                   color: primaryColor,
                                 ),
                                 SizedBox(width: 4),
                                 Text(
-                                  isReclaimed ? 'Réclamée' : 'En attente',
+                                  isDonation
+                                      ? 'Don effectué'
+                                      : (isReclaimed
+                                          ? 'Réclamée'
+                                          : 'En attente'),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -780,19 +833,27 @@ class AdminSellsScreen extends StatelessWidget {
                             ),
                           ),
                           SizedBox(width: 16),
-                          // Nombre de bons
+                          // Montant
                           Icon(
-                            Icons.confirmation_number,
+                            isDonation
+                                ? Icons.monetization_on
+                                : Icons.confirmation_number,
                             size: 14,
-                            color: Colors.blue[600],
+                            color: isDonation
+                                ? Colors.green[600]
+                                : Colors.blue[600],
                           ),
                           SizedBox(width: 4),
                           Text(
-                            '${purchase.couponsCount} bons',
+                            isDonation
+                                ? '${purchase.couponsCount} points'
+                                : '${purchase.couponsCount} bons',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue[600],
+                              color: isDonation
+                                  ? Colors.green[600]
+                                  : Colors.blue[600],
                             ),
                           ),
                         ],
@@ -835,7 +896,7 @@ class AdminSellsScreen extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'Aucune vente trouvée',
+            'Aucune transaction trouvée',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -861,7 +922,10 @@ class AdminSellsScreen extends StatelessWidget {
 
   void _showPurchaseDetails(Purchase purchase, AdminSellsScreenController cc) {
     final isReclaimed = purchase.isReclaimed;
-    final primaryColor = isReclaimed ? Colors.green[600]! : Colors.orange[600]!;
+    final isDonation = purchase.isDonation;
+    final primaryColor = isDonation
+        ? Colors.green[600]!
+        : (isReclaimed ? Colors.green[600]! : Colors.orange[600]!);
 
     Get.dialog(
       Dialog(
@@ -899,7 +963,9 @@ class AdminSellsScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: Icon(
-                          Icons.receipt_long,
+                          isDonation
+                              ? Icons.volunteer_activism
+                              : Icons.receipt_long,
                           color: Colors.white,
                           size: 32,
                         ),
@@ -911,7 +977,9 @@ class AdminSellsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Vente #${purchase.reclamationPassword}',
+                            isDonation
+                                ? 'Don #${purchase.id.substring(0, 8).toUpperCase()}'
+                                : 'Vente #${purchase.reclamationPassword}',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
@@ -922,15 +990,19 @@ class AdminSellsScreen extends StatelessWidget {
                           Row(
                             children: [
                               Icon(
-                                isReclaimed
+                                isDonation
                                     ? Icons.check_circle
-                                    : Icons.pending,
+                                    : (isReclaimed
+                                        ? Icons.check_circle
+                                        : Icons.pending),
                                 size: 16,
                                 color: Colors.white.withOpacity(0.9),
                               ),
                               SizedBox(width: 4),
                               Text(
-                                isReclaimed ? 'Réclamée' : 'En attente',
+                                isDonation
+                                    ? 'Don effectué'
+                                    : (isReclaimed ? 'Réclamée' : 'En attente'),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.white.withOpacity(0.9),
@@ -973,15 +1045,17 @@ class AdminSellsScreen extends StatelessWidget {
                               return Column(
                                 children: [
                                   _buildDetailRow(
-                                    'Acheteur',
+                                    isDonation ? 'Donateur' : 'Acheteur',
                                     names['buyer']!,
                                     icon: Icons.shopping_bag,
                                     iconColor: Colors.blue[600]!,
                                   ),
                                   _buildDetailRow(
-                                    'Vendeur',
+                                    isDonation ? 'Bénéficiaire' : 'Vendeur',
                                     names['seller']!,
-                                    icon: Icons.store,
+                                    icon: isDonation
+                                        ? Icons.volunteer_activism
+                                        : Icons.store,
                                     iconColor: Colors.purple[600]!,
                                     topPadding: 12,
                                   ),
@@ -1000,10 +1074,14 @@ class AdminSellsScreen extends StatelessWidget {
                         icon: Icons.receipt,
                         children: [
                           _buildDetailRow(
-                            'Nombre de bons',
+                            isDonation ? 'Points donnés' : 'Nombre de bons',
                             '${purchase.couponsCount}',
-                            icon: Icons.confirmation_number,
-                            iconColor: Colors.blue[600]!,
+                            icon: isDonation
+                                ? Icons.monetization_on
+                                : Icons.confirmation_number,
+                            iconColor: isDonation
+                                ? Colors.green[600]!
+                                : Colors.blue[600]!,
                           ),
                           _buildDetailRow(
                             'Date',
@@ -1012,13 +1090,14 @@ class AdminSellsScreen extends StatelessWidget {
                             iconColor: Colors.grey[600]!,
                             topPadding: 12,
                           ),
-                          _buildDetailRow(
-                            'Code de réclamation',
-                            purchase.reclamationPassword,
-                            icon: Icons.key,
-                            iconColor: Colors.orange[600]!,
-                            topPadding: 12,
-                          ),
+                          if (!isDonation)
+                            _buildDetailRow(
+                              'Code de réclamation',
+                              purchase.reclamationPassword,
+                              icon: Icons.key,
+                              iconColor: Colors.orange[600]!,
+                              topPadding: 12,
+                            ),
                         ],
                       ),
 
@@ -1042,9 +1121,11 @@ class AdminSellsScreen extends StatelessWidget {
                             child: Row(
                               children: [
                                 Icon(
-                                  isReclaimed
-                                      ? Icons.check_circle
-                                      : Icons.pending,
+                                  isDonation
+                                      ? Icons.volunteer_activism
+                                      : (isReclaimed
+                                          ? Icons.check_circle
+                                          : Icons.pending),
                                   color: primaryColor,
                                   size: 24,
                                 ),
@@ -1055,9 +1136,11 @@ class AdminSellsScreen extends StatelessWidget {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isReclaimed
-                                            ? 'Transaction réclamée'
-                                            : 'En attente de réclamation',
+                                        isDonation
+                                            ? 'Don effectué avec succès'
+                                            : (isReclaimed
+                                                ? 'Transaction réclamée'
+                                                : 'En attente de réclamation'),
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
@@ -1066,9 +1149,11 @@ class AdminSellsScreen extends StatelessWidget {
                                       ),
                                       SizedBox(height: 4),
                                       Text(
-                                        isReclaimed
-                                            ? 'Les bons ont été réclamés par le vendeur'
-                                            : 'Le vendeur n\'a pas encore réclamé les bons',
+                                        isDonation
+                                            ? 'Les points ont été transférés à l\'association'
+                                            : (isReclaimed
+                                                ? 'Les bons ont été réclamés par le vendeur'
+                                                : 'Le vendeur n\'a pas encore réclamé les bons'),
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: Colors.grey[600],
@@ -1097,14 +1182,14 @@ class AdminSellsScreen extends StatelessWidget {
                             iconColor: Colors.grey[600]!,
                           ),
                           _buildDetailRow(
-                            'ID Acheteur',
+                            isDonation ? 'ID Donateur' : 'ID Acheteur',
                             purchase.buyerId,
                             icon: Icons.person,
                             iconColor: Colors.grey[600]!,
                             topPadding: 8,
                           ),
                           _buildDetailRow(
-                            'ID Vendeur',
+                            isDonation ? 'ID Bénéficiaire' : 'ID Vendeur',
                             purchase.sellerId,
                             icon: Icons.business,
                             iconColor: Colors.grey[600]!,

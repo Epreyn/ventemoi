@@ -664,66 +664,36 @@ class ProfileScreen extends StatelessWidget {
                                 CustomCardAnimation(
                                   index: 4,
                                   child: Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.red.shade400,
-                                            Colors.red.shade600,
-                                          ],
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.red.withOpacity(0.3),
-                                            blurRadius: 20,
-                                            spreadRadius: 2,
-                                            offset: const Offset(0, 8),
-                                          ),
-                                        ],
+                                    child: TextButton(
+                                      onPressed: () => cc.openAlertDialog(
+                                        'Supprimer le compte',
+                                        confirmText: 'Supprimer',
+                                        confirmColor: Colors.red,
                                       ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () => cc.openAlertDialog(
-                                            'Supprimer le compte',
-                                            confirmText: 'Supprimer',
-                                            confirmColor: Colors.red,
-                                          ),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: UniquesControllers()
+                                                  .data
+                                                  .baseSpace *
+                                              2,
+                                          vertical: UniquesControllers()
+                                                  .data
+                                                  .baseSpace *
+                                              1.2,
+                                        ),
+                                        shape: RoundedRectangleBorder(
                                           borderRadius:
-                                              BorderRadius.circular(20),
-                                          child: Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: UniquesControllers()
-                                                      .data
-                                                      .baseSpace *
-                                                  3,
-                                              vertical: UniquesControllers()
-                                                      .data
-                                                      .baseSpace *
-                                                  1.8,
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(
-                                                  Icons.delete_forever_rounded,
-                                                  color: Colors.white,
-                                                  size: 22,
-                                                ),
-                                                const SizedBox(width: 10),
-                                                const Text(
-                                                  'SUPPRIMER LE COMPTE',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.bold,
-                                                    letterSpacing: 1.2,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                              BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Supprimer mon compte',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w400,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: Colors.grey[400],
                                         ),
                                       ),
                                     ),

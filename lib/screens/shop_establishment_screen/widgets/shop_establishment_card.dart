@@ -282,57 +282,60 @@ class ShopEstablishmentCard extends StatelessWidget {
 
                           return Row(
                             children: [
-                              // Stock avec icône
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(
-                                        UniquesControllers().data.baseSpace,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: coupons > 0
-                                            ? Colors.green.withOpacity(0.1)
-                                            : Colors.red.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.confirmation_number,
-                                        color: coupons > 0
-                                            ? Colors.green
-                                            : Colors.red,
-                                        size: 20 * widthScale,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                        width: UniquesControllers()
-                                            .data
-                                            .baseSpace),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '$coupons bons',
-                                          style: TextStyle(
-                                            fontSize: 16 * widthScale,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                              // Stock avec icône - N'afficher que pour les boutiques
+                              if (!isAssociation)
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(
+                                          UniquesControllers().data.baseSpace,
                                         ),
-                                        Text(
-                                          coupons > 0
-                                              ? 'Disponibles'
-                                              : 'Stock épuisé',
-                                          style: TextStyle(
-                                            fontSize: 12 * widthScale,
-                                            color: Colors.grey[600],
-                                          ),
+                                        decoration: BoxDecoration(
+                                          color: coupons > 0
+                                              ? Colors.green.withOpacity(0.1)
+                                              : Colors.red.withOpacity(0.1),
+                                          shape: BoxShape.circle,
                                         ),
-                                      ],
-                                    ),
-                                  ],
+                                        child: Icon(
+                                          Icons.confirmation_number,
+                                          color: coupons > 0
+                                              ? Colors.green
+                                              : Colors.red,
+                                          size: 20 * widthScale,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                          width: UniquesControllers()
+                                              .data
+                                              .baseSpace),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '$coupons bons',
+                                            style: TextStyle(
+                                              fontSize: 16 * widthScale,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Text(
+                                            coupons > 0
+                                                ? 'Disponibles'
+                                                : 'Stock épuisé',
+                                            style: TextStyle(
+                                              fontSize: 12 * widthScale,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                              // Si c'est une association, ajouter un Expanded vide pour maintenir l'alignement
+                              if (isAssociation) Expanded(child: Container()),
                               // Bouton d'action
                               ElevatedButton.icon(
                                 onPressed: isDisabled ? null : onBuy,

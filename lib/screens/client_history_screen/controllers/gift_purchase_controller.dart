@@ -119,7 +119,7 @@ class GiftPurchaseController extends GetxController with ControllerMixin {
           .doc(purchase.id)
           .update({
         'buyer_id': selectedUser.value!['id'],
-        'reclamation_password': newCode,
+        'reclamationPassword': newCode,
         'gifted_at': FieldValue.serverTimestamp(),
         'gifted_by': UniquesControllers().data.firebaseAuth.currentUser?.uid,
       });

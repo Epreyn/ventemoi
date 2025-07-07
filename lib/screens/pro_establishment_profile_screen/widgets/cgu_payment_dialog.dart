@@ -1,19 +1,21 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/classes/unique_controllers.dart';
+import '../../../core/models/stripe_service.dart';
 import '../../../core/services/automatic_gift_voucher_service.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 
 class CGUPaymentDialog extends StatefulWidget {
-  final Future<void> Function(String paymentOption) onConfirm;
   final String userType;
 
   const CGUPaymentDialog({
     super.key,
-    required this.onConfirm,
     required this.userType,
   });
 
@@ -34,12 +36,17 @@ class _CGUPaymentDialogState extends State<CGUPaymentDialog> {
 
     switch (widget.userType) {
       case 'Boutique':
+        if (selectedPaymentOption.value == 'annual') {
+          return '870'; // 270€ adhésion + 600€ cotisation annuelle
+        } else {
+          return '930'; // 270€ adhésion + 55€/mois x 12
+        }
       case 'Commerçant':
       case 'Entreprise':
         if (selectedPaymentOption.value == 'annual') {
-          return '870'; // 450€ adhésion + 420€ cotisation annuelle
+          return '870'; // 270€ adhésion + 600€ cotisation annuelle
         } else {
-          return '930'; // 450€ adhésion + 40€/mois x 12
+          return '930'; // 270€ adhésion + 55€/mois x 12
         }
       default:
         return '0';
@@ -49,21 +56,18 @@ class _CGUPaymentDialogState extends State<CGUPaymentDialog> {
   String get monthlyPriceAfterFirstYear {
     switch (widget.userType) {
       case 'Boutique':
+        if (selectedPaymentOption.value == 'annual') {
+          return '870'; // 270€ adhésion + 600€ cotisation annuelle
+        } else {
+          return '930'; // 270€ adhésion + 55€/mois x 12
+        }
       case 'Commerçant':
       case 'Entreprise':
-        return selectedPaymentOption.value == 'annual' ? '540' : '50';
+        return selectedPaymentOption.value == 'annual' ? '600' : '55';
       case 'Association':
         return '0';
       default:
         return '0';
-    }
-  }
-
-  String get paymentSchedule {
-    if (selectedPaymentOption.value == 'annual') {
-      return 'Paiement annuel';
-    } else {
-      return 'Paiement mensuel';
     }
   }
 
@@ -78,20 +82,20 @@ Article 2 : Inscription et Abonnement
 
 2.1 Tarifs d'abonnement (HT) :
 
-ENTREPRISES / COMMERÇANTS / BOUTIQUES
-• 1ère année :
-  - Option annuelle : 870€ HT (450€ adhésion + vidéo + 420€ cotisation annuelle)
-  - Option mensuelle : 930€ HT (450€ adhésion + vidéo + 40€/mois)
+ENTREPRISES / BOUTIQUES
+- 1ère année :
+  - Option annuelle : 870€ HT (270€ adhésion + vidéo + 600€ cotisation annuelle)
+  - Option mensuelle : 930€ HT (270€ adhésion + vidéo + 55€/mois x 12)
   - Bon cadeau de bienvenue : 50€ TTC offert
 
-• À partir de la 2ème année :
-  - Option annuelle : 540€ HT/an (45€/mois)
-  - Option mensuelle : 50€ HT/mois (600€/an)
+- À partir de la 2ème année :
+  - Option annuelle : 600€ HT/an
+  - Option mensuelle : 55€ HT/mois (660€/an)
 
 ASSOCIATIONS
-• Adhésion gratuite
-• Visible sur l'application à partir de 15 filleuls
-• Bon cadeau de 50€ TTC à partir de 30 filleuls
+- Adhésion gratuite
+- Visible sur l'application à partir de 15 filleuls
+- Bon cadeau de 50€ TTC à partir de 30 filleuls
 
 2.2 Le paiement s'effectue via Stripe, par prélèvement automatique mensuel ou annuel selon l'option choisie.
 
@@ -220,7 +224,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                         Obx(() => Text(
                               currentStep.value == 0
                                   ? 'Étape 1/2 : Conditions Générales'
-                                  : 'Étape 2/2 : Paiement',
+                                  : 'Étape 2/2 : Choisir votre formule',
                               style: TextStyle(
                                 fontSize:
                                     UniquesControllers().data.baseSpace * 1.4,
@@ -324,307 +328,161 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                     ],
                   );
                 } else {
-                  // Payment Step
+                  // Payment Options Step
                   return SingleChildScrollView(
                     padding: EdgeInsets.all(
                       UniquesControllers().data.baseSpace * 2.5,
                     ),
                     child: Column(
                       children: [
-                        // Option de paiement
-                        if (widget.userType != 'Association') ...[
-                          Container(
-                            padding: EdgeInsets.all(
-                              UniquesControllers().data.baseSpace * 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.grey.shade200,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Choisissez votre mode de paiement',
-                                  style: TextStyle(
-                                    fontSize:
-                                        UniquesControllers().data.baseSpace *
-                                            1.8,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                                const CustomSpace(heightMultiplier: 2),
-                                Obx(() => Column(
-                                      children: [
-                                        _buildPaymentOption(
-                                          value: 'monthly',
-                                          title: 'Paiement mensuel',
-                                          price: '40€ HT/mois',
-                                          description:
-                                              'Prélèvement automatique mensuel',
-                                          totalFirstYear: '930€ HT',
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _buildPaymentOption(
-                                          value: 'annual',
-                                          title: 'Paiement annuel',
-                                          price: '870€ HT/an',
-                                          description:
-                                              'Économisez 60€ sur la 1ère année',
-                                          totalFirstYear: '870€ HT',
-                                          isRecommended: true,
-                                        ),
-                                      ],
-                                    )),
-                              ],
-                            ),
-                          ),
-                          const CustomSpace(heightMultiplier: 3),
-                        ],
-
-                        // Pricing info
-                        Container(
-                          padding: EdgeInsets.all(
-                            UniquesControllers().data.baseSpace * 3,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                CustomTheme.lightScheme()
-                                    .primary
-                                    .withOpacity(0.1),
-                                CustomTheme.lightScheme()
-                                    .primary
-                                    .withOpacity(0.05),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: CustomTheme.lightScheme()
-                                  .primary
-                                  .withOpacity(0.3),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.shopping_cart_rounded,
-                                size: 48,
-                                color: CustomTheme.lightScheme().primary,
-                              ),
-                              const CustomSpace(heightMultiplier: 2),
-                              Text(
-                                'Abonnement ${widget.userType}',
-                                style: TextStyle(
-                                  fontSize:
-                                      UniquesControllers().data.baseSpace * 2,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                              const CustomSpace(heightMultiplier: 1),
-                              if (widget.userType != 'Association') ...[
-                                Text(
-                                  'Première année',
-                                  style: TextStyle(
-                                    fontSize:
-                                        UniquesControllers().data.baseSpace *
-                                            1.4,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Obx(() => Text(
-                                      '$firstYearPrice€ HT',
-                                      style: TextStyle(
-                                        fontSize: UniquesControllers()
-                                                .data
-                                                .baseSpace *
-                                            3,
-                                        fontWeight: FontWeight.w800,
-                                        color:
-                                            CustomTheme.lightScheme().primary,
-                                      ),
-                                    )),
-                                const SizedBox(height: 4),
-                                Obx(() => Text(
-                                      selectedPaymentOption.value == 'annual'
-                                          ? '(450€ adhésion + vidéo + 420€ cotisation)'
-                                          : '(450€ adhésion + vidéo + 40€/mois)',
-                                      style: TextStyle(
-                                        fontSize: UniquesControllers()
-                                                .data
-                                                .baseSpace *
-                                            1.3,
-                                        color: Colors.grey[600],
-                                      ),
-                                    )),
-                                const CustomSpace(heightMultiplier: 2),
-                                Container(
-                                  padding: EdgeInsets.all(
-                                    UniquesControllers().data.baseSpace * 1.5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
-                                    borderRadius: BorderRadius.circular(15),
-                                    border: Border.all(
-                                      color: Colors.blue.shade200,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.card_giftcard_rounded,
-                                            color: Colors.blue.shade700,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(
-                                            'Bon cadeau de 50€ TTC offert',
-                                            style: TextStyle(
-                                              fontSize: UniquesControllers()
-                                                      .data
-                                                      .baseSpace *
-                                                  1.4,
-                                              color: Colors.blue.shade700,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Obx(() => Text(
-                                            selectedPaymentOption.value ==
-                                                    'annual'
-                                                ? 'Dès la 2ème année : 540€ HT/an'
-                                                : 'Dès la 2ème année : 50€ HT/mois',
-                                            style: TextStyle(
-                                              fontSize: UniquesControllers()
-                                                      .data
-                                                      .baseSpace *
-                                                  1.3,
-                                              color: Colors.blue.shade600,
-                                            ),
-                                          )),
-                                    ],
-                                  ),
-                                ),
-                              ] else ...[
-                                Text(
-                                  'Gratuit',
-                                  style: TextStyle(
-                                    fontSize:
-                                        UniquesControllers().data.baseSpace * 3,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Visible à partir de 15 filleuls',
-                                  style: TextStyle(
-                                    fontSize:
-                                        UniquesControllers().data.baseSpace *
-                                            1.4,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                              const CustomSpace(heightMultiplier: 2),
-                              Container(
-                                padding: EdgeInsets.all(
-                                  UniquesControllers().data.baseSpace * 1.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.shade50,
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(
-                                    color: Colors.orange.shade200,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline_rounded,
-                                      color: Colors.orange.shade700,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Engagement minimum 1 an',
-                                      style: TextStyle(
-                                        fontSize: UniquesControllers()
-                                                .data
-                                                .baseSpace *
-                                            1.4,
-                                        color: Colors.orange.shade700,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const CustomSpace(heightMultiplier: 3),
-
-                        // Features
+                        // Titre
                         Container(
                           padding: EdgeInsets.all(
                             UniquesControllers().data.baseSpace * 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
+                            color: CustomTheme.lightScheme()
+                                .primary
+                                .withOpacity(0.05),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: Colors.grey.shade200,
+                              color: CustomTheme.lightScheme()
+                                  .primary
+                                  .withOpacity(0.2),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.celebration_rounded,
+                                size: 48,
+                                color: CustomTheme.lightScheme().primary,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Bienvenue sur VenteMoi !',
+                                style: TextStyle(
+                                  fontSize:
+                                      UniquesControllers().data.baseSpace * 2.2,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Choisissez votre formule d\'abonnement',
+                                style: TextStyle(
+                                  fontSize:
+                                      UniquesControllers().data.baseSpace * 1.6,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const CustomSpace(heightMultiplier: 3),
+
+                        // Options de paiement
+                        if (widget.userType != 'Association') ...[
+                          // Option Mensuelle
+                          Obx(() => _buildPaymentCard(
+                                isSelected:
+                                    selectedPaymentOption.value == 'monthly',
+                                onTap: () =>
+                                    selectedPaymentOption.value = 'monthly',
+                                icon: Icons.calendar_today_rounded,
+                                title: 'Formule Mensuelle',
+                                price: '55€ HT/mois',
+                                details: [
+                                  '270€ HT de frais d\'adhésion (1ère année)',
+                                  '55€ HT/mois en prélèvement automatique',
+                                  'Total 1ère année : 930€ HT',
+                                  'Dès la 2ème année : 55€ HT/mois',
+                                ],
+                                badge: null,
+                              )),
+
+                          const SizedBox(height: 16),
+
+                          // Option Annuelle
+                          Obx(() => _buildPaymentCard(
+                                isSelected:
+                                    selectedPaymentOption.value == 'annual',
+                                onTap: () =>
+                                    selectedPaymentOption.value = 'annual',
+                                icon: Icons.star_rounded,
+                                title: 'Formule Annuelle',
+                                price: '870€ HT/an',
+                                details: [
+                                  '270€ HT de frais d\'adhésion inclus',
+                                  '600€ HT de cotisation annuelle',
+                                  'Économisez 60€ sur la 1ère année',
+                                  'Dès la 2ème année : 600€ HT/an',
+                                ],
+                                badge: 'Recommandé',
+                              )),
+                        ],
+
+                        const CustomSpace(heightMultiplier: 3),
+
+                        // Avantages inclus
+                        Container(
+                          padding: EdgeInsets.all(
+                            UniquesControllers().data.baseSpace * 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.green.shade200,
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Inclus dans votre abonnement :',
-                                style: TextStyle(
-                                  fontSize:
-                                      UniquesControllers().data.baseSpace * 1.6,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[800],
-                                ),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.card_giftcard_rounded,
+                                    color: Colors.green.shade700,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Inclus dans votre abonnement',
+                                    style: TextStyle(
+                                      fontSize:
+                                          UniquesControllers().data.baseSpace *
+                                              1.6,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const CustomSpace(heightMultiplier: 2),
-                              _buildFeatureItem(
-                                  'Fiche établissement complète avec vidéo'),
-                              _buildFeatureItem(
-                                  'Visibilité immédiate dans le shop'),
-                              _buildFeatureItem(
-                                  'Publication d\'offres et promotions illimitées'),
-                              _buildFeatureItem(
-                                  'Mise en avant minimum 2 fois par an'),
-                              _buildFeatureItem(
-                                  'Prestations vidéo à tarifs préférentiels'),
-                              _buildFeatureItem(
-                                  'Accès au programme ambassadeur'),
+                              _buildIncludedItem(
+                                  '✅ Bon cadeau de bienvenue de 50€ TTC'),
+                              _buildIncludedItem(
+                                  '✅ Vidéo de présentation professionnelle'),
+                              _buildIncludedItem(
+                                  '✅ Visibilité immédiate dans le shop'),
+                              _buildIncludedItem(
+                                  '✅ Publication d\'offres illimitées'),
+                              _buildIncludedItem(
+                                  '✅ Mise en avant 2 fois par an minimum'),
                               if (widget.userType == 'Commerçant' ||
                                   widget.userType == 'Boutique')
-                                _buildFeatureItem('16 bons cadeaux de 50€ TTC'),
+                                _buildIncludedItem(
+                                    '✅ 16 bons cadeaux de 50€ TTC'),
                             ],
                           ),
                         ),
+
                         const CustomSpace(heightMultiplier: 3),
 
-                        // Payment info
+                        // Info paiement sécurisé
                         Container(
                           padding: EdgeInsets.all(
                             UniquesControllers().data.baseSpace * 2,
@@ -649,7 +507,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Paiement sécurisé par Stripe',
+                                      'Paiement 100% sécurisé',
                                       style: TextStyle(
                                         fontSize: UniquesControllers()
                                                 .data
@@ -661,7 +519,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Vos informations bancaires sont protégées',
+                                      'Vos données bancaires sont protégées par Stripe',
                                       style: TextStyle(
                                         fontSize: UniquesControllers()
                                                 .data
@@ -748,13 +606,8 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                   if (currentStep.value == 0) {
                                     currentStep.value = 1;
                                   } else {
-                                    paymentProcessing.value = true;
-                                    await widget
-                                        .onConfirm(selectedPaymentOption.value);
-                                    paymentProcessing.value = false;
-                                    if (context.mounted) {
-                                      Navigator.of(context).pop();
-                                    }
+                                    // Lancer le paiement Stripe
+                                    await _processStripePayment();
                                   }
                                 }
                               : null,
@@ -791,7 +644,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                             ? 'CONTINUER'
                                             : widget.userType == 'Association'
                                                 ? 'TERMINER'
-                                                : 'PAYER $firstYearPrice€ HT',
+                                                : 'PROCÉDER AU PAIEMENT',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
@@ -815,148 +668,169 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
     );
   }
 
-  Widget _buildPaymentOption({
-    required String value,
+  Widget _buildPaymentCard({
+    required bool isSelected,
+    required VoidCallback onTap,
+    required IconData icon,
     required String title,
     required String price,
-    required String description,
-    required String totalFirstYear,
-    bool isRecommended = false,
+    required List<String> details,
+    String? badge,
   }) {
-    final isSelected = selectedPaymentOption.value == value;
-
     return GestureDetector(
-      onTap: () => selectedPaymentOption.value = value,
+      onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+        padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2.5),
         decoration: BoxDecoration(
           color: isSelected
               ? CustomTheme.lightScheme().primary.withOpacity(0.05)
               : Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? CustomTheme.lightScheme().primary
                 : Colors.grey.shade300,
             width: isSelected ? 2 : 1,
           ),
-        ),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: selectedPaymentOption.value,
-              onChanged: (val) => selectedPaymentOption.value = val!,
-              activeColor: CustomTheme.lightScheme().primary,
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? CustomTheme.lightScheme().primary.withOpacity(0.1)
+                  : Colors.grey.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? CustomTheme.lightScheme().primary.withOpacity(0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isSelected
+                        ? CustomTheme.lightScheme().primary
+                        : Colors.grey.shade600,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: UniquesControllers().data.baseSpace * 1.6,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      if (isRecommended) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: UniquesControllers().data.baseSpace,
-                            vertical: UniquesControllers().data.baseSpace * 0.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Recommandé',
+                      Row(
+                        children: [
+                          Text(
+                            title,
                             style: TextStyle(
                               fontSize:
-                                  UniquesControllers().data.baseSpace * 1.2,
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w600,
+                                  UniquesControllers().data.baseSpace * 1.8,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey[800],
                             ),
                           ),
+                          if (badge != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: UniquesControllers().data.baseSpace,
+                                vertical:
+                                    UniquesControllers().data.baseSpace * 0.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                badge,
+                                style: TextStyle(
+                                  fontSize:
+                                      UniquesControllers().data.baseSpace * 1.2,
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        price,
+                        style: TextStyle(
+                          fontSize: UniquesControllers().data.baseSpace * 2,
+                          fontWeight: FontWeight.w800,
+                          color: CustomTheme.lightScheme().primary,
                         ),
-                      ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    price,
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 1.5,
-                      fontWeight: FontWeight.w700,
-                      color: CustomTheme.lightScheme().primary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 1.3,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '1ère année : $totalFirstYear',
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 1.3,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                Radio<bool>(
+                  value: true,
+                  groupValue: isSelected,
+                  onChanged: (_) => onTap(),
+                  activeColor: CustomTheme.lightScheme().primary,
+                ),
+              ],
             ),
+            const SizedBox(height: 16),
+            ...details.map((detail) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 16,
+                        color: Colors.green.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          detail,
+                          style: TextStyle(
+                            fontSize: UniquesControllers().data.baseSpace * 1.4,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFeatureItem(String text) {
+  Widget _buildIncludedItem(String text) {
     return Padding(
       padding:
-          EdgeInsets.only(bottom: UniquesControllers().data.baseSpace * 1.5),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.green.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.check_rounded,
-              size: 16,
-              color: Colors.green.shade700,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: UniquesControllers().data.baseSpace * 1.4,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-        ],
+          EdgeInsets.only(bottom: UniquesControllers().data.baseSpace * 1.2),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: UniquesControllers().data.baseSpace * 1.4,
+          color: Colors.green.shade700,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
 
-  Future<void> _processPayment() async {
+  // Nouvelle méthode pour traiter le paiement avec Stripe
+  Future<void> _processStripePayment() async {
     if (!acceptedCGU.value) {
       UniquesControllers().data.snackbar(
             'CGU non acceptées',
@@ -967,17 +841,554 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
     }
 
     paymentProcessing.value = true;
-    currentStep.value = 2;
 
     try {
-      // Appeler la fonction onConfirm fournie par le parent
-      await widget.onConfirm(selectedPaymentOption.value);
+      final bool useTemporaryMode = false; // Mode production Stripe
 
-      // Récupérer les informations du commerce
-      final user = UniquesControllers().data.firebaseAuth.currentUser;
-      if (user != null) {
-        // Récupérer les données de l'établissement
-        final establishmentQuery = await UniquesControllers()
+      if (useTemporaryMode) {
+        await _processTemporaryPayment();
+      } else {
+        // Fermer la dialog actuelle AVANT de créer la session
+        Get.back();
+
+        // Créer la session et récupérer l'URL et l'ID
+        final result = await _createCheckoutSession();
+
+        if (result != null &&
+            result['url'] != null &&
+            result['sessionId'] != null) {
+          // Afficher immédiatement la dialog d'attente AVANT d'ouvrir Stripe
+          _showPaymentWaitingDialog(result['sessionId']!);
+
+          // Attendre un peu pour que la dialog s'affiche
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Ouvrir Stripe dans un nouvel onglet
+          await StripeService.to.launchCheckout(result['url']!);
+        } else {
+          throw 'Impossible de créer la session de paiement';
+        }
+      }
+    } catch (e) {
+      paymentProcessing.value = false;
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Une erreur est survenue lors du paiement: $e',
+            true,
+          );
+    }
+  }
+
+  // Nouvelle méthode pour créer la session et retourner l'URL et l'ID
+  Future<Map<String, String>?> _createCheckoutSession() async {
+    try {
+      String? checkoutUrl;
+      String? sessionId;
+
+      // Créer la session de checkout selon l'option choisie
+      final sessionResult = selectedPaymentOption.value == 'annual'
+          ? await StripeService.to.createAnnualOptionCheckoutWithId(
+              userType: widget.userType,
+              successUrl: 'https://app.ventemoi.fr/stripe-success.html',
+              cancelUrl: 'https://app.ventemoi.fr/stripe-cancel.html',
+            )
+          : await StripeService.to.createMonthlyOptionCheckoutWithId(
+              userType: widget.userType,
+              successUrl: 'https://app.ventemoi.fr/stripe-success.html',
+              cancelUrl: 'https://app.ventemoi.fr/stripe-cancel.html',
+            );
+
+      if (sessionResult != null) {
+        return {
+          'url': sessionResult['url']!,
+          'sessionId': sessionResult['sessionId']!,
+        };
+      }
+    } catch (e) {
+      print('Erreur création session: $e');
+    }
+
+    return null;
+  }
+
+  // Nouvelle méthode pour afficher la dialog d'attente
+  void _showPaymentWaitingDialog(String sessionId) {
+    StreamSubscription? subscription;
+    StreamSubscription? paymentIntentSubscription;
+    StreamSubscription? estabSubscription;
+    Timer? timeoutTimer;
+    Timer? pollingTimer;
+    final RxBool hasUserClosedTab = false.obs;
+    final RxString debugStatus = 'Initialisation...'.obs;
+
+    Get.dialog(
+      WillPopScope(
+        onWillPop: () async => false, // Empêcher la fermeture accidentelle
+        child: Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Animation de chargement
+                SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      CustomTheme.lightScheme().primary,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Text(
+                  'Paiement en cours...',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                Text(
+                  'Complétez votre paiement dans l\'onglet Stripe',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Ne fermez pas cette fenêtre',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'La fermeture de l\'onglet Stripe annulera le paiement',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Message d'attente animé
+                Obx(() => AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: hasUserClosedTab.value
+                          ? Text(
+                              'Vérification du paiement...',
+                              key: const ValueKey('checking'),
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            )
+                          : Text(
+                              'En attente de confirmation...',
+                              key: const ValueKey('waiting'),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                    )),
+
+                // Debug info (à retirer en production)
+                Obx(() => Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Session: ${sessionId.substring(0, 8)}...\n${debugStatus.value}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                          fontFamily: 'monospace',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )),
+
+                const SizedBox(height: 24),
+
+                // Bouton d'annulation
+                TextButton(
+                  onPressed: () {
+                    // Afficher une confirmation avant d'annuler
+                    Get.dialog(
+                      AlertDialog(
+                        title: const Text('Annuler le paiement ?'),
+                        content: const Text(
+                          'Êtes-vous sûr de vouloir annuler le paiement ? '
+                          'Vous devrez recommencer la procédure.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Get.back(), // Fermer la confirmation
+                            child: const Text('Continuer le paiement'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              subscription?.cancel();
+                              paymentIntentSubscription?.cancel();
+                              estabSubscription?.cancel();
+                              timeoutTimer?.cancel();
+                              pollingTimer?.cancel();
+                              Get.back(); // Fermer la confirmation
+                              Get.back(); // Fermer la dialog d'attente
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text('Confirmer l\'annulation'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Annuler le paiement',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    // Écouter les changements de la session de paiement
+    final user = UniquesControllers().data.firebaseAuth.currentUser;
+    if (user != null) {
+      print('🔵 Début écoute session: $sessionId pour user: ${user.uid}');
+      debugStatus.value = 'Écoute session...';
+
+      // Écouter aussi la collection payments pour cette session
+      paymentIntentSubscription = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('payments')
+          .orderBy('created', descending: true)
+          .limit(1)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          final paymentData = snapshot.docs.first.data();
+          print('💳 Payment détecté: ${paymentData['status']}');
+
+          if (paymentData['status'] == 'succeeded') {
+            print('✅ Paiement réussi détecté via payments collection!');
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            Get.back();
+
+            // S'assurer que l'établissement est bien activé
+            //await _ensureEstablishmentActivated();
+            _ensureEstablishmentActivated();
+
+            _handlePaymentSuccess();
+          }
+        }
+      });
+
+      subscription = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId)
+          .snapshots()
+          .listen((snapshot) async {
+        if (snapshot.exists) {
+          final data = snapshot.data()!;
+          print('📘 Session mise à jour: ${data.keys.join(', ')}');
+
+          // Afficher TOUS les champs pour debug
+          data.forEach((key, value) {
+            if (value != null && value.toString().isNotEmpty) {
+              print(
+                  '   - $key: ${value.runtimeType == String && (value as String).length > 50 ? '${value.substring(0, 50)}...' : value}');
+            }
+          });
+
+          // Debug: afficher tous les champs
+          debugStatus.value = 'Champs: ${data.keys.length}\n';
+
+          // Vérifier TOUS les champs possibles qui pourraient indiquer un succès
+          final bool isPaid = data['payment_status'] == 'paid' ||
+              data['payment_status'] == 'succeeded' ||
+              data['status'] == 'paid' ||
+              data['status'] == 'complete' ||
+              data['status'] == 'success' ||
+              data['payment_intent'] != null ||
+              data['subscription'] != null ||
+              data['invoice'] != null;
+
+          if (isPaid) {
+            print('✅ Paiement détecté comme réussi!');
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            // Fermer la dialog d'attente
+            Get.back();
+
+            // S'assurer que l'établissement est bien activé
+            await _ensureEstablishmentActivated();
+
+            // Traiter le succès du paiement
+            await _handlePaymentSuccess();
+          } else if (data['status'] == 'expired' ||
+              data['status'] == 'canceled' ||
+              data['error'] != null) {
+            print('❌ Paiement échoué ou annulé');
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            Get.back();
+            UniquesControllers().data.snackbar(
+                  'Paiement échoué',
+                  'Le paiement n\'a pas pu être complété',
+                  true,
+                );
+          }
+        } else {
+          print('⚠️ Document de session non trouvé');
+          debugStatus.value = 'Session non trouvée';
+        }
+      }, onError: (error) {
+        print('❌ Erreur listener: $error');
+        debugStatus.value = 'Erreur: $error';
+      });
+
+      // Polling supplémentaire toutes les 2 secondes pendant 30 secondes, puis toutes les 5 secondes
+      int pollCount = 0;
+      pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+        pollCount++;
+
+        // Après 15 tentatives (30 secondes), réduire la fréquence
+        if (pollCount == 15) {
+          timer.cancel();
+          pollingTimer =
+              Timer.periodic(const Duration(seconds: 5), (newTimer) async {
+            await _performPolling(
+                user,
+                sessionId,
+                subscription,
+                paymentIntentSubscription,
+                estabSubscription,
+                newTimer,
+                timeoutTimer);
+          });
+        } else {
+          await _performPolling(
+              user,
+              sessionId,
+              subscription,
+              paymentIntentSubscription,
+              estabSubscription,
+              timer,
+              timeoutTimer);
+        }
+      });
+
+      // Ajouter aussi un listener sur l'établissement pour détecter les changements
+      estabSubscription = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: user.uid)
+          .limit(1)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          final data = snapshot.docs.first.data();
+          final hasActiveSubscription =
+              data['has_active_subscription'] ?? false;
+          final hasAcceptedContract = data['has_accepted_contract'] ?? false;
+
+          print(
+              '🏢 Établissement mis à jour - Subscription: $hasActiveSubscription, Contract: $hasAcceptedContract');
+
+          if (hasActiveSubscription && hasAcceptedContract) {
+            print('✅ Abonnement actif détecté sur l\'établissement!');
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            Get.back();
+
+            // Appeler handlePaymentSuccess pour s'assurer que tout est bien mis à jour
+            //await _handlePaymentSuccess();
+            _handlePaymentSuccess();
+          }
+        }
+      });
+
+      // Timeout après 10 minutes
+      timeoutTimer = Timer(const Duration(minutes: 10), () {
+        subscription?.cancel();
+        paymentIntentSubscription?.cancel();
+        estabSubscription?.cancel();
+        pollingTimer?.cancel();
+        Get.back();
+        UniquesControllers().data.snackbar(
+              'Timeout',
+              'Le délai de paiement a expiré. Veuillez réessayer.',
+              true,
+            );
+      });
+    }
+  }
+
+  // Méthode séparée pour effectuer le polling
+  Future<void> _performPolling(
+    User user,
+    String sessionId,
+    StreamSubscription? subscription,
+    StreamSubscription? paymentIntentSubscription,
+    StreamSubscription? estabSubscription,
+    Timer timer,
+    Timer? timeoutTimer,
+  ) async {
+    try {
+      print('🔄 Polling session...');
+
+      // Vérifier la session
+      final sessionDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId)
+          .get();
+
+      if (sessionDoc.exists) {
+        final data = sessionDoc.data()!;
+
+        // Afficher TOUS les champs non-null pour debug
+        final nonNullFields = <String>[];
+        data.forEach((key, value) {
+          if (value != null) {
+            try {
+              final valueStr = value.toString();
+              if (valueStr.length > 50) {
+                nonNullFields.add('$key: ${valueStr.substring(0, 50)}...');
+              } else {
+                nonNullFields.add('$key: $valueStr');
+              }
+            } catch (e) {
+              nonNullFields.add('$key: [non affichable]');
+            }
+          }
+        });
+        print('🔍 Polling - Champs non-null: ${nonNullFields.join(', ')}');
+
+        // Vérifier aussi les payments
+        final payments = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('customers')
+            .doc(user.uid)
+            .collection('payments')
+            .orderBy('created', descending: true)
+            .limit(1)
+            .get();
+
+        if (payments.docs.isNotEmpty) {
+          final paymentData = payments.docs.first.data();
+          print('💳 Payment trouvé: ${paymentData['status']}');
+
+          if (paymentData['status'] == 'succeeded') {
+            print('✅ Paiement réussi détecté par polling!');
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timer.cancel();
+            timeoutTimer?.cancel();
+
+            Get.back();
+
+            // S'assurer que l'établissement est bien activé
+            await _ensureEstablishmentActivated();
+
+            await _handlePaymentSuccess();
+            return;
+          }
+        }
+
+        // Vérifier l'établissement directement
+        final estabQuery = await UniquesControllers()
             .data
             .firebaseFirestore
             .collection('establishments')
@@ -985,37 +1396,490 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
             .limit(1)
             .get();
 
-        if (establishmentQuery.docs.isNotEmpty) {
-          final establishmentData = establishmentQuery.docs.first.data();
-          final commerceName = establishmentData['name'] ?? 'Commerce';
+        if (estabQuery.docs.isNotEmpty) {
+          final estabData = estabQuery.docs.first.data();
+          final hasActiveSubscription =
+              estabData['has_active_subscription'] ?? false;
 
-          // Attribuer automatiquement les 4 bons cadeaux
-          await AutomaticGiftVoucherService.attributeWelcomeVouchers(
-            commerceId: user.uid,
-            commerceName: commerceName,
-            commerceEmail: user.email ?? '',
-          );
+          if (hasActiveSubscription) {
+            print('✅ Abonnement actif détecté dans l\'établissement!');
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timer.cancel();
+            timeoutTimer?.cancel();
+
+            Get.back();
+
+            // Appeler handlePaymentSuccess pour mettre à jour tout correctement
+            await _handlePaymentSuccess();
+            return;
+          }
+        }
+
+        // Vérifier le succès via les champs de la session
+        final bool isPaid = data['payment_status'] == 'paid' ||
+            data['payment_status'] == 'succeeded' ||
+            data['status'] == 'paid' ||
+            data['status'] == 'complete' ||
+            data['status'] == 'success' ||
+            data['payment_intent'] != null ||
+            data['subscription'] != null ||
+            data['invoice'] != null;
+
+        if (isPaid && subscription != null) {
+          print('✅ Paiement détecté par polling!');
+          subscription?.cancel();
+          paymentIntentSubscription?.cancel();
+          estabSubscription?.cancel();
+          timeoutTimer?.cancel();
+          timer.cancel();
+
+          Get.back();
+
+          // S'assurer que l'établissement est bien activé
+          await _ensureEstablishmentActivated();
+
+          await _handlePaymentSuccess();
         }
       }
-
-      // Afficher un message de succès
-      UniquesControllers().data.snackbar(
-            'Inscription réussie !',
-            'Votre abonnement est activé et 4 bons cadeaux ont été attribués',
-            false,
-          );
-
-      // Fermer la dialog après un court délai
-      await Future.delayed(const Duration(seconds: 2));
-      Get.back();
     } catch (e) {
-      paymentProcessing.value = false;
-      currentStep.value = 1;
+      print('❌ Erreur polling: $e');
+    }
+  }
+
+  // Nouvelle méthode pour gérer le succès du paiement
+  Future<void> _handlePaymentSuccess() async {
+    try {
+      print('🚀 Début _handlePaymentSuccess()');
+
+      final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (uid == null) {
+        print('❌ Aucun utilisateur connecté');
+        return;
+      }
+
+      print('👤 UID utilisateur: $uid');
+
+      // Trouver l'établissement
+      final estabQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isNotEmpty) {
+        final docId = estabQuery.docs.first.id;
+        print('🏢 Établissement trouvé: $docId');
+
+        // Déterminer le type d'abonnement
+        // Si selectedPaymentOption n'est pas défini, essayer de le récupérer depuis l'établissement
+        String paymentOption = selectedPaymentOption.value;
+        if (paymentOption.isEmpty) {
+          final existingData = estabQuery.docs.first.data();
+          paymentOption = existingData['payment_option'] ?? 'monthly';
+          print(
+              '⚠️ Option de paiement récupérée depuis Firestore: $paymentOption');
+        }
+
+        print('💳 Type d\'abonnement: $paymentOption');
+
+        // Mettre à jour les statuts
+        final updateData = {
+          'has_accepted_contract': true,
+          'has_active_subscription': true,
+          'subscription_status': paymentOption,
+          'subscription_start_date': FieldValue.serverTimestamp(),
+          'subscription_end_date':
+              Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+          'payment_option': paymentOption,
+          'last_payment_update': FieldValue.serverTimestamp(),
+        };
+
+        print('📝 Mise à jour avec: $updateData');
+
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(docId)
+            .update(updateData);
+
+        print('✅ Établissement mis à jour avec succès');
+
+        // Créer le bon cadeau de bienvenue
+        try {
+          await _createWelcomeGiftVoucher(docId);
+          print('🎁 Bon cadeau créé');
+        } catch (e) {
+          print('⚠️ Erreur création bon cadeau (non bloquant): $e');
+        }
+
+        // Créditer les 50 points de bienvenue dans le wallet
+        try {
+          await _creditWelcomePoints(uid, 50);
+          print('💰 50 points de bienvenue crédités');
+        } catch (e) {
+          print('⚠️ Erreur crédit des points (non bloquant): $e');
+        }
+      } else {
+        print('❌ Aucun établissement trouvé pour l\'utilisateur');
+      }
+
+      // Afficher le dialog de succès
+      Get.dialog(
+        Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Animation de succès
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    size: 60,
+                    color: Colors.green,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                Text(
+                  'Paiement réussi !',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                Text(
+                  'Votre établissement est maintenant actif',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.card_giftcard,
+                        color: Colors.green.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Bon cadeau de 50€ offert !',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                ElevatedButton(
+                  onPressed: () {
+                    Get.back(); // Fermer le dialog
+                    Get.offAllNamed('/pro-establishment-profile');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 40, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continuer',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+    } catch (e) {
+      print('❌ Erreur handlePaymentSuccess: $e');
       UniquesControllers().data.snackbar(
             'Erreur',
-            'Une erreur est survenue lors du paiement',
+            'Une erreur est survenue lors de la finalisation: $e',
             true,
           );
+    }
+  }
+
+  // Méthode pour créer le bon cadeau
+  Future<void> _createWelcomeGiftVoucher(String establishmentId) async {
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('gift_vouchers')
+        .add({
+      'establishment_id': establishmentId,
+      'amount': 50.0,
+      'type': 'welcome',
+      'status': 'active',
+      'created_at': FieldValue.serverTimestamp(),
+      'expires_at':
+          Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+      'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
+    });
+  }
+
+  // Méthode de fallback pour vérifier et mettre à jour l'établissement
+  // Méthode de fallback pour vérifier et mettre à jour l'établissement
+  Future<void> _ensureEstablishmentActivated() async {
+    try {
+      final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (uid == null) return;
+
+      final estabQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isNotEmpty) {
+        final doc = estabQuery.docs.first;
+        final data = doc.data();
+
+        // Vérifier si l'activation n'est pas complète
+        if (data['has_accepted_contract'] != true ||
+            data['has_active_subscription'] != true) {
+          print('⚠️ Établissement non activé détecté, mise à jour forcée...');
+
+          await doc.reference.update({
+            'has_accepted_contract': true,
+            'has_active_subscription': true,
+            'subscription_status': selectedPaymentOption.value.isNotEmpty
+                ? selectedPaymentOption.value
+                : 'monthly',
+            'subscription_start_date': FieldValue.serverTimestamp(),
+            'subscription_end_date': Timestamp.fromDate(
+                DateTime.now().add(const Duration(days: 365))),
+            'payment_option': selectedPaymentOption.value.isNotEmpty
+                ? selectedPaymentOption.value
+                : 'monthly',
+            'activation_forced': true,
+            'activation_forced_at': FieldValue.serverTimestamp(),
+          });
+
+          print('✅ Activation forcée réussie');
+
+          // Créditer les 50 points si pas déjà fait
+          await _creditWelcomePoints(uid, 50);
+        }
+      }
+    } catch (e) {
+      print('❌ Erreur _ensureEstablishmentActivated: $e');
+    }
+  }
+
+  // Méthode temporaire en attendant la configuration Stripe
+  Future<void> _processTemporaryPayment() async {
+    // Simuler un délai de traitement
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Récupérer l'utilisateur actuel
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) throw Exception('Utilisateur non connecté');
+
+    // Trouver l'établissement
+    final estabQuery = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('establishments')
+        .where('user_id', isEqualTo: uid)
+        .limit(1)
+        .get();
+
+    if (estabQuery.docs.isEmpty) {
+      throw Exception('Aucun établissement trouvé');
+    }
+
+    final docId = estabQuery.docs.first.id;
+
+    // Mettre à jour les statuts d'abonnement
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('establishments')
+        .doc(docId)
+        .update({
+      'has_accepted_contract': true,
+      'has_active_subscription': true,
+      'subscription_status': selectedPaymentOption.value,
+      'subscription_start_date': FieldValue.serverTimestamp(),
+      'subscription_end_date':
+          Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+      'payment_option': selectedPaymentOption.value,
+      'temporary_mode': true, // Marquer comme temporaire
+    });
+
+    // Créer le bon cadeau de bienvenue si le service existe
+    try {
+      if (Get.isRegistered<AutomaticGiftVoucherService>()) {
+        // await AutomaticGiftVoucherService.to.createWelcomeGiftVoucher(
+        //   establishmentId: docId,
+        //   amount: 50.0,
+        // );
+      }
+    } catch (e) {
+      print('Impossible de créer le bon cadeau: $e');
+    }
+
+    // Fermer la dialog
+    Get.back();
+
+    // Message de succès
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            const SizedBox(width: 12),
+            const Text('Mode Temporaire'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Votre établissement est maintenant actif en mode temporaire.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Important : Le paiement Stripe n\'est pas encore configuré. '
+              'Vous devrez finaliser votre abonnement ultérieurement.',
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Un email vous sera envoyé pour finaliser le paiement.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Get.back(); // Fermer la dialog
+              Get.offAllNamed('/pro-establishment-profile');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Continuer'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  // Méthode pour créditer les points de bienvenue dans le wallet
+  Future<void> _creditWelcomePoints(String userId, int points) async {
+    try {
+      // Vérifier si le wallet existe déjà
+      final walletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: userId)
+          .limit(1)
+          .get();
+
+      if (walletQuery.docs.isEmpty) {
+        // Créer un nouveau wallet
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('wallets')
+            .add({
+          'user_id': userId,
+          'points': points,
+          'coupons': 0,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+
+        print('💰 Nouveau wallet créé avec $points points de bienvenue');
+      } else {
+        // Mettre à jour le wallet existant
+        final walletDoc = walletQuery.docs.first;
+        await walletDoc.reference.update({
+          'points': FieldValue.increment(points),
+        });
+
+        print('💰 $points points de bienvenue ajoutés au wallet existant');
+      }
+    } catch (e) {
+      print('❌ Erreur lors du crédit des points de bienvenue: $e');
     }
   }
 }

@@ -3,317 +3,461 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../classes/unique_controllers.dart';
-import '../models/stripe_product.dart';
-
 class StripeService extends GetxService {
   static StripeService get to => Get.find();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // IDs des produits prédéfinis (à configurer dans Stripe Dashboard)
-  static const String cguValidationProductId = 'prod_cgu_validation';
-  static const String additionalCategorySlotProductId =
-      'prod_additional_category';
+  // Prix IDs Stripe (à adapter selon votre configuration)
+  static const String PRICE_ID_MONTHLY_FIRST_YEAR =
+      'price_1ReLkQPLJZjht3nFComM7tLk';
+  static const String PRICE_ID_MONTHLY_RECURRING =
+      'price_1ReLlFPLJZjht3nFjMOlVjqG';
+  static const String PRICE_ID_ANNUAL_FIRST_YEAR =
+      'price_1ReLhpPLJZjht3nFtCCeJXQp';
+  static const String PRICE_ID_ANNUAL_RECURRING =
+      'price_1ReLjHPLJZjht3nFi2tzqXWu';
 
-  // -------------------------------------------------------------------------
-  // Initialisation du service
-  // -------------------------------------------------------------------------
-  @override
-  Future<void> onInit() async {
-    super.onInit();
-    await _ensureProductsExist();
-  }
+  // Créer ou récupérer un customer Stripe
+  Future<String> _ensureStripeCustomer() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Utilisateur non connecté');
 
-  // -------------------------------------------------------------------------
-  // Créer ou vérifier que les produits existent
-  // -------------------------------------------------------------------------
-  Future<void> _ensureProductsExist() async {
-    try {
-      // Vérifier si les produits existent, sinon les créer
-      await _createProductIfNotExists(
-        productId: cguValidationProductId,
-        name: 'Validation CGU - Accès Professionnel',
-        description:
-            'Paiement unique pour accéder aux fonctionnalités professionnelles',
-        priceInCents: 2900, // 29€
-        metadata: {'type': 'cgu_validation'},
-      );
+    print('🔵 Vérification du customer Stripe pour: ${user.email}');
 
-      await _createProductIfNotExists(
-        productId: additionalCategorySlotProductId,
-        name: 'Slot de Catégorie Supplémentaire',
-        description: 'Ajout d\'un slot de catégorie pour les entreprises',
-        priceInCents: 500, // 5€
-        metadata: {'type': 'additional_category_slot'},
-      );
-    } catch (e) {
-      print('Erreur lors de la création des produits Stripe: $e');
-    }
-  }
+    // Vérifier si le customer existe déjà
+    DocumentSnapshot customerDoc =
+        await _firestore.collection('customers').doc(user.uid).get();
 
-  // -------------------------------------------------------------------------
-  // Créer un produit et son prix s'ils n'existent pas
-  // -------------------------------------------------------------------------
-  Future<void> _createProductIfNotExists({
-    required String productId,
-    required String name,
-    required String description,
-    required int priceInCents,
-    required Map<String, dynamic> metadata,
-  }) async {
-    // Vérifier si le produit existe
-    final productDoc =
-        await _firestore.collection('products').doc(productId).get();
-
-    if (!productDoc.exists) {
-      // Créer le produit
-      await _firestore.collection('products').doc(productId).set({
-        'name': name,
-        'description': description,
-        'active': true,
-        'metadata': metadata,
+    // Si le document n'existe pas, le créer
+    if (!customerDoc.exists) {
+      print('📝 Création du document customer...');
+      await _firestore.collection('customers').doc(user.uid).set({
+        'email': user.email ?? '',
         'created': FieldValue.serverTimestamp(),
       });
 
-      // Créer le prix associé
-      await _firestore
-          .collection('products')
-          .doc(productId)
-          .collection('prices')
-          .add({
-        'currency': 'eur',
-        'unit_amount': priceInCents,
-        'type': 'one_time',
-        'active': true,
-        'metadata': metadata,
-      });
+      // Attendre un peu pour que l'extension traite la création
+      await Future.delayed(const Duration(seconds: 3));
+
+      // Récupérer le document mis à jour
+      customerDoc =
+          await _firestore.collection('customers').doc(user.uid).get();
     }
-  }
 
-  // -------------------------------------------------------------------------
-  // Créer une session de paiement pour la validation des CGU
-  // -------------------------------------------------------------------------
-  Future<String?> createCguValidationCheckout({
-    required String userType, // 'Boutique', 'Entreprise', 'Association'
-    String? successUrl,
-    String? cancelUrl,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) throw 'Utilisateur non connecté';
-
-      // Récupérer le prix du produit CGU
-      final priceSnapshot = await _firestore
-          .collection('products')
-          .doc(cguValidationProductId)
-          .collection('prices')
-          .where('active', isEqualTo: true)
-          .limit(1)
-          .get();
-
-      if (priceSnapshot.docs.isEmpty) {
-        throw 'Prix non trouvé pour la validation CGU';
-      }
-
-      final priceId = priceSnapshot.docs.first.id;
-
-      // Créer le customer s'il n'existe pas
-      await _createCustomerIfNeeded(user.uid, user.email ?? '');
-
-      // Créer la session de checkout
-      final checkoutSessionRef = await _firestore
-          .collection('customers')
-          .doc(user.uid)
-          .collection('checkout_sessions')
-          .add({
-        'mode': 'payment',
-        'success_url': successUrl ?? 'https://ventemoi.com/success',
-        'cancel_url': cancelUrl ?? 'https://ventemoi.com/cancel',
-        'line_items': [
-          {
-            'price': priceId,
-            'quantity': 1,
-          }
-        ],
-        'metadata': {
-          'type': 'cgu_validation',
-          'user_type': userType,
-          'user_id': user.uid,
-        },
-        'allow_promotion_codes': true,
-      });
-
-      // Attendre que Stripe traite la session et ajoute l'URL
-      await _waitForCheckoutUrl(user.uid, checkoutSessionRef.id);
-
-      // Récupérer l'URL de checkout
-      final sessionDoc = await checkoutSessionRef.get();
-      final sessionData = sessionDoc.data();
-
-      return sessionData?['url'] as String?;
-    } catch (e) {
-      print('Erreur lors de la création du checkout CGU: $e');
-      return null;
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Créer une session de paiement pour un slot de catégorie supplémentaire
-  // -------------------------------------------------------------------------
-  Future<String?> createAdditionalCategorySlotCheckout({
-    String? successUrl,
-    String? cancelUrl,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) throw 'Utilisateur non connecté';
-
-      // Récupérer le prix du slot supplémentaire
-      final priceSnapshot = await _firestore
-          .collection('products')
-          .doc(additionalCategorySlotProductId)
-          .collection('prices')
-          .where('active', isEqualTo: true)
-          .limit(1)
-          .get();
-
-      if (priceSnapshot.docs.isEmpty) {
-        throw 'Prix non trouvé pour le slot de catégorie';
-      }
-
-      final priceId = priceSnapshot.docs.first.id;
-
-      // Créer le customer s'il n'existe pas
-      await _createCustomerIfNeeded(user.uid, user.email ?? '');
-
-      // Créer la session de checkout
-      final checkoutSessionRef = await _firestore
-          .collection('customers')
-          .doc(user.uid)
-          .collection('checkout_sessions')
-          .add({
-        'mode': 'payment',
-        'success_url': successUrl ?? 'https://ventemoi.com/success',
-        'cancel_url': cancelUrl ?? 'https://ventemoi.com/cancel',
-        'line_items': [
-          {
-            'price': priceId,
-            'quantity': 1,
-          }
-        ],
-        'metadata': {
-          'type': 'additional_category_slot',
-          'user_id': user.uid,
-        },
-        'allow_promotion_codes': true,
-      });
-
-      // Attendre que Stripe traite la session
-      await _waitForCheckoutUrl(user.uid, checkoutSessionRef.id);
-
-      // Récupérer l'URL de checkout
-      final sessionDoc = await checkoutSessionRef.get();
-      final sessionData = sessionDoc.data();
-
-      return sessionData?['url'] as String?;
-    } catch (e) {
-      print('Erreur lors de la création du checkout slot: $e');
-      return null;
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Créer un customer Stripe s'il n'existe pas
-  // -------------------------------------------------------------------------
-  Future<void> _createCustomerIfNeeded(String uid, String email) async {
-    final customerDoc = await _firestore.collection('customers').doc(uid).get();
-
-    if (!customerDoc.exists) {
-      await _firestore.collection('customers').doc(uid).set({
-        'email': email,
-        'metadata': {
-          'firebaseUID': uid,
-        },
-      });
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Attendre que Stripe ajoute l'URL de checkout
-  // -------------------------------------------------------------------------
-  Future<void> _waitForCheckoutUrl(String customerId, String sessionId) async {
+    // Attendre que l'extension ajoute le stripeId
+    String? stripeId;
     int attempts = 0;
     const maxAttempts = 10;
-    const delay = Duration(milliseconds: 500);
 
     while (attempts < maxAttempts) {
-      final sessionDoc = await _firestore
-          .collection('customers')
-          .doc(customerId)
-          .collection('checkout_sessions')
-          .doc(sessionId)
-          .get();
+      if (customerDoc.exists) {
+        final data = customerDoc.data() as Map<String, dynamic>?;
+        stripeId = data?['stripeId'];
 
-      final sessionData = sessionDoc.data();
-      if (sessionData != null && sessionData['url'] != null) {
-        return;
+        if (stripeId != null && stripeId.isNotEmpty) {
+          print('✅ Customer Stripe trouvé: $stripeId');
+          return user.uid;
+        }
       }
 
       attempts++;
-      await Future.delayed(delay);
+      print('⏳ Attente du stripeId... Tentative $attempts/$maxAttempts');
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Recharger le document
+      customerDoc =
+          await _firestore.collection('customers').doc(user.uid).get();
     }
 
-    throw 'Timeout: URL de checkout non générée';
+    // Si on arrive ici, le stripeId n'a pas été créé
+    throw Exception('''
+    Le customer Stripe n'a pas pu être créé.
+    Vérifiez que :
+    1. L'extension Stripe est correctement installée
+    2. La clé API Stripe est configurée
+    3. L'option "Sync new users" est activée dans l'extension
+    ''');
   }
 
-  // -------------------------------------------------------------------------
-  // Ouvrir l'URL de checkout
-  // -------------------------------------------------------------------------
+  // Créer une session de checkout pour l'option mensuelle
+  Future<String?> createMonthlyOptionCheckout({
+    required String userType,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      print(
+          '🔵 Création checkout mensuel pour user: ${_auth.currentUser?.uid}');
+
+      final customerId = await _ensureStripeCustomer();
+
+      // URLs de redirection avec auto-fermeture
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Données de la session
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price': PRICE_ID_MONTHLY_FIRST_YEAR,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'purchase_type': 'first_year_monthly',
+          'user_type': userType,
+          'user_id': customerId,
+          'needs_subscription': 'true', // Utiliser string au lieu de bool
+          'subscription_price_id': PRICE_ID_MONTHLY_RECURRING,
+        },
+        'allow_promotion_codes': true,
+      };
+
+      print('🔵 Données checkout: $checkoutData');
+
+      // Créer la session de checkout
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      print('🔵 Session créée avec ID: ${sessionRef.id}');
+
+      // Attendre que l'URL soit générée
+      return await _waitForCheckoutUrl(customerId, sessionRef.id);
+    } catch (e) {
+      print('❌ Erreur création checkout mensuel: $e');
+      rethrow;
+    }
+  }
+
+  // Créer une session de checkout pour l'option annuelle
+  Future<String?> createAnnualOptionCheckout({
+    required String userType,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      print('🔵 Création checkout annuel pour user: ${_auth.currentUser?.uid}');
+
+      final customerId = await _ensureStripeCustomer();
+
+      // URLs de redirection avec auto-fermeture
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Données de la session
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price': PRICE_ID_ANNUAL_FIRST_YEAR,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'purchase_type': 'first_year_annual',
+          'user_type': userType,
+          'user_id': customerId,
+          'needs_future_subscription':
+              'true', // Utiliser string au lieu de bool
+          'future_price_id': PRICE_ID_ANNUAL_RECURRING,
+        },
+        'allow_promotion_codes': true,
+      };
+
+      print('🔵 Données checkout: $checkoutData');
+
+      // Créer la session de checkout
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      print('🔵 Session créée avec ID: ${sessionRef.id}');
+
+      // Attendre que l'URL soit générée
+      return await _waitForCheckoutUrl(customerId, sessionRef.id);
+    } catch (e) {
+      print('❌ Erreur création checkout annuel: $e');
+      rethrow;
+    }
+  }
+
+  // Créer une session de checkout pour l'option mensuelle (avec ID)
+  Future<Map<String, String>?> createMonthlyOptionCheckoutWithId({
+    required String userType,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      print(
+          '🔵 Création checkout mensuel avec ID pour user: ${_auth.currentUser?.uid}');
+
+      final customerId = await _ensureStripeCustomer();
+
+      // URLs de redirection avec auto-fermeture
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Données de la session
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price': PRICE_ID_MONTHLY_FIRST_YEAR,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'purchase_type': 'first_year_monthly',
+          'user_type': userType,
+          'user_id': customerId,
+          'needs_subscription': 'true',
+          'subscription_price_id': PRICE_ID_MONTHLY_RECURRING,
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      // Créer la session de checkout
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final sessionId = sessionRef.id;
+      print('🔵 Session créée avec ID: $sessionId');
+
+      // Attendre que l'URL soit générée
+      final url = await _waitForCheckoutUrl(customerId, sessionId);
+
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': sessionId,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ Erreur création checkout mensuel: $e');
+      rethrow;
+    }
+  }
+
+  // Créer une session de checkout pour l'option annuelle (avec ID)
+  Future<Map<String, String>?> createAnnualOptionCheckoutWithId({
+    required String userType,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      print(
+          '🔵 Création checkout annuel avec ID pour user: ${_auth.currentUser?.uid}');
+
+      final customerId = await _ensureStripeCustomer();
+
+      // URLs de redirection avec auto-fermeture
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Données de la session
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price': PRICE_ID_ANNUAL_FIRST_YEAR,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'purchase_type': 'first_year_annual',
+          'user_type': userType,
+          'user_id': customerId,
+          'needs_future_subscription': 'true',
+          'future_price_id': PRICE_ID_ANNUAL_RECURRING,
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      // Créer la session de checkout
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final sessionId = sessionRef.id;
+      print('🔵 Session créée avec ID: $sessionId');
+
+      // Attendre que l'URL soit générée
+      final url = await _waitForCheckoutUrl(customerId, sessionId);
+
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': sessionId,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ Erreur création checkout annuel: $e');
+      rethrow;
+    }
+  }
+
+  // Attendre que l'URL de checkout soit générée par l'extension Stripe
+  Future<String?> _waitForCheckoutUrl(
+      String customerId, String sessionId) async {
+    print('⏳ En attente de l\'URL de checkout...');
+
+    const maxAttempts = 20;
+    const delayBetweenAttempts = Duration(seconds: 2);
+
+    for (int i = 0; i < maxAttempts; i++) {
+      try {
+        final sessionDoc = await _firestore
+            .collection('customers')
+            .doc(customerId)
+            .collection('checkout_sessions')
+            .doc(sessionId)
+            .get();
+
+        if (sessionDoc.exists) {
+          final data = sessionDoc.data()!;
+
+          // Debug: afficher les champs disponibles
+          print(
+              '🔍 Tentative ${i + 1}/$maxAttempts - Data: ${data.keys.join(', ')}');
+
+          // Vérifier si l'extension a ajouté une erreur
+          if (data.containsKey('error')) {
+            final error = data['error'];
+            print('❌ Erreur Stripe: $error');
+            throw Exception('Erreur Stripe: ${error['message'] ?? error}');
+          }
+
+          // L'extension Stripe ajoute le champ 'url' automatiquement
+          if (data.containsKey('url') && data['url'] != null) {
+            final url = data['url'] as String;
+            print('✅ URL de checkout obtenue: $url');
+            return url;
+          }
+
+          // Vérifier aussi sessionId (certaines versions utilisent ce champ)
+          if (data.containsKey('sessionId') && data['sessionId'] != null) {
+            // Construire l'URL manuellement si nécessaire
+            final sessionId = data['sessionId'] as String;
+            final url = 'https://checkout.stripe.com/pay/$sessionId';
+            print('✅ URL construite depuis sessionId: $url');
+            return url;
+          }
+        }
+
+        await Future.delayed(delayBetweenAttempts);
+      } catch (e) {
+        print('❌ Erreur lors de la vérification: $e');
+        if (i == maxAttempts - 1) rethrow;
+      }
+    }
+
+    // Si on arrive ici, c'est qu'on a dépassé le timeout
+    // Essayer de récupérer plus d'infos pour le debug
+    final sessionDoc = await _firestore
+        .collection('customers')
+        .doc(customerId)
+        .collection('checkout_sessions')
+        .doc(sessionId)
+        .get();
+
+    final debugData =
+        sessionDoc.exists ? sessionDoc.data() : 'Document non trouvé';
+
+    throw Exception('''
+Timeout: URL de checkout non générée.
+État final: $debugData
+
+Vérifiez que:
+1. L'extension Stripe est correctement installée et configurée
+2. Les Cloud Functions de l'extension sont actives
+3. Les prix Stripe existent et sont actifs dans votre dashboard
+4. Le webhook Stripe est correctement configuré
+5. La clé API Stripe a les permissions nécessaires
+''');
+  }
+
+  // Lancer l'URL de checkout dans le navigateur
   Future<void> launchCheckout(String checkoutUrl) async {
     final uri = Uri.parse(checkoutUrl);
+
     if (await canLaunchUrl(uri)) {
       await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
-        webOnlyWindowName: '_blank',
+        webOnlyWindowName: '_blank', // ← Ouverture dans un nouvel onglet
       );
     } else {
-      throw 'Impossible d\'ouvrir l\'URL de paiement';
+      throw Exception('Impossible d\'ouvrir l\'URL de checkout');
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Vérifier le statut d'un paiement
-  // -------------------------------------------------------------------------
-  Future<bool> hasValidatedCgu(String userId) async {
-    try {
-      // Chercher une session de paiement réussie pour les CGU
-      final sessionsSnapshot = await _firestore
-          .collection('customers')
-          .doc(userId)
-          .collection('checkout_sessions')
-          .where('payment_status', isEqualTo: 'paid')
-          .get();
+  // Vérifier le statut de l'abonnement
+  Future<Map<String, dynamic>?> checkSubscriptionStatus() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
 
-      for (final session in sessionsSnapshot.docs) {
-        final metadata = session.data()['metadata'] as Map<String, dynamic>?;
-        if (metadata?['type'] == 'cgu_validation') {
-          return true;
+    try {
+      final customerDoc =
+          await _firestore.collection('customers').doc(user.uid).get();
+
+      if (customerDoc.exists) {
+        final subscriptions = await _firestore
+            .collection('customers')
+            .doc(user.uid)
+            .collection('subscriptions')
+            .where('status', whereIn: ['trialing', 'active'])
+            .limit(1)
+            .get();
+
+        if (subscriptions.docs.isNotEmpty) {
+          return subscriptions.docs.first.data();
         }
       }
-
-      return false;
     } catch (e) {
-      print('Erreur lors de la vérification CGU: $e');
-      return false;
+      print('Erreur vérification abonnement: $e');
     }
+
+    return null;
   }
 
-  // -------------------------------------------------------------------------
-  // Écouter les paiements réussis
-  // -------------------------------------------------------------------------
+  // ==== NOUVELLES MÉTHODES POUR PAYMENT LISTENER ====
+
+  // Écouter les sessions de paiement
   Stream<QuerySnapshot> listenToPaymentSessions(String userId) {
     return _firestore
         .collection('customers')
@@ -323,9 +467,7 @@ class StripeService extends GetxService {
         .snapshots();
   }
 
-  // -------------------------------------------------------------------------
-  // Traiter un paiement réussi
-  // -------------------------------------------------------------------------
+  // Gérer un paiement réussi
   Future<void> handleSuccessfulPayment(DocumentSnapshot sessionDoc) async {
     try {
       final sessionData = sessionDoc.data() as Map<String, dynamic>;
@@ -333,194 +475,227 @@ class StripeService extends GetxService {
 
       if (metadata == null) return;
 
-      final paymentType = metadata['type'] as String?;
       final userId = metadata['user_id'] as String?;
+      final purchaseType = metadata['purchase_type'] as String?;
+      final paymentType = metadata['type'] as String?;
 
-      if (userId == null) return;
+      print('🎉 Traitement du paiement réussi: $purchaseType / $paymentType');
 
-      switch (paymentType) {
-        case 'cgu_validation':
-          await _handleCguValidationPayment(userId, metadata);
-          break;
-        case 'additional_category_slot':
-          await _handleAdditionalSlotPayment(userId);
-          break;
+      // Trouver l'établissement
+      final estabQuery = await _firestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: userId)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isEmpty) {
+        print('❌ Aucun établissement trouvé pour l\'utilisateur: $userId');
+        return;
       }
+
+      final establishmentId = estabQuery.docs.first.id;
+      final establishmentRef =
+          _firestore.collection('establishments').doc(establishmentId);
+
+      // Traiter selon le type de paiement
+      if (purchaseType == 'first_year_annual' ||
+          purchaseType == 'first_year_monthly') {
+        // Activer l'abonnement
+        await establishmentRef.update({
+          'has_accepted_contract': true,
+          'has_active_subscription': true,
+          'subscription_status':
+              purchaseType == 'first_year_annual' ? 'annual' : 'monthly',
+          'subscription_start_date': FieldValue.serverTimestamp(),
+          'subscription_end_date':
+              Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+          'payment_session_id': sessionDoc.id,
+          'temporary_mode': false, // Retirer le mode temporaire
+        });
+
+        // Créer le bon cadeau de bienvenue
+        await _createWelcomeGiftVoucher(establishmentId);
+
+        print('✅ Abonnement activé pour l\'établissement: $establishmentId');
+      } else if (paymentType == 'additional_category_slot') {
+        // Ajouter un slot de catégorie
+        final currentSlots = (await establishmentRef.get())
+                .data()?['enterprise_category_slots'] ??
+            2;
+
+        await establishmentRef.update({
+          'enterprise_category_slots': currentSlots + 1,
+        });
+
+        print('✅ Slot de catégorie ajouté. Total: ${currentSlots + 1}');
+      }
+
+      // Marquer la session comme traitée
+      await sessionDoc.reference.update({
+        'processed': true,
+        'processed_at': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
-      print('Erreur lors du traitement du paiement: $e');
+      print('❌ Erreur lors du traitement du paiement: $e');
+      rethrow;
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Traiter le paiement de validation des CGU
-  // -------------------------------------------------------------------------
-  Future<void> _handleCguValidationPayment(
-    String userId,
-    Map<String, dynamic> metadata,
-  ) async {
-    // Marquer les CGU comme acceptées dans l'établissement
-    final establishmentSnapshot = await _firestore
-        .collection('establishments')
-        .where('user_id', isEqualTo: userId)
-        .limit(1)
-        .get();
-
-    if (establishmentSnapshot.docs.isNotEmpty) {
-      await establishmentSnapshot.docs.first.reference.update({
-        'has_accepted_contract': true,
-        'cgu_payment_date': FieldValue.serverTimestamp(),
-      });
-    }
-
-    // Traiter le parrainage si applicable
-    final userDoc = await _firestore.collection('users').doc(userId).get();
-    if (userDoc.exists) {
-      final userData = userDoc.data()!;
-      final userEmail = userData['email'] as String?;
-
-      if (userEmail != null) {
-        await _handleSponsorshipRewardIfAny(userId, userEmail);
-      }
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Traiter le paiement d'un slot supplémentaire
-  // -------------------------------------------------------------------------
-  Future<void> _handleAdditionalSlotPayment(String userId) async {
-    final establishmentSnapshot = await _firestore
-        .collection('establishments')
-        .where('user_id', isEqualTo: userId)
-        .limit(1)
-        .get();
-
-    if (establishmentSnapshot.docs.isNotEmpty) {
-      final estabDoc = establishmentSnapshot.docs.first;
-      final currentSlots = estabDoc.data()['enterprise_category_slots'] ?? 2;
-
-      await estabDoc.reference.update({
-        'enterprise_category_slots': currentSlots + 1,
-      });
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Gérer la récompense de parrainage
-  // -------------------------------------------------------------------------
-  Future<void> _handleSponsorshipRewardIfAny(
-      String userId, String userEmail) async {
-    // Chercher s'il existe un parrainage pour cet email
-    final sponsorshipSnapshot = await _firestore
-        .collection('sponsorships')
-        .where('sponsoredEmails', arrayContains: userEmail.toLowerCase())
-        .get();
-
-    if (sponsorshipSnapshot.docs.isEmpty) return;
-
-    final sponsorshipDoc = sponsorshipSnapshot.docs.first;
-    final sponsorData = sponsorshipDoc.data();
-    final sponsorUid = sponsorData['user_id'] as String?;
-
-    if (sponsorUid == null) return;
-
-    // Ajouter 50 points au parrain
-    final sponsorWalletSnapshot = await _firestore
-        .collection('wallets')
-        .where('user_id', isEqualTo: sponsorUid)
-        .limit(1)
-        .get();
-
-    if (sponsorWalletSnapshot.docs.isEmpty) {
-      // Créer un wallet pour le parrain
-      await _firestore.collection('wallets').add({
-        'user_id': sponsorUid,
-        'points': 50,
-        'coupons': 0,
-      });
-    } else {
-      // Mettre à jour le wallet existant
-      await sponsorWalletSnapshot.docs.first.reference.update({
-        'points': FieldValue.increment(50),
-      });
-    }
-
-    // Envoyer un email au parrain
-    await _sendSponsorshipRewardEmail(sponsorUid, userEmail);
-  }
-
-  // -------------------------------------------------------------------------
-  // Envoyer un email de récompense au parrain
-  // -------------------------------------------------------------------------
-  Future<void> _sendSponsorshipRewardEmail(
-      String sponsorUid, String sponsoredEmail) async {
+  // Créer un bon cadeau de bienvenue
+  Future<void> _createWelcomeGiftVoucher(String establishmentId) async {
     try {
-      final sponsorDoc =
-          await _firestore.collection('users').doc(sponsorUid).get();
-      if (!sponsorDoc.exists) return;
+      // Créer le bon cadeau
+      await _firestore.collection('gift_vouchers').add({
+        'establishment_id': establishmentId,
+        'amount': 50.0,
+        'type': 'welcome',
+        'status': 'active',
+        'created_at': FieldValue.serverTimestamp(),
+        'expires_at':
+            Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+        'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
+      });
 
-      final sponsorData = sponsorDoc.data()!;
-      final sponsorEmail = sponsorData['email'] as String?;
-      final sponsorName = sponsorData['name'] as String? ?? 'Sponsor';
+      print('🎁 Bon cadeau de bienvenue créé');
+    } catch (e) {
+      print('❌ Erreur création bon cadeau: $e');
+    }
+  }
 
-      if (sponsorEmail == null || sponsorEmail.isEmpty) return;
+  // Créer une session de paiement pour un slot additionnel
+  Future<String?> createAdditionalSlotCheckout({
+    required int priceInCents,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      final customerId = await _ensureStripeCustomer();
 
-      // Utiliser le système d'email existant de votre ControllerMixin
-      final mailDoc = {
-        "to": sponsorEmail,
-        "message": {
-          "subject": "Parrainage : +50 points - VenteMoi",
-          "html": _buildSponsorshipEmailHtml(sponsorName, sponsoredEmail),
+      // URLs de redirection avec auto-fermeture
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Créer un prix à la volée pour le slot
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Slot de catégorie supplémentaire',
+                'description':
+                    'Permet d\'ajouter une catégorie d\'entreprise supplémentaire',
+              },
+              'unit_amount': priceInCents,
+            },
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'additional_category_slot',
+          'user_id': customerId,
         },
+        'allow_promotion_codes': true,
       };
 
-      await _firestore.collection('mail').add(mailDoc);
+      // Créer la session
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      // Attendre l'URL
+      return await _waitForCheckoutUrl(customerId, sessionRef.id);
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email de parrainage: $e');
+      print('❌ Erreur création checkout slot: $e');
+      rethrow;
     }
   }
 
-  String _buildSponsorshipEmailHtml(String sponsorName, String sponsoredEmail) {
-    return '''
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Vente Moi – Récompense de Parrainage</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #fafafa; color: #333; }
-      .header { background-color: #f8b02a; padding: 16px; text-align: center; }
-      .content { margin: 16px; }
-      h1 { color: #f8b02a; }
-      p { line-height: 1.5; }
-      .footer { margin: 16px; font-size: 12px; color: #666; }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-      <img src="https://firebasestorage.googleapis.com/v0/b/vente-moi.appspot.com/o/logo.png?alt=media"
-           alt="Logo Vente Moi" style="max-height: 50px;" />
-    </div>
-    <div class="content">
-      <h1>Félicitations $sponsorName !</h1>
-      <p>
-        Vous venez de gagner <strong>50 points</strong>
-        grâce au parrainage de <strong>$sponsoredEmail</strong> qui vient de valider ses CGU professionnelles.
-      </p>
-      <p>
-        Merci d'utiliser Vente Moi et de contribuer au développement de notre communauté !
-      </p>
-      <p>
-        À très bientôt,<br>
-        L'équipe Vente Moi
-      </p>
-    </div>
-    <div class="footer">
-      Cet e-mail vous a été envoyé automatiquement par Vente Moi.<br>
-      Pour toute question, contactez
-      <a href="mailto:support@ventemoi.com">support@ventemoi.com</a>.
-    </div>
-  </body>
-</html>
-''';
+  // Méthode de debug pour vérifier la configuration
+  Future<void> debugStripeSetup() async {
+    print('\n🔍 === DEBUG STRIPE SETUP ===\n');
+
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('❌ Aucun utilisateur connecté');
+      return;
+    }
+
+    print('👤 Utilisateur: ${user.uid}');
+    print('📧 Email: ${user.email}');
+
+    // Vérifier le customer
+    final customerDoc =
+        await _firestore.collection('customers').doc(user.uid).get();
+
+    if (customerDoc.exists) {
+      final data = customerDoc.data()!;
+      print('\n✅ Document customer existe:');
+      print('   - stripeId: ${data['stripeId'] ?? 'NON DÉFINI'}');
+      print('   - email: ${data['email']}');
+      print('   - created: ${data['created']}');
+
+      if (data['stripeId'] == null) {
+        print('\n⚠️  ATTENTION: Le stripeId est manquant!');
+        print('   L\'extension Stripe n\'a pas créé le customer.');
+        print('   Vérifiez la configuration de l\'extension.');
+      }
+    } else {
+      print('\n❌ Document customer n\'existe pas');
+    }
+
+    print('\n=== FIN DEBUG ===\n');
+  }
+
+  // Méthode de diagnostic pour tester les Cloud Functions
+  Future<void> testCloudFunction() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    print('🧪 Test Cloud Function...');
+
+    // Supprimer l'ancien document s'il existe
+    final ref =
+        FirebaseFirestore.instance.collection('customers').doc(user.uid);
+
+    await ref.delete();
+    print('🗑️ Ancien document supprimé');
+
+    // Créer un nouveau document
+    await ref.set({
+      'email': user.email!,
+      'created': FieldValue.serverTimestamp(),
+    });
+
+    print('📝 Nouveau document créé');
+    print('⏳ Attente de la Cloud Function...');
+
+    // Attendre et vérifier
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(Duration(seconds: 2));
+
+      final doc = await ref.get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        if (data.containsKey('stripeId')) {
+          print('✅ SUCCESS! stripeId: ${data['stripeId']}');
+          return;
+        }
+        if (data.containsKey('error')) {
+          print('❌ ERREUR: ${data['error']}');
+          return;
+        }
+      }
+      print('   Tentative ${i + 1}/10...');
+    }
+
+    print('⏱️ Timeout - vérifiez les logs Cloud Functions');
   }
 }

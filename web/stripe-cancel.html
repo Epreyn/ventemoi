@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Paiement annulé - VenteMoi</title>
+        <style>
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+            }
+            .container {
+                text-align: center;
+                padding: 40px;
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                border-radius: 20px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                max-width: 400px;
+            }
+            .cancel-icon {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 20px;
+                background-color: #ff5252;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: scaleIn 0.5s ease-out;
+            }
+            .x-mark {
+                width: 40px;
+                height: 40px;
+                stroke: white;
+                stroke-width: 3;
+                fill: none;
+                stroke-dasharray: 60;
+                animation: xmark 0.8s ease-out 0.3s forwards;
+            }
+            h1 {
+                margin: 20px 0;
+                font-size: 28px;
+                font-weight: 600;
+            }
+            p {
+                margin: 10px 0;
+                opacity: 0.9;
+                font-size: 18px;
+            }
+            .countdown {
+                font-size: 14px;
+                opacity: 0.7;
+                margin-top: 20px;
+            }
+            @keyframes scaleIn {
+                from {
+                    transform: scale(0);
+                    opacity: 0;
+                }
+                to {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+            }
+            @keyframes xmark {
+                from {
+                    stroke-dashoffset: 60;
+                }
+                to {
+                    stroke-dashoffset: 0;
+                }
+            }
+            .spinner {
+                margin: 20px auto;
+                width: 40px;
+                height: 40px;
+                border: 3px solid rgba(255, 255, 255, 0.3);
+                border-top-color: white;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="cancel-icon">
+                <svg class="x-mark" viewBox="0 0 52 52">
+                    <path d="M16 16 L36 36 M36 16 L16 36" />
+                </svg>
+            </div>
+            <h1>Paiement annulé</h1>
+            <p>Votre paiement a été annulé.</p>
+            <div class="spinner"></div>
+            <p class="countdown" id="countdown">
+                Fermeture automatique dans 3 secondes...
+            </p>
+        </div>
+
+        <script>
+            // Compte à rebours
+            let seconds = 3;
+            const countdownEl = document.getElementById("countdown");
+
+            const interval = setInterval(() => {
+                seconds--;
+                if (seconds > 0) {
+                    countdownEl.textContent = `Fermeture automatique dans ${seconds} seconde${seconds > 1 ? "s" : ""}...`;
+                } else {
+                    countdownEl.textContent = "Fermeture...";
+                    clearInterval(interval);
+                }
+            }, 1000);
+
+            // Tentative de fermeture de l'onglet après 3 secondes
+            setTimeout(() => {
+                // Essayer de fermer l'onglet
+                window.close();
+
+                // Si window.close() ne fonctionne pas (certains navigateurs le bloquent),
+                // afficher un message alternatif
+                setTimeout(() => {
+                    countdownEl.innerHTML =
+                        "Vous pouvez fermer cet onglet.<br>Retournez à VenteMoi pour réessayer.";
+                    document.querySelector(".spinner").style.display = "none";
+                }, 500);
+            }, 3000);
+        </script>
+    </body>
+</html>

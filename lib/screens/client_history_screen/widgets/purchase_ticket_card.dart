@@ -24,8 +24,12 @@ class PurchaseTicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDonation = purchase.couponsCount == 0;
-    final amount = purchase.couponsCount * 50;
+    final isDonation =
+        purchase.isDonation; // Utiliser le champ isDonation du modèle
+    // Pour les dons, couponsCount contient les points donnés
+    // Pour les achats, on calcule le montant en € (coupons × 50)
+    final amount =
+        isDonation ? purchase.couponsCount : purchase.couponsCount * 50;
     final dateFr = DateFormat('dd MMMM yyyy', 'fr_FR').format(purchase.date);
     final timeFr = DateFormat('HH:mm', 'fr_FR').format(purchase.date);
 
@@ -101,18 +105,22 @@ class PurchaseTicketCard extends StatelessWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isDonation
-                                        ? Colors.orange.withOpacity(0.2)
+                                        ? Colors.green.withOpacity(0.2)
                                         : Colors.orange.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: Colors.orange.withOpacity(0.3),
+                                      color: isDonation
+                                          ? Colors.green.withOpacity(0.3)
+                                          : Colors.orange.withOpacity(0.3),
                                       width: 1,
                                     ),
                                   ),
                                   child: Text(
                                     isDonation ? 'DON' : 'BON D\'ACHAT',
                                     style: TextStyle(
-                                      color: Colors.orange[800],
+                                      color: isDonation
+                                          ? Colors.green[800]
+                                          : Colors.orange[800],
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1,
@@ -120,15 +128,15 @@ class PurchaseTicketCard extends StatelessWidget {
                                   ),
                                 ),
                                 const CustomSpace(heightMultiplier: 1),
-                                if (!isDonation)
-                                  Text(
-                                    '$amount €',
-                                    style: TextStyle(
-                                      fontSize: isTablet ? 32 : 28,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.black87,
-                                    ),
+                                // Afficher le montant différemment selon le type
+                                Text(
+                                  isDonation ? '$amount €' : '$amount €',
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 32 : 28,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.black87,
                                   ),
+                                ),
                               ],
                             ),
 
@@ -139,7 +147,9 @@ class PurchaseTicketCard extends StatelessWidget {
                                 Row(
                                   children: [
                                     Icon(
-                                      Icons.store,
+                                      isDonation
+                                          ? Icons.volunteer_activism
+                                          : Icons.store,
                                       size: 16,
                                       color: Colors.grey[600],
                                     ),
@@ -177,17 +187,12 @@ class PurchaseTicketCard extends StatelessWidget {
                           left: UniquesControllers().data.baseSpace,
                           right: UniquesControllers().data.baseSpace * 0.5,
                         ),
-                        child: purchase.isReclaimed
-                            ? CustomPaint(
-                                size: Size(30, double.infinity),
-                                painter: _TearPainter(),
-                              )
-                            : CustomPaint(
-                                size: Size(1, double.infinity),
-                                painter: _DashedLinePainter(
-                                  color: Colors.orange.withOpacity(0.3),
-                                ),
-                              ),
+                        child: CustomPaint(
+                          size: Size(1, double.infinity),
+                          painter: _DashedLinePainter(
+                            color: Colors.orange.withOpacity(1),
+                          ),
+                        ),
                       ),
 
                       // Partie droite - Code et statut
@@ -196,7 +201,7 @@ class PurchaseTicketCard extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (!purchase.isReclaimed) ...[
+                            if (!purchase.isReclaimed && !isDonation) ...[
                               Icon(
                                 Icons.qr_code_2,
                                 size: 32,
@@ -237,7 +242,36 @@ class PurchaseTicketCard extends StatelessWidget {
                                   color: Colors.grey[600],
                                 ),
                               ),
+                            ] else if (isDonation) ...[
+                              // Pour les dons, afficher une icône de don
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.green.withOpacity(0.1),
+                                  border: Border.all(
+                                    color: Colors.green.withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.volunteer_activism,
+                                  size: 32,
+                                  color: Colors.green[700],
+                                ),
+                              ),
+                              const CustomSpace(heightMultiplier: 1),
+                              Text(
+                                'Don effectué',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green[700],
+                                ),
+                              ),
                             ] else ...[
+                              // Bon utilisé
                               Container(
                                 width: 60,
                                 height: 60,
@@ -273,7 +307,10 @@ class PurchaseTicketCard extends StatelessWidget {
                 ),
 
                 // Bouton donner en haut à droite de la partie gauche pour les tickets non réclamés
-                if (!purchase.isReclaimed && purchase.couponsCount > 0)
+                // Ne pas afficher pour les dons
+                if (!purchase.isReclaimed &&
+                    !isDonation &&
+                    purchase.couponsCount > 0)
                   Positioned(
                     top: UniquesControllers().data.baseSpace * 2,
                     right: isTablet ? 200 : 180,
@@ -331,8 +368,8 @@ class PurchaseTicketCard extends StatelessWidget {
                     ),
                   ),
 
-                // Overlay pour les tickets utilisés
-                if (purchase.isReclaimed)
+                // Overlay pour les tickets utilisés ou les dons
+                if (purchase.isReclaimed || isDonation)
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(

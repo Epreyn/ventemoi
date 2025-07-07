@@ -11,6 +11,7 @@ import 'package:ventemoi/features/custom_text_form_field/view/custom_text_form_f
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/sponsorship.dart';
+import '../../../core/theme/custom_theme.dart';
 
 class SponsorshipScreenController extends GetxController with ControllerMixin {
   // Titre
@@ -26,6 +27,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
   Rx<Map<String, dynamic>?> sponsorInfo = Rx<Map<String, dynamic>?>(null);
   RxMap<String, Map<String, dynamic>> referralDetails =
       <String, Map<String, dynamic>>{}.obs;
+
+  // Type de parrainage sélectionné
+  RxString selectedParrainageType = 'proche'.obs; // 'proche' ou 'entreprise'
 
   // Subscriptions
   StreamSubscription<Sponsorship?>? _sponsorshipSub;
@@ -305,9 +309,168 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         );
   }
 
+  void shareReferralLink() {
+    final link =
+        'https://app.ventemoi.fr/#/register?code=${referralCode.value}';
+    Clipboard.setData(ClipboardData(text: link));
+    UniquesControllers().data.snackbar(
+          'Lien copié !',
+          'Le lien de parrainage a été copié dans le presse-papier',
+          false,
+        );
+  }
+
   void shareReferralCode() {
     // Au lieu de partager, on ouvre le bottom sheet pour envoyer un email
-    openCreateUserBottomSheet();
+    showParrainageTypeDialog();
+  }
+
+  // Dialog pour choisir le type de parrainage
+  void showParrainageTypeDialog() {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Choisir le type de parrainage',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Option 1 : Parrainer un proche
+              InkWell(
+                onTap: () {
+                  Get.back();
+                  selectedParrainageType.value = 'proche';
+                  openCreateUserBottomSheet();
+                },
+                child: Container(
+                  padding: EdgeInsets.all(
+                    UniquesControllers().data.baseSpace * 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.blue.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: Colors.blue.shade700,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Parrainer un proche',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Gagnez 50 points sur tous ses achats',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Option 2 : Parrainer une entreprise
+              InkWell(
+                onTap: () {
+                  Get.back();
+                  selectedParrainageType.value = 'entreprise';
+                  openCreateUserBottomSheet();
+                },
+                child: Container(
+                  padding: EdgeInsets.all(
+                    UniquesControllers().data.baseSpace * 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.green.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.business_rounded,
+                          color: Colors.green.shade700,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Parrainer une entreprise',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Gagnez 100 points sur son adhésion',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.green.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> removeReferral(String email) async {
@@ -401,8 +564,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
           .limit(1)
           .get();
 
-      if (userSnap.docs.isNotEmpty) {
-        // L'utilisateur existe déjà
+      if (userSnap.docs.isNotEmpty &&
+          selectedParrainageType.value == 'proche') {
+        // L'utilisateur existe déjà et on parraine un proche
         UniquesControllers().data.snackbar(
               'Information',
               'Cet utilisateur possède déjà un compte.',
@@ -414,15 +578,26 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
       // Ajouter l'email à la liste des parrainés (sans créer de compte)
       await _addSponsoredEmailToList(emailToSponsor);
 
-      // Envoyer l'email d'invitation
-      await sendReferralInvitationEmail(
-        toEmail: emailToSponsor,
-        sponsorName:
-            UniquesControllers().data.firebaseAuth.currentUser?.displayName ??
-                UniquesControllers().data.firebaseAuth.currentUser?.email ??
-                'Un ami',
-        referralCode: referralCode.value,
-      );
+      // Envoyer l'email d'invitation approprié
+      if (selectedParrainageType.value == 'entreprise') {
+        await sendEnterpriseReferralInvitationEmail(
+          toEmail: emailToSponsor,
+          sponsorName:
+              UniquesControllers().data.firebaseAuth.currentUser?.displayName ??
+                  UniquesControllers().data.firebaseAuth.currentUser?.email ??
+                  'Un partenaire',
+          referralCode: referralCode.value,
+        );
+      } else {
+        await sendReferralInvitationEmail(
+          toEmail: emailToSponsor,
+          sponsorName:
+              UniquesControllers().data.firebaseAuth.currentUser?.displayName ??
+                  UniquesControllers().data.firebaseAuth.currentUser?.email ??
+                  'Un ami',
+          referralCode: referralCode.value,
+        );
+      }
 
       UniquesControllers().data.snackbar(
             'Invitation envoyée ! 🎉',
@@ -436,7 +611,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
     }
   }
 
-  // Envoyer l'email d'invitation de parrainage
+  // Envoyer l'email d'invitation de parrainage pour un proche
   Future<void> sendReferralInvitationEmail({
     required String toEmail,
     required String sponsorName,
@@ -469,13 +644,16 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         <h4 style="color: #1890ff; margin-top: 0;">💡 Comment fonctionne le parrainage ?</h4>
         <p style="margin: 10px 0;">En devenant membre, vous pourrez aussi parrainer vos proches et gagner :</p>
         <ul style="margin: 10px 0; padding-left: 20px;">
-          <li><strong>40% des points</strong> que vos filleuls particuliers recevront</li>
-          <li><strong>50 points</strong> pour chaque entreprise/boutique parrainée qui s'inscrit</li>
+          <li><strong>50 points</strong> sur tous les achats de vos filleuls particuliers</li>
+          <li><strong>100 points</strong> pour chaque entreprise/boutique parrainée qui s'inscrit</li>
         </ul>
+        <p style="margin: 10px 0; font-style: italic;">
+          Plus vous parrainez, plus vous gagnez de points à utiliser chez nos partenaires !
+        </p>
       </div>
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://ventemoi.com/register?code=$referralCode" class="button">
+        <a href="https://app.ventemoi.fr/#/register?code=$referralCode" class="button">
           Je m'inscris maintenant
         </a>
       </div>
@@ -484,14 +662,94 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
 
       <p style="font-size: 14px; color: #888;">
         💡 <strong>Comment utiliser votre code ?</strong><br>
-        Lors de votre inscription, entrez simplement le code <strong>$referralCode</strong>
-        dans le champ prévu à cet effet pour recevoir vos points bonus.
+        Lors de votre inscription, le code <strong>$referralCode</strong> sera automatiquement appliqué
+        si vous utilisez le lien ci-dessus, ou vous pouvez l'entrer manuellement.
       </p>
     ''';
 
     await sendMailSimple(
       toEmail: toEmail,
       subject: '🎁 $sponsorName vous invite sur VenteMoi !',
+      htmlBody: buildModernMailHtml(content),
+    );
+  }
+
+  // Envoyer l'email d'invitation de parrainage pour une entreprise
+  Future<void> sendEnterpriseReferralInvitationEmail({
+    required String toEmail,
+    required String sponsorName,
+    required String referralCode,
+  }) async {
+    final content = '''
+      <h2>🚀 Développez votre activité avec VenteMoi !</h2>
+
+      <p>
+        Bonjour,<br><br>
+        <strong>$sponsorName</strong> vous recommande VenteMoi, la plateforme digitale
+        qui booste votre visibilité et vos ventes localement.
+      </p>
+
+      <div class="highlight-box">
+        <h3>Votre code partenaire exclusif</h3>
+        <div class="code-box">$referralCode</div>
+        <p style="margin-top: 10px; color: #666;">
+          Utilisez ce code lors de votre inscription
+        </p>
+      </div>
+
+      <p>
+        <strong>Pourquoi rejoindre VenteMoi en tant que professionnel ?</strong>
+      </p>
+      <ul style="line-height: 1.8;">
+        <li>📱 <strong>Une vitrine digitale complète</strong> avec vidéo de présentation</li>
+        <li>🎯 <strong>Visibilité accrue</strong> auprès de clients locaux qualifiés</li>
+        <li>💳 <strong>Système de bons d'achat</strong> qui fidélise vos clients</li>
+        <li>📊 <strong>Statistiques détaillées</strong> sur vos performances</li>
+        <li>🎁 <strong>16 bons cadeaux de 50€</strong> offerts pour démarrer</li>
+        <li>🤝 <strong>Programme ambassadeur</strong> : 100€ pour chaque commerce parrainé</li>
+      </ul>
+
+      <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h4 style="color: #0369a1; margin-top: 0;">💰 Offre de lancement exclusive</h4>
+        <table style="width: 100%; margin: 10px 0;">
+          <tr>
+            <td style="padding: 8px 0;"><strong>1ère année :</strong></td>
+            <td style="padding: 8px 0; text-align: right;">
+              <span style="color: #0369a1; font-weight: bold;">870€ HT</span>
+              <span style="font-size: 12px; color: #666;">(adhésion + vidéo + cotisation)</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;"><strong>Années suivantes :</strong></td>
+            <td style="padding: 8px 0; text-align: right;">
+              <span style="color: #0369a1; font-weight: bold;">540€ HT/an</span>
+            </td>
+          </tr>
+        </table>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #0369a1;">
+          ✅ Sans engagement après la première année
+        </p>
+      </div>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://app.ventemoi.fr/#/register?code=$referralCode" class="button">
+          Découvrir VenteMoi Pro
+        </a>
+      </div>
+
+      <div class="divider"></div>
+
+      <p style="font-size: 14px; color: #888;">
+        💡 <strong>Des questions ?</strong><br>
+        Notre équipe est à votre disposition au
+        <a href="mailto:frederic.trabeco@gmail.com">frederic.trabeco@gmail.com</a>
+        pour vous accompagner dans votre inscription.
+      </p>
+    ''';
+
+    await sendMailSimple(
+      toEmail: toEmail,
+      subject: '🚀 $sponsorName vous recommande VenteMoi Pro',
       htmlBody: buildModernMailHtml(content),
     );
   }
@@ -544,7 +802,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         child: Column(
           children: [
             Text(
-              'Invitez vos proches à rejoindre VenteMoi',
+              selectedParrainageType.value == 'entreprise'
+                  ? 'Invitez une entreprise à rejoindre VenteMoi'
+                  : 'Invitez vos proches à rejoindre VenteMoi',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -556,7 +816,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
             CustomTextFormField(
               tag: UniqueKey().toString(),
               controller: emailCtrl,
-              labelText: 'Email du filleul',
+              labelText: selectedParrainageType.value == 'entreprise'
+                  ? 'Email de l\'entreprise'
+                  : 'Email du filleul',
               iconData: Icons.email_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (val) {
@@ -574,10 +836,14 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: selectedParrainageType.value == 'entreprise'
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.blue.withOpacity(0.3),
+                  color: selectedParrainageType.value == 'entreprise'
+                      ? Colors.green.withOpacity(0.3)
+                      : Colors.blue.withOpacity(0.3),
                 ),
               ),
               child: Column(
@@ -587,33 +853,34 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                     children: [
                       Icon(
                         Icons.info_outline_rounded,
-                        color: Colors.blue,
+                        color: selectedParrainageType.value == 'entreprise'
+                            ? Colors.green
+                            : Colors.blue,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Règles de parrainage',
+                        'Votre récompense',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
+                          color: selectedParrainageType.value == 'entreprise'
+                              ? Colors.green[700]
+                              : Colors.blue[700],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '• Particuliers : 40% des points reçus',
+                    selectedParrainageType.value == 'entreprise'
+                        ? '• 100 points à l\'adhésion de l\'entreprise'
+                        : '• 50 points sur tous les achats du filleul',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.blue[700],
-                    ),
-                  ),
-                  Text(
-                    '• Entreprises/Boutiques : 50 points à l\'inscription',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue[700],
+                      color: selectedParrainageType.value == 'entreprise'
+                          ? Colors.green[700]
+                          : Colors.blue[700],
                     ),
                   ),
                 ],
@@ -633,7 +900,9 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
   void openCreateUserBottomSheet() {
     variablesToResetToBottomSheet();
     openBottomSheet(
-      'Parrainer un proche',
+      selectedParrainageType.value == 'entreprise'
+          ? 'Parrainer une entreprise'
+          : 'Parrainer un proche',
       actionName: 'Envoyer l\'invitation',
       actionIcon: Icons.send_rounded,
     );

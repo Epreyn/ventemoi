@@ -366,7 +366,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   </head>
   <body>
     <div class="header">
-      <img src="https://firebasestorage.googleapis.com/v0/b/vente-moi.appspot.com/o/logo.png?alt=media"
+      <img src="https://app.ventemoi.fr/assets/logo.png"
            alt="Logo Vente Moi" />
     </div>
     <div class="content">
@@ -390,7 +390,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         <li>Participer à l'économie solidaire locale</li>
       </ul>
       <p style="text-align: center;">
-        <a href="https://ventemoi.com/register" class="button">
+        <a href="https://app.ventemoi.fr/#/register" class="button">
           S'inscrire sur VenteMoi
         </a>
       </p>
@@ -402,7 +402,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     <div class="footer">
       Cet e-mail vous a été envoyé par un utilisateur de VenteMoi.<br>
       Pour toute question, contactez
-      <a href="mailto:support@ventemoi.com">support@ventemoi.com</a>.
+      <a href="mailto:frederic.trabeco@gmail.com">frederic.trabeco@gmail.com</a>.
     </div>
   </body>
 </html>
@@ -501,10 +501,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .set(userData);
 
       // Calculer les points de bienvenue
-      int welcomePoints = 0;
-      if (actualSponsorInfo != null) {
-        welcomePoints = 100; // Bonus de parrainage
-      }
+      int welcomePoints = 0; // Pas de bonus automatique
 
       // NOUVEAU : Vérifier et réclamer les points en attente
       final pendingPoints =
@@ -559,27 +556,73 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .set({
         'user_id': user.uid,
         'sponsored_emails': [],
+        'sponsorship_details': {},
+        'total_earnings': 0,
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
       });
 
       // Si parrainé, mettre à jour le parrain
       if (actualSponsorInfo != null) {
-        // Retirer l'email de la liste sponsored_emails du parrain
+        // Déterminer le nombre de points selon le type d'utilisateur
+        int sponsorPoints = 0;
+        final userTypeName = currentUserType.value?.name ?? '';
+        if (userTypeName == 'Entreprise' ||
+            userTypeName == 'Boutique' ||
+            userTypeName == 'Commerçant') {
+          sponsorPoints = 100; // 100 points pour parrainage entreprise
+        }
+
+        // Mettre à jour le document sponsorship
         if (sponsorshipQuery.docs.isNotEmpty) {
-          await sponsorshipQuery.docs.first.reference.update({
-            'sponsored_emails': FieldValue.arrayRemove([emailToCheck])
+          final sponsorshipDoc = sponsorshipQuery.docs.first;
+          final sponsorshipData = sponsorshipDoc.data();
+
+          // Créer ou mettre à jour les détails du filleul
+          Map<String, dynamic> sponsorshipDetails = Map<String, dynamic>.from(
+              sponsorshipData['sponsorship_details'] ?? {});
+
+          sponsorshipDetails[emailToCheck] = {
+            'user_id': user.uid,
+            'user_type': userTypeName,
+            'is_active': true,
+            'total_earnings': sponsorPoints,
+            'join_date': FieldValue.serverTimestamp(),
+            'has_paid': false,
+            'has_accepted_cgu': false,
+            'earnings_history': sponsorPoints > 0
+                ? [
+                    {
+                      'date': FieldValue.serverTimestamp(),
+                      'points': sponsorPoints,
+                      'reason': 'signup_bonus',
+                    }
+                  ]
+                : [],
+          };
+
+          // Retirer l'email de la liste sponsored_emails
+          await sponsorshipDoc.reference.update({
+            'sponsored_emails': FieldValue.arrayRemove([emailToCheck]),
+            'sponsorship_details': sponsorshipDetails,
+            'total_earnings': FieldValue.increment(sponsorPoints),
+            'updated_at': FieldValue.serverTimestamp(),
           });
         }
 
-        // Ajouter des points au parrain
-        await _addReferralPointsToSponsor(actualSponsorInfo['id'], 50);
+        // Ajouter des points au parrain seulement si c'est une entreprise
+        if (sponsorPoints > 0) {
+          await _addReferralPointsToSponsor(
+              actualSponsorInfo['id'], sponsorPoints);
 
-        // Envoyer un email de notification au parrain
-        await sendSponsorshipNotificationEmail(
-          sponsorEmail: actualSponsorInfo['email'],
-          sponsorName: actualSponsorInfo['name'],
-          newUserEmail: emailController.text.trim(),
-          pointsEarned: 50,
-        );
+          // Envoyer un email de notification au parrain
+          await sendSponsorshipNotificationEmail(
+            sponsorEmail: actualSponsorInfo['email'],
+            sponsorName: actualSponsorInfo['name'],
+            newUserEmail: emailController.text.trim(),
+            pointsEarned: sponsorPoints,
+          );
+        }
       }
 
       // Si une association a été sélectionnée, ajouter l'utilisateur comme filleul
@@ -629,16 +672,9 @@ class RegisterScreenController extends GetxController with ControllerMixin {
 
       // Message personnalisé en fonction des points reçus
       String successMessage = 'Inscription réussie !';
-      if (pendingPoints > 0 && actualSponsorInfo != null) {
-        successMessage =
-            'Bienvenue ! Vous avez reçu ${welcomePoints} points (${pendingPoints} points en attente).';
-      } else if (pendingPoints > 0) {
+      if (pendingPoints > 0) {
         successMessage =
             'Bienvenue ! Vous avez reçu ${pendingPoints} points qui vous attendaient.';
-      } else if (actualSponsorInfo != null) {
-        successMessage = 'Bienvenue !';
-      } else {
-        successMessage = 'Vous pouvez maintenant vous connecter !';
       }
 
       UniquesControllers().data.snackbar(
@@ -766,7 +802,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       </p>
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://ventemoi.com/parrainage" class="button">
+        <a href="https://app.ventemoi.fr/#/parrainage" class="button">
           Parrainer d'autres amis
         </a>
       </div>
@@ -774,8 +810,8 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       <div class="divider"></div>
 
       <p style="font-size: 14px; color: #888;">
-        💡 <strong>Rappel :</strong> Vous gagnez également 10% des achats
-        réalisés par vos filleuls. Plus vous parrainez, plus vous gagnez !
+        💡 <strong>Rappel :</strong> Vous gagnez des points sur tous les achats
+        de vos filleuls. Plus vous parrainez, plus vous gagnez !
       </p>
     ''';
 

@@ -25,12 +25,14 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
   // Recherche et filtrage
   // ---------------------------------------------------------------------------
   final RxString searchText = ''.obs;
-  final RxString filterReclaimed = 'all'.obs; // all, reclaimed, pending
+  final RxString filterReclaimed =
+      'all'.obs; // all, reclaimed, pending, donations
 
   // ---------------------------------------------------------------------------
   // Tri
   // ---------------------------------------------------------------------------
-  final RxInt sortColumnIndex = 3.obs; // 0=Acheteur, 1=Vendeur, 2=Bons, 3=Date
+  final RxInt sortColumnIndex =
+      3.obs; // 0=Acheteur, 1=Vendeur, 2=Montant, 3=Date
   final RxBool sortAscending = false.obs; // Plus récent d'abord par défaut
 
   // ---------------------------------------------------------------------------
@@ -54,16 +56,27 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
   // ---------------------------------------------------------------------------
   Map<String, int> get purchaseStats {
     final total = purchases.length;
-    final reclaimed = purchases.where((p) => p.isReclaimed).length;
-    final pending = purchases.where((p) => !p.isReclaimed).length;
-    final totalCoupons =
-        purchases.fold<int>(0, (sum, p) => sum + p.couponsCount);
+    final donations = purchases.where((p) => p.isDonation).length;
+    final sales = purchases.where((p) => !p.isDonation).length;
+    final reclaimed =
+        purchases.where((p) => !p.isDonation && p.isReclaimed).length;
+    final pending =
+        purchases.where((p) => !p.isDonation && !p.isReclaimed).length;
+    final totalCoupons = purchases
+        .where((p) => !p.isDonation)
+        .fold<int>(0, (sum, p) => sum + p.couponsCount);
+    final totalDonationPoints = purchases
+        .where((p) => p.isDonation)
+        .fold<int>(0, (sum, p) => sum + p.couponsCount);
 
     return {
       'total': total,
+      'donations': donations,
+      'sales': sales,
       'reclaimed': reclaimed,
       'pending': pending,
       'totalCoupons': totalCoupons,
+      'totalDonationPoints': totalDonationPoints,
     };
   }
 
@@ -77,13 +90,15 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
     if (searchText.value.isNotEmpty) {
       final search = searchText.value.toLowerCase();
       filtered = filtered.where((purchase) {
-        // Recherche dans le code
-        final code = purchase.reclamationPassword.toLowerCase();
-        if (code.contains(search)) return true;
+        // Recherche dans le code (seulement pour les achats)
+        if (!purchase.isDonation) {
+          final code = purchase.reclamationPassword.toLowerCase();
+          if (code.contains(search)) return true;
+        }
 
-        // Recherche dans le nombre de bons
-        final couponsStr = purchase.couponsCount.toString();
-        if (couponsStr.contains(search)) return true;
+        // Recherche dans le montant
+        final amountStr = purchase.couponsCount.toString();
+        if (amountStr.contains(search)) return true;
 
         // Recherche dans la date
         final dateStr = _formatDate(purchase.date).toLowerCase();
@@ -105,10 +120,22 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
     }
 
     // 2. Appliquer le filtre de statut
-    if (filterReclaimed.value == 'reclaimed') {
-      filtered = filtered.where((p) => p.isReclaimed).toList();
-    } else if (filterReclaimed.value == 'pending') {
-      filtered = filtered.where((p) => !p.isReclaimed).toList();
+    switch (filterReclaimed.value) {
+      case 'reclaimed':
+        filtered =
+            filtered.where((p) => !p.isDonation && p.isReclaimed).toList();
+        break;
+      case 'pending':
+        filtered =
+            filtered.where((p) => !p.isDonation && !p.isReclaimed).toList();
+        break;
+      case 'donations':
+        filtered = filtered.where((p) => p.isDonation).toList();
+        break;
+      case 'all':
+      default:
+        // Pas de filtre
+        break;
     }
 
     // 3. Appliquer le tri
@@ -116,19 +143,19 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
       int comparison = 0;
 
       switch (sortColumnIndex.value) {
-        case 0: // Acheteur
+        case 0: // Acheteur/Donateur
           final aNames = participantCache['${a.buyerId}_${a.sellerId}'];
           final bNames = participantCache['${b.buyerId}_${b.sellerId}'];
           comparison =
               (aNames?['buyer'] ?? '').compareTo(bNames?['buyer'] ?? '');
           break;
-        case 1: // Vendeur
+        case 1: // Vendeur/Bénéficiaire
           final aNames = participantCache['${a.buyerId}_${a.sellerId}'];
           final bNames = participantCache['${b.buyerId}_${b.sellerId}'];
           comparison =
               (aNames?['seller'] ?? '').compareTo(bNames?['seller'] ?? '');
           break;
-        case 2: // Bons
+        case 2: // Montant
           comparison = a.couponsCount.compareTo(b.couponsCount);
           break;
         case 3: // Date
@@ -239,10 +266,10 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
     };
 
     try {
-      // Récupérer les deux utilisateurs en parallèle
+      // Récupérer les informations des utilisateurs
       final results = await Future.wait([
         _getUserInfo(buyerId),
-        _getUserInfo(sellerId),
+        _getSellerInfo(sellerId),
       ]);
 
       final names = {
@@ -296,11 +323,50 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
 
       final data = doc.data()!;
       return {
-        'name': (data['name'] ?? 'Sans nom').toString(),
+        'name': (data['name'] ??
+                data['display_name'] ??
+                data['company_name'] ??
+                'Sans nom')
+            .toString(),
         'email': (data['email'] ?? 'sans-email@example.com').toString(),
       };
     } catch (e) {
       print('Erreur lors de la récupération de l\'utilisateur $userId: $e');
+      return {'name': 'Erreur', 'email': 'erreur@example.com'};
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Récupération des informations du vendeur (établissement)
+  // ---------------------------------------------------------------------------
+  Future<Map<String, String>> _getSellerInfo(String sellerId) async {
+    if (sellerId.isEmpty) {
+      return {'name': 'Inconnu', 'email': 'inconnu@example.com'};
+    }
+
+    try {
+      // D'abord essayer de récupérer l'établissement
+      final establishmentQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: sellerId)
+          .limit(1)
+          .get();
+
+      if (establishmentQuery.docs.isNotEmpty) {
+        final establishmentData = establishmentQuery.docs.first.data();
+        return {
+          'name':
+              (establishmentData['name'] ?? 'Établissement inconnu').toString(),
+          'email': (establishmentData['email'] ?? '').toString(),
+        };
+      }
+
+      // Si pas d'établissement, récupérer l'utilisateur
+      return _getUserInfo(sellerId);
+    } catch (e) {
+      print('Erreur lors de la récupération du vendeur $sellerId: $e');
       return {'name': 'Erreur', 'email': 'erreur@example.com'};
     }
   }
@@ -375,13 +441,14 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
   }
 
   // ---------------------------------------------------------------------------
-  // Export des données (optionnel)
+  // Export des données
   // ---------------------------------------------------------------------------
   String exportToCSV() {
     final buffer = StringBuffer();
 
     // En-têtes
-    buffer.writeln('Date,Code,Acheteur,Vendeur,Bons,Statut');
+    buffer.writeln(
+        'Date,Type,Code/ID,Donateur/Acheteur,Bénéficiaire/Vendeur,Montant,Statut');
 
     // Données
     for (final purchase in filteredPurchases) {
@@ -389,12 +456,24 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
       final names =
           participantCache[cacheKey] ?? {'buyer': 'N/A', 'seller': 'N/A'};
 
+      final type = purchase.isDonation ? 'Don' : 'Achat';
+      final codeOrId = purchase.isDonation
+          ? purchase.id.substring(0, 8).toUpperCase()
+          : purchase.reclamationPassword;
+      final amount = purchase.isDonation
+          ? '${purchase.couponsCount} points'
+          : '${purchase.couponsCount} bons';
+      final status = purchase.isDonation
+          ? 'Effectué'
+          : (purchase.isReclaimed ? 'Réclamée' : 'En attente');
+
       buffer.writeln('${_formatDateTime(purchase.date)},'
-          '${purchase.reclamationPassword},'
+          '$type,'
+          '$codeOrId,'
           '${names['buyer']},'
           '${names['seller']},'
-          '${purchase.couponsCount},'
-          '${purchase.isReclaimed ? "Réclamée" : "En attente"}');
+          '$amount,'
+          '$status');
     }
 
     return buffer.toString();

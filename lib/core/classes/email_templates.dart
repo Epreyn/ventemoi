@@ -276,7 +276,7 @@ extension EmailTemplates on ControllerMixin {
         <div class="email-container">
             <div class="header">
                 <div class="logo">
-                    <img src="https://firebasestorage.googleapis.com/v0/b/vente-moi.appspot.com/o/logo.png?alt=media" alt="Vente Moi">
+                    <img src="https://app.ventemoi.fr/assets/logo.png" alt="Vente Moi">
                 </div>
                 <h1>Vente Moi</h1>
             </div>
@@ -291,7 +291,7 @@ extension EmailTemplates on ControllerMixin {
 
                 <div class="footer-links">
                     <a href="https://app.ventemoi.fr">Site web</a>
-                    <a href="mailto:app@ventemoi.fr">Support</a>
+                    <a href="mailto:frederic.trabeco@gmail.com">Support</a>
                 </div>
             </div>
         </div>
@@ -327,7 +327,7 @@ extension EmailTemplates on ControllerMixin {
       </p>
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://ventemoi.com/mes-achats" class="button">Voir mes bons cadeaux</a>
+        <a href="https://app.ventemoi.fr/#/mes-achats" class="button">Voir mes bons cadeaux</a>
       </div>
 
       <div class="divider"></div>
@@ -370,16 +370,19 @@ extension EmailTemplates on ControllerMixin {
 
         <div class="highlight-box">
           <h3>Détails de votre don</h3>
-          <div class="info-grid">
+          <div class="info-grid" style="max-width: 400px; margin: 0 auto;">
             <div class="info-item">
               <div class="info-label">Montant du don</div>
-              <div class="info-value">$couponsCountOrPoints points</div>
+              <div class="info-value" style="color: #ff7a00;">$couponsCountOrPoints points</div>
             </div>
             <div class="info-item">
               <div class="info-label">Bénéficiaire</div>
               <div class="info-value">$sellerName</div>
             </div>
           </div>
+          <p style="margin-top: 15px; font-size: 14px; color: #666;">
+            Date : ${_formatDate(purchaseDate)}
+          </p>
         </div>
 
         <p>
@@ -388,7 +391,7 @@ extension EmailTemplates on ControllerMixin {
         </p>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://ventemoi.com/mes-dons" class="button">Voir mes dons</a>
+          <a href="https://app.ventemoi.fr/#/mes-dons" class="button">Voir mes dons</a>
         </div>
       ''';
     } else {
@@ -411,26 +414,28 @@ extension EmailTemplates on ControllerMixin {
 
         <div class="highlight-box">
           <h3>Récapitulatif de votre commande</h3>
-          <div class="info-grid">
+          <div class="info-grid" style="max-width: 400px; margin: 0 auto;">
             <div class="info-item">
               <div class="info-label">Nombre de bons</div>
-              <div class="info-value">$couponsCountOrPoints</div>
+              <div class="info-value" style="color: #ff7a00;">$couponsCountOrPoints</div>
             </div>
             <div class="info-item">
               <div class="info-label">Valeur totale</div>
-              <div class="info-value">${couponsCountOrPoints * 50} €</div>
+              <div class="info-value" style="color: #ff7a00;">${couponsCountOrPoints * 50} €</div>
             </div>
           </div>
           $codeSection
         </div>
 
-        <p>
-          <strong>Établissement :</strong> $sellerName<br>
-          <strong>Date d'achat :</strong> ${_formatDate(purchaseDate)}
-        </p>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin: 20px 0;">
+          <p style="margin: 0;">
+            <strong>Établissement :</strong> $sellerName<br>
+            <strong>Date d'achat :</strong> ${_formatDate(purchaseDate)}
+          </p>
+        </div>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://ventemoi.com/mes-achats" class="button">Voir mes achats</a>
+          <a href="https://app.ventemoi.fr/#/mes-achats" class="button">Voir mes achats</a>
         </div>
 
         <div class="divider"></div>
@@ -469,26 +474,75 @@ extension EmailTemplates on ControllerMixin {
       </div>
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://ventemoi.com/boutique" class="button">Découvrir la boutique</a>
+        <a href="https://app.ventemoi.fr/#/login" class="button">Se connecter</a>
       </div>
 
       <div class="divider"></div>
 
-      <h3 style="color: #333; font-size: 18px; margin-bottom: 15px;">💰 Bonus de bienvenue</h3>
+      <h3 style="color: #333; font-size: 18px; margin-bottom: 15px;">💡 Astuce</h3>
       <p>
-        En tant que nouveau membre, vous bénéficiez automatiquement de <strong>50 points offerts</strong> !
-        Utilisez-les dès maintenant dans notre boutique.
+        Parrainez vos proches et gagnez des points bonus ! Utilisez votre code de parrainage
+        dans votre espace personnel pour inviter vos amis.
       </p>
 
       <p style="margin-top: 30px;">
         Des questions ? Notre équipe support est là pour vous aider à
-        <a href="mailto:support@ventemoi.com" style="color: #ff7a00;">support@ventemoi.com</a>
+        <a href="mailto:frederic.trabeco@gmail.com" style="color: #ff7a00;">frederic.trabeco@gmail.com</a>
       </p>
     ''';
 
     await sendMailSimple(
       toEmail: toEmail,
       subject: '🎉 Bienvenue sur Vente Moi !',
+      htmlBody: buildModernMailHtml(content),
+    );
+  }
+
+  Future<void> sendSponsorshipNotificationEmail({
+    required String sponsorEmail,
+    required String sponsorName,
+    required String newUserEmail,
+    required int pointsEarned,
+  }) async {
+    final content = '''
+      <h2>🎉 Félicitations $sponsorName !</h2>
+      <p>
+        Excellente nouvelle ! <strong>$newUserEmail</strong> vient de s'inscrire
+        sur VenteMoi grâce à votre parrainage.
+      </p>
+
+      <div class="highlight-box">
+        <h3>Votre récompense</h3>
+        <div class="info-value" style="font-size: 32px; color: #ff7a00; margin: 10px 0;">
+          +$pointsEarned points
+        </div>
+        <p style="margin: 10px 0; color: #666;">
+          Ces points ont été ajoutés à votre compte
+        </p>
+      </div>
+
+      <p>
+        Continuez à parrainer vos proches et gagnez encore plus de récompenses !
+        Chaque nouveau filleul actif vous rapporte des points bonus.
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://app.ventemoi.fr/#/parrainage" class="button">
+          Parrainer d'autres amis
+        </a>
+      </div>
+
+      <div class="divider"></div>
+
+      <p style="font-size: 14px; color: #888;">
+        💡 <strong>Rappel :</strong> Vous gagnez des points sur tous les achats
+        de vos filleuls. Plus vous parrainez, plus vous gagnez !
+      </p>
+    ''';
+
+    await sendMailSimple(
+      toEmail: sponsorEmail,
+      subject: '🎊 $newUserEmail s\'est inscrit grâce à vous !',
       htmlBody: buildModernMailHtml(content),
     );
   }

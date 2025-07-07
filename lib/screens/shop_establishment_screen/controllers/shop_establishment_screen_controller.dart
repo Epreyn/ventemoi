@@ -855,6 +855,7 @@ class ShopEstablishmentScreenController extends GetxController
           'date': DateTime.now().toIso8601String(),
           'isReclaimed': true, // DON => rien à réclamer
           'reclamationPassword': '',
+          'isDonation': true,
         });
 
         UniquesControllers().data.snackbar(
@@ -966,6 +967,7 @@ class ShopEstablishmentScreenController extends GetxController
           'date': DateTime.now().toIso8601String(),
           'isReclaimed': false,
           'reclamationPassword': code,
+          'isDonation': false,
         });
 
         UniquesControllers().data.snackbar(

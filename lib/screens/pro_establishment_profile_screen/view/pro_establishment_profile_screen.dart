@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:ventemoi/core/models/stripe_service.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
@@ -836,6 +837,12 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
+                                        // ElevatedButton(
+                                        //   child: const Icon(Icons.check),
+                                        //   onPressed: () {
+                                        //     StripeService().testCloudFunction();
+                                        //   },
+                                        // ),
                                         Text(
                                           isVisible
                                               ? 'Établissement visible'
@@ -982,56 +989,34 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Widget de sélection en cascade
-              EnterpriseCategoryCascadingSelector(
-                categories: categories,
-                selectedIds: ec.selectedEnterpriseCategoryIds,
-                onToggle: ec.toggleEnterpriseCategory,
-                onRemove: ec.removeEnterpriseCategory,
-                maxSelections: slots,
-              ),
+              //
 
-              // Boutons d'action si modifications
-              if (hasModifications)
-                Container(
-                  margin: EdgeInsets.only(
-                    top: UniquesControllers().data.baseSpace,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: ec.saveEnterpriseCategoriesChanges,
-                          icon: Icon(Icons.save, color: Colors.white),
-                          label: Text('Enregistrer les modifications'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: ec.resetEnterpriseCategoriesChanges,
-                        child: Text('Annuler'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              Row(children: [
+                EnterpriseCategoryCascadingSelector(
+                  categories: categories,
+                  selectedIds: ec.selectedEnterpriseCategoryIds,
+                  onToggle: ec.toggleEnterpriseCategory,
+                  onRemove: ec.removeEnterpriseCategory,
+                  maxSelections: slots,
                 ),
+                // Boutons d'action si modifications
+                if (hasModifications)
+                  ElevatedButton(
+                    onPressed: ec.resetEnterpriseCategoriesChanges,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text('Annuler'),
+                  ),
+              ]),
 
               // Option pour acheter des slots supplémentaires
               if (slots < 5) // Limite max

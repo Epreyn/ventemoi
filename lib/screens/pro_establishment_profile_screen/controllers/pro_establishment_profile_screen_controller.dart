@@ -95,6 +95,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   RxString subscriptionStatus = ''.obs;
   Rx<DateTime?> subscriptionEndDate = Rx<DateTime?>(null);
 
+  // Flag pour éviter les vérifications multiples
+  bool hasCheckedPostPayment = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -102,6 +105,134 @@ class ProEstablishmentProfileScreenController extends GetxController
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid != null) {
       _loadUserType(uid);
+    }
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+
+    // Vérifier si on arrive après un paiement réussi
+    _checkPostPaymentActivation();
+  }
+
+  // Vérifier l'activation après un paiement
+  Future<void> _checkPostPaymentActivation() async {
+    // Éviter les vérifications multiples
+    if (hasCheckedPostPayment) return;
+    hasCheckedPostPayment = true;
+
+    try {
+      final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (uid == null) return;
+
+      // Attendre un peu pour laisser le temps aux webhooks Stripe
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Vérifier si l'établissement existe et est activé
+      final estabQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isNotEmpty) {
+        final doc = estabQuery.docs.first;
+        final data = doc.data();
+
+        // Si on vient de payer mais que l'activation n'est pas complète
+        if (data['stripe_session_id'] != null &&
+            (data['has_accepted_contract'] != true ||
+                data['has_active_subscription'] != true)) {
+          print(
+              '⚠️ Paiement détecté mais activation incomplète. Activation forcée...');
+
+          // Forcer l'activation
+          await doc.reference.update({
+            'has_accepted_contract': true,
+            'has_active_subscription': true,
+            'subscription_status': data['payment_option'] ?? 'monthly',
+            'subscription_start_date': FieldValue.serverTimestamp(),
+            'subscription_end_date': Timestamp.fromDate(
+                DateTime.now().add(const Duration(days: 365))),
+            'post_payment_activation': true,
+            'post_payment_activation_at': FieldValue.serverTimestamp(),
+          });
+
+          print('✅ Activation post-paiement réussie');
+
+          // // Créer le bon cadeau si nécessaire
+          // final giftQuery = await UniquesControllers()
+          //     .data
+          //     .firebaseFirestore
+          //     .collection('gift_vouchers')
+          //     .where('establishment_id', isEqualTo: doc.id)
+          //     .where('type', isEqualTo: 'welcome')
+          //     .limit(1)
+          //     .get();
+
+          // if (giftQuery.docs.isEmpty) {
+          //   await UniquesControllers()
+          //       .data
+          //       .firebaseFirestore
+          //       .collection('gift_vouchers')
+          //       .add({
+          //     'establishment_id': doc.id,
+          //     'amount': 50.0,
+          //     'type': 'welcome',
+          //     'status': 'active',
+          //     'created_at': FieldValue.serverTimestamp(),
+          //     'expires_at': Timestamp.fromDate(
+          //         DateTime.now().add(const Duration(days: 365))),
+          //     'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
+          //   });
+
+          //   print('🎁 Bon cadeau de bienvenue créé');
+          // }
+
+          final walletQuery = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('wallets')
+              .where('user_id', isEqualTo: uid)
+              .limit(1)
+              .get();
+
+          if (walletQuery.docs.isEmpty) {
+            await UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('wallets')
+                .add({
+              'user_id': uid,
+              'points': 50,
+              'coupons': 0,
+              'created_at': FieldValue.serverTimestamp(),
+            });
+            print('💰 Wallet créé avec 50 points de bienvenue');
+          } else {
+            final existingPoints = walletQuery.docs.first.data()['points'] ?? 0;
+            // Vérifier si les points ont déjà été crédités pour éviter les doublons
+            if (existingPoints < 50) {
+              await walletQuery.docs.first.reference.update({
+                'points': FieldValue.increment(50),
+              });
+              print('💰 50 points de bienvenue ajoutés au wallet');
+            }
+          }
+
+          // Afficher un message de succès
+          UniquesControllers().data.snackbar(
+                'Activation réussie',
+                'Votre établissement est maintenant actif dans le shop!',
+                false,
+              );
+        }
+      }
+    } catch (e) {
+      print('❌ Erreur _checkPostPaymentActivation: $e');
     }
   }
 
@@ -383,6 +514,29 @@ class ProEstablishmentProfileScreenController extends GetxController
   Future<void> saveEstablishmentProfile() async {
     if (!formKey.currentState!.validate()) return;
 
+    // Vérifier si l'établissement doit accepter les CGU et payer
+    final userType = currentUserType.value;
+    final needsSubscription = userType != null &&
+        (userType.name == 'Entreprise' ||
+            userType.name == 'Boutique' ||
+            userType.name == 'Commerçant');
+
+    if (needsSubscription && !hasAcceptedContract.value) {
+      // Ouvrir la dialog CGU et paiement
+      Get.dialog(
+        CGUPaymentDialog(
+          userType: userType.name,
+        ),
+        barrierDismissible: false,
+      );
+    } else {
+      // Sauvegarder directement si pas besoin de subscription
+      await _performSaveEstablishmentProfile();
+    }
+  }
+
+  // Méthode pour effectuer la sauvegarde
+  Future<void> _performSaveEstablishmentProfile() async {
     UniquesControllers().data.isInAsyncCall.value = true;
 
     try {
@@ -434,12 +588,6 @@ class ProEstablishmentProfileScreenController extends GetxController
       isPickedBanner.value = false;
       isPickedLogo.value = false;
       hasModifications.value = false;
-
-      UniquesControllers().data.snackbar(
-            'Succès',
-            'Profil établissement sauvegardé',
-            false,
-          );
     } catch (e) {
       UniquesControllers().data.snackbar(
             'Erreur',
@@ -448,6 +596,43 @@ class ProEstablishmentProfileScreenController extends GetxController
           );
     } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  // Traiter le paiement de l'abonnement
+  Future<void> _processSubscriptionPayment(String paymentOption) async {
+    try {
+      // TODO: Implémenter l'intégration Stripe ici
+
+      // Pour le moment, mettre à jour les statuts
+      if (establishmentDocId != null) {
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(establishmentDocId)
+            .update({
+          'has_accepted_contract': true,
+          'has_active_subscription': true,
+          'subscription_status':
+              paymentOption == 'annual' ? 'annual' : 'monthly',
+          'subscription_start_date': FieldValue.serverTimestamp(),
+          'subscription_end_date':
+              Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+        });
+      }
+
+      UniquesControllers().data.snackbar(
+            'Succès',
+            'Profil établissement sauvegardé et abonnement activé',
+            false,
+          );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Erreur lors du paiement : $e',
+            true,
+          );
     }
   }
 

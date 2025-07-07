@@ -141,11 +141,6 @@ class ClientHistoryScreen extends StatelessWidget {
                                 'Récupérés',
                                 cc.selectedFilter.value == 'claimed',
                                 () => cc.setFilter('claimed')),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                                'Dons',
-                                cc.selectedFilter.value == 'donations',
-                                () => cc.setFilter('donations')),
                           ],
                         )),
                   ),
