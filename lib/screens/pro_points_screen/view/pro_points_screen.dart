@@ -17,6 +17,12 @@ class ProPointsScreen extends StatelessWidget {
     final cc = Get.put(ProPointsScreenController(), tag: 'pro-points-screen');
 
     return ScreenLayout(
+      appBar: CustomAppBar(
+        showUserInfo: true,
+        showPoints: true,
+        showDrawerButton: true,
+        modernStyle: true,
+      ),
       fabOnPressed: cc.openAddPointsBottomSheet,
       fabIcon: const Icon(Icons.add),
       fabText: const Text('Attribuer des Points'),

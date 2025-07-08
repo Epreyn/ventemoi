@@ -34,7 +34,7 @@ class AdminUsersScreen extends StatelessWidget {
         modernStyle: true,
       ),
       fabIcon: Icon(Icons.add_rounded, size: 24),
-      fabText: Text('Ajouter un utilisateurs'),
+      fabText: Text('Ajouter un utilisateur'),
       fabOnPressed: cc.openCreateUserBottomSheet,
       body: _buildBody(context, cc, isDesktop, isTablet),
     );

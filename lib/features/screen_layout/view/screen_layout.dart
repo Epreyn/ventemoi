@@ -69,7 +69,7 @@ class ScreenLayout extends StatelessWidget {
                       wave2Progress: controller.wave4Progress.value,
                       primaryColor: CustomTheme.lightScheme().primary,
                     ),
-                    size: Size(MediaQuery.of(context).size.width, 200),
+                    size: Size(MediaQuery.of(context).size.width, 100),
                   )),
             ),
 
@@ -83,7 +83,7 @@ class ScreenLayout extends StatelessWidget {
                       wave1Progress: controller.wave1Progress.value,
                       wave2Progress: controller.wave2Progress.value,
                     ),
-                    size: Size(MediaQuery.of(context).size.width, 200),
+                    size: Size(MediaQuery.of(context).size.width, 100),
                   )),
             ),
 
@@ -142,7 +142,7 @@ class ScreenLayout extends StatelessWidget {
   }
 }
 
-// Painter pour les vagues orange en haut
+// Painter pour les vagues orange en haut (version aplatie)
 class TopWavesPainter extends CustomPainter {
   final double wave1Progress;
   final double wave2Progress;
@@ -156,6 +156,17 @@ class TopWavesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Amplitude réduite pour des vagues plus plates
+    const double waveAmplitude = 5.0; // Amplitude fixe pour tous les appareils
+
+    // Positions relatives à la hauteur de la zone
+    final double baseY1 =
+        size.height * 0.3; // 30% de la hauteur (environ 52px pour 175)
+    final double baseY2 =
+        size.height * 0.45; // 45% de la hauteur (environ 79px pour 175)
+    final double baseY3 =
+        size.height * 0.6; // 60% de la hauteur (environ 105px pour 175)
+
     // Première vague orange avec phase décalée
     final paint1 = Paint()
       ..color = primaryColor.withOpacity(0.3)
@@ -167,7 +178,8 @@ class TopWavesPainter extends CustomPainter {
     for (double i = 0; i <= size.width; i++) {
       // Phase initiale de 0.3 pour cette vague
       final phase = (wave1Progress + 0.3) * 2 * math.pi;
-      final y = 60 + 20 * math.sin((i / size.width * 4 * math.pi) + phase);
+      final y = baseY1 +
+          waveAmplitude * math.sin((i / size.width * 4 * math.pi) + phase);
       path1.lineTo(i, y);
     }
 
@@ -186,7 +198,10 @@ class TopWavesPainter extends CustomPainter {
     for (double i = 0; i <= size.width; i++) {
       // Phase initiale de 0.7 pour cette vague
       final phase = (wave2Progress + 0.7) * 2 * math.pi;
-      final y = 80 + 15 * math.sin((i / size.width * 3 * math.pi) + phase);
+      final y = baseY2 +
+          waveAmplitude *
+              0.8 *
+              math.sin((i / size.width * 3 * math.pi) + phase);
       path2.lineTo(i, y);
     }
 
@@ -205,7 +220,10 @@ class TopWavesPainter extends CustomPainter {
     for (double i = 0; i <= size.width; i++) {
       // Phase inversée et décalée de 0.5
       final phase = -(wave1Progress + 0.5) * 2 * math.pi;
-      final y = 100 + 10 * math.sin((i / size.width * 5 * math.pi) + phase);
+      final y = baseY3 +
+          waveAmplitude *
+              0.6 *
+              math.sin((i / size.width * 5 * math.pi) + phase);
       path3.lineTo(i, y);
     }
 
@@ -220,7 +238,7 @@ class TopWavesPainter extends CustomPainter {
       wave2Progress != oldDelegate.wave2Progress;
 }
 
-// Painter pour les vagues noires en bas
+// Painter pour les vagues noires en bas (version aplatie)
 class BottomWavesPainter extends CustomPainter {
   final double wave1Progress;
   final double wave2Progress;
@@ -232,6 +250,19 @@ class BottomWavesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Amplitude réduite pour des vagues plus plates
+    const double waveAmplitude = 5.0; // Amplitude fixe pour tous les appareils
+
+    // Positions relatives à la hauteur de la zone
+    final double baseY1 =
+        size.height * 0.2; // 20% depuis le bas (35px pour 175)
+    final double baseY2 =
+        size.height * 0.3; // 30% depuis le bas (52px pour 175)
+    final double baseY3 =
+        size.height * 0.45; // 45% depuis le bas (79px pour 175)
+    final double baseY4 =
+        size.height * 0.55; // 55% depuis le bas (96px pour 175)
+
     // Première vague noire avec phase 0
     final paint1 = Paint()
       ..color = Colors.black.withOpacity(0.8)
@@ -242,7 +273,9 @@ class BottomWavesPainter extends CustomPainter {
 
     for (double i = 0; i <= size.width; i++) {
       final phase = wave1Progress * 2 * math.pi;
-      final y = 140 - 25 * math.sin((i / size.width * 3 * math.pi) + phase);
+      final y = size.height -
+          baseY1 -
+          waveAmplitude * math.sin((i / size.width * 3 * math.pi) + phase);
       path1.lineTo(i, y);
     }
 
@@ -260,7 +293,11 @@ class BottomWavesPainter extends CustomPainter {
 
     for (double i = 0; i <= size.width; i++) {
       final phase = -(wave2Progress + 0.4) * 2 * math.pi;
-      final y = 120 - 20 * math.sin((i / size.width * 4 * math.pi) + phase);
+      final y = size.height -
+          baseY2 -
+          waveAmplitude *
+              0.8 *
+              math.sin((i / size.width * 4 * math.pi) + phase);
       path2.lineTo(i, y);
     }
 
@@ -278,7 +315,11 @@ class BottomWavesPainter extends CustomPainter {
 
     for (double i = 0; i <= size.width; i++) {
       final phase = (wave1Progress + 0.2) * 2 * math.pi;
-      final y = 100 - 15 * math.sin((i / size.width * 5 * math.pi) + phase);
+      final y = size.height -
+          baseY3 -
+          waveAmplitude *
+              0.6 *
+              math.sin((i / size.width * 5 * math.pi) + phase);
       path3.lineTo(i, y);
     }
 
@@ -296,7 +337,11 @@ class BottomWavesPainter extends CustomPainter {
 
     for (double i = 0; i <= size.width; i++) {
       final phase = (wave2Progress + 0.8) * 2 * math.pi * 1.5;
-      final y = 80 - 10 * math.sin((i / size.width * 6 * math.pi) + phase);
+      final y = size.height -
+          baseY4 -
+          waveAmplitude *
+              0.4 *
+              math.sin((i / size.width * 6 * math.pi) + phase);
       path4.lineTo(i, y);
     }
 

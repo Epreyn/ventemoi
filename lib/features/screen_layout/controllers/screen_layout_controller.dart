@@ -32,11 +32,13 @@ class ScreenLayoutController extends GetxController {
 
     // Timer qui update toutes les 16ms (~60fps)
     _animationTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      // Chaque vague a sa propre vitesse
-      wave1Progress.value = (wave1Progress.value + 0.001) % 1.0; // Plus lent
-      wave2Progress.value = (wave2Progress.value + 0.0008) % 1.0; // Très lent
-      wave3Progress.value = (wave3Progress.value + 0.0012) % 1.0; // Moyen
-      wave4Progress.value = (wave4Progress.value + 0.002) % 1.0; // Plus rapide
+      // Vitesses réduites de moitié pour une animation plus discrète
+      wave1Progress.value = (wave1Progress.value + 0.0005) % 1.0; // Était 0.001
+      wave2Progress.value =
+          (wave2Progress.value + 0.0004) % 1.0; // Était 0.0008
+      wave3Progress.value =
+          (wave3Progress.value + 0.0006) % 1.0; // Était 0.0012
+      wave4Progress.value = (wave4Progress.value + 0.001) % 1.0; // Était 0.002
     });
   }
 

@@ -1,4 +1,8 @@
+// lib/features/custom_text_form_field/view/custom_text_form_field.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:get/get.dart';
 
 import '../../../core/theme/custom_theme.dart';
@@ -27,6 +31,10 @@ class CustomTextFormField extends StatelessWidget {
   final TextCapitalization? textCapitalization;
   final Widget? suffixIcon;
   final double? maxWidth;
+  final FocusNode? focusNode;
+  final bool? autocorrect;
+  final bool? enableSuggestions;
+  final VoidCallback? onTap;
 
   const CustomTextFormField({
     super.key,
@@ -52,6 +60,10 @@ class CustomTextFormField extends StatelessWidget {
     this.textCapitalization,
     this.suffixIcon,
     this.maxWidth,
+    this.focusNode,
+    this.autocorrect,
+    this.enableSuggestions,
+    this.onTap,
   });
 
   @override
@@ -67,6 +79,11 @@ class CustomTextFormField extends StatelessWidget {
     cc.initIsPassword(isPassword);
     cc.maxCharactersListener();
 
+    // Fix pour iOS Web
+    final bool isIOSWeb = kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            Theme.of(context).platform == TargetPlatform.iOS);
+
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: maxWidth ?? cc.maxWith,
@@ -75,6 +92,10 @@ class CustomTextFormField extends StatelessWidget {
         children: [
           Obx(
             () => TextFormField(
+              // Propriétés pour iOS
+              autocorrect: autocorrect ?? false,
+              enableSuggestions: enableSuggestions ?? false,
+              focusNode: focusNode,
               textInputAction: textInputAction ?? TextInputAction.done,
               keyboardType: keyboardType ?? TextInputType.text,
               textCapitalization: textCapitalization ?? TextCapitalization.none,
@@ -91,6 +112,21 @@ class CustomTextFormField extends StatelessWidget {
                 }
               },
               onFieldSubmitted: onFieldSubmitted,
+              // Gestion du tap pour iOS Web
+              onTap: () {
+                if (onTap != null) {
+                  onTap!();
+                }
+                // Fix spécifique pour iOS Web
+                if (isIOSWeb && focusNode != null) {
+                  // Forcer le focus après un court délai
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (!focusNode!.hasFocus) {
+                      focusNode!.requestFocus();
+                    }
+                  });
+                }
+              },
               validator: (value) {
                 if (validator != null) {
                   return validator!(value);

@@ -8,11 +8,18 @@
             name="description"
             content="VenteMoi - Plateforme solidaire de bons d'achat"
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!-- Viewport optimisé pour iOS -->
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
 
         <!-- iOS meta tags & icons -->
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+        />
         <meta name="apple-mobile-web-app-title" content="VenteMoi" />
         <link rel="apple-touch-icon" href="icons/Icon-192.png" />
 
@@ -73,6 +80,25 @@
         </script>
 
         <style>
+            /* Styles de base */
+            * {
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+
+            /* Permettre la sélection de texte dans les inputs */
+            input,
+            textarea {
+                -webkit-user-select: text;
+                -moz-user-select: text;
+                -ms-user-select: text;
+                user-select: text;
+            }
+
             body {
                 margin: 0;
                 padding: 0;
@@ -80,8 +106,43 @@
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                     sans-serif;
                 background-color: #fafafa;
+                /* Fix pour empêcher le bounce effect sur iOS */
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
             }
 
+            /* Fix pour les inputs sur iOS - TRÈS IMPORTANT */
+            input,
+            textarea,
+            select {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                border-radius: 0;
+                /* Font-size de 16px minimum pour empêcher le zoom automatique sur iOS */
+                font-size: 16px !important;
+                /* Empêcher le zoom sur focus */
+                transform: scale(1);
+            }
+
+            /* Fix pour le focus sur iOS */
+            input:focus,
+            textarea:focus,
+            select:focus {
+                font-size: 16px !important;
+                transform: scale(1);
+            }
+
+            /* Container scrollable */
+            .scroll-container {
+                -webkit-overflow-scrolling: touch;
+                overflow-y: auto;
+                height: 100%;
+            }
+
+            /* Styles du loader */
             .loading {
                 display: flex;
                 justify-content: center;
@@ -122,6 +183,16 @@
                     transform: scale(1);
                 }
             }
+
+            /* Safe area pour iOS */
+            @supports (padding: max(0px)) {
+                body {
+                    padding-top: env(safe-area-inset-top);
+                    padding-bottom: env(safe-area-inset-bottom);
+                    padding-left: env(safe-area-inset-left);
+                    padding-right: env(safe-area-inset-right);
+                }
+            }
         </style>
 
         <!-- This script adds the flutter initialization JS code -->
@@ -136,6 +207,123 @@
         </div>
 
         <script>
+            // Détection iOS
+            const isIOS =
+                /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+                !window.MSStream;
+            const isSafari = /^((?!chrome|android).)*safari/i.test(
+                navigator.userAgent,
+            );
+
+            // Fix pour empêcher le pull-to-refresh sur iOS
+            let preventPullToRefresh = false;
+            let lastTouchY = 0;
+
+            document.addEventListener(
+                "touchstart",
+                function (e) {
+                    if (e.touches.length === 1) {
+                        lastTouchY = e.touches[0].clientY;
+                        preventPullToRefresh = window.pageYOffset === 0;
+                    }
+                },
+                { passive: false },
+            );
+
+            document.addEventListener(
+                "touchmove",
+                function (e) {
+                    if (e.touches.length !== 1) return;
+
+                    const touchY = e.touches[0].clientY;
+                    const touchYDelta = touchY - lastTouchY;
+                    lastTouchY = touchY;
+
+                    if (
+                        preventPullToRefresh &&
+                        touchYDelta > 0 &&
+                        window.pageYOffset === 0
+                    ) {
+                        e.preventDefault();
+                    }
+
+                    // Empêcher le scroll pendant qu'un input est focus
+                    if (
+                        document.activeElement &&
+                        (document.activeElement.tagName === "INPUT" ||
+                            document.activeElement.tagName === "TEXTAREA")
+                    ) {
+                        if (e.cancelable) {
+                            e.preventDefault();
+                        }
+                    }
+                },
+                { passive: false },
+            );
+
+            // Empêcher le zoom sur double tap
+            let lastTouchEnd = 0;
+            document.addEventListener(
+                "touchend",
+                function (e) {
+                    const now = new Date().getTime();
+                    if (now - lastTouchEnd <= 300) {
+                        e.preventDefault();
+                    }
+                    lastTouchEnd = now;
+                },
+                false,
+            );
+
+            // Fix pour le focus des inputs sur iOS
+            if (isIOS) {
+                document.addEventListener("focusin", function (e) {
+                    if (
+                        e.target.tagName === "INPUT" ||
+                        e.target.tagName === "TEXTAREA"
+                    ) {
+                        // Empêcher le comportement par défaut
+                        setTimeout(() => {
+                            // S'assurer que l'élément reste en focus
+                            if (document.activeElement !== e.target) {
+                                e.target.focus();
+                            }
+                            // Scroll pour rendre l'input visible
+                            e.target.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                                inline: "nearest",
+                            });
+                        }, 300);
+                    }
+                });
+
+                // Empêcher la fermeture du clavier lors du tap
+                document.addEventListener("touchstart", function (e) {
+                    if (
+                        e.target.tagName === "INPUT" ||
+                        e.target.tagName === "TEXTAREA"
+                    ) {
+                        e.stopPropagation();
+                    }
+                });
+            }
+
+            // Gérer la hauteur du viewport sur iOS
+            function setViewportHeight() {
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty("--vh", `${vh}px`);
+
+                // Fixer la hauteur du body
+                document.body.style.height = window.innerHeight + "px";
+            }
+
+            // Initialiser et écouter les changements
+            setViewportHeight();
+            window.addEventListener("resize", setViewportHeight);
+            window.addEventListener("orientationchange", setViewportHeight);
+
+            // Initialisation Flutter
             window.addEventListener("load", function (ev) {
                 // Download main.dart.js sans service worker
                 _flutter.loader.loadEntrypoint({
