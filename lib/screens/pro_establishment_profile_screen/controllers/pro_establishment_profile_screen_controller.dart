@@ -1,10 +1,12 @@
 // lib/screens/pro_establishment_profile_screen/controllers/pro_establishment_profile_screen_controller.dart
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -14,6 +16,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
 import '../../../core/models/establishment_category.dart';
+import '../../../core/models/stripe_service.dart';
 import '../../../core/models/user_type.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../widgets/cgu_payment_dialog.dart';
@@ -1085,6 +1088,431 @@ class ProEstablishmentProfileScreenController extends GetxController
     );
   }
 
-  // Reste des méthodes du controller...
-  // (openPaymentDialog, bottomSheetChildren, etc.)
+  // Dans pro_establishment_profile_screen_controller.dart
+  Future<void> purchaseAdditionalSlot() async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // Créer la session et récupérer l'URL ET l'ID
+      final result = await StripeService.to.createAdditionalSlotCheckoutWithId(
+        successUrl: 'https://app.ventemoi.fr/stripe-success.html',
+        cancelUrl: 'https://app.ventemoi.fr/stripe-cancel.html',
+      );
+
+      if (result != null &&
+          result['url'] != null &&
+          result['sessionId'] != null) {
+        // Afficher la dialog d'attente
+        _showSlotPaymentWaitingDialog(result['sessionId']!);
+
+        // Attendre un peu
+        await Future.delayed(Duration(milliseconds: 300));
+
+        // Ouvrir Stripe
+        await StripeService.to.launchCheckout(result['url']!);
+      } else {
+        throw 'Impossible de créer la session de paiement';
+      }
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Erreur lors de l\'achat: $e',
+            true,
+          );
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  // Méthode pour extraire l'ID de session de l'URL (à adapter selon votre logique)
+  Future<String?> _getSessionIdFromUrl(String checkoutUrl) async {
+    // Si vous stockez l'ID de session, récupérez-le ici
+    // Sinon, modifiez createAdditionalSlotCheckout pour retourner un Map avec url et sessionId
+    return null; // À implémenter
+  }
+
+  // Dialog d'attente pour l'achat de slot
+  void _showSlotPaymentWaitingDialog(String sessionId) {
+    StreamSubscription? subscription;
+    Timer? timeoutTimer;
+    Timer? pollingTimer;
+
+    bool paymentProcessed = false;
+    bool dialogClosed = false;
+
+    final RxString debugStatus = 'Initialisation...'.obs;
+    final RxBool isCheckingPayment = false.obs;
+
+    Get.dialog(
+      WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Container(
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              minHeight: 300,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Animation de chargement
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 4,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.orange),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 24),
+                Text(
+                  'Traitement du paiement',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Achat d\'un slot de catégorie supplémentaire',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Veuillez finaliser votre paiement dans l\'onglet Stripe.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Cette fenêtre se fermera automatiquement.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24),
+                Obx(() => Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              debugStatus.value,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    subscription?.cancel();
+                    timeoutTimer?.cancel();
+                    pollingTimer?.cancel();
+                    dialogClosed = true;
+                    Get.back();
+                  },
+                  child: Text(
+                    'Annuler',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+
+    // Fonction pour vérifier le succès
+    Future<bool> verifyPaymentSuccess(DocumentSnapshot sessionDoc) async {
+      if (!sessionDoc.exists) return false;
+
+      final data = sessionDoc.data() as Map<String, dynamic>;
+
+      final paymentStatus = data['payment_status'] as String?;
+      final status = data['status'] as String?;
+      final amountTotal = data['amount_total'] as int?;
+      final paymentIntent = data['payment_intent'] as String?;
+
+      final isPaid =
+          (paymentStatus == 'paid' || paymentStatus == 'succeeded') ||
+              (status == 'complete' || status == 'paid');
+      final hasAmount = amountTotal != null && amountTotal > 0;
+      final hasPaymentProof = paymentIntent != null;
+
+      return isPaid && hasAmount && hasPaymentProof;
+    }
+
+    // Écouter les changements
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      debugStatus.value = 'Connexion à Stripe...';
+
+      // Timeout de 5 minutes
+      timeoutTimer = Timer(Duration(minutes: 5), () {
+        if (!paymentProcessed && !dialogClosed) {
+          subscription?.cancel();
+          pollingTimer?.cancel();
+          Get.back();
+          UniquesControllers().data.snackbar(
+                'Temps écoulé',
+                'Le délai de paiement a expiré.',
+                true,
+              );
+        }
+      });
+
+      // Écouter la session
+      subscription = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId)
+          .snapshots()
+          .listen((snapshot) async {
+        if (snapshot.exists && !paymentProcessed && !dialogClosed) {
+          final data = snapshot.data()!;
+
+          debugStatus.value =
+              'Statut: ${data['payment_status'] ?? data['status'] ?? 'en attente'}';
+
+          if (await verifyPaymentSuccess(snapshot)) {
+            paymentProcessed = true;
+            debugStatus.value = '✅ Paiement confirmé!';
+
+            await Future.delayed(Duration(seconds: 1));
+
+            subscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            if (!dialogClosed) {
+              Get.back();
+              _handleSlotPaymentSuccess();
+            }
+          }
+
+          if (data['status'] == 'expired' || data['status'] == 'canceled') {
+            debugStatus.value = '❌ Paiement annulé';
+
+            subscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            if (!dialogClosed) {
+              Get.back();
+              UniquesControllers().data.snackbar(
+                    'Paiement annulé',
+                    'L\'achat du slot a été annulé',
+                    true,
+                  );
+            }
+          }
+        }
+      });
+
+      // Vérification périodique
+      pollingTimer = Timer.periodic(Duration(seconds: 3), (timer) async {
+        if (!isCheckingPayment.value && !paymentProcessed && !dialogClosed) {
+          isCheckingPayment.value = true;
+
+          try {
+            final sessionDoc = await UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('customers')
+                .doc(user.uid)
+                .collection('checkout_sessions')
+                .doc(sessionId)
+                .get();
+
+            if (await verifyPaymentSuccess(sessionDoc)) {
+              paymentProcessed = true;
+              timer.cancel();
+
+              subscription?.cancel();
+              timeoutTimer?.cancel();
+
+              if (!dialogClosed) {
+                Get.back();
+                _handleSlotPaymentSuccess();
+              }
+            }
+          } catch (e) {
+            print('Erreur vérification: $e');
+          } finally {
+            isCheckingPayment.value = false;
+          }
+        }
+      });
+    }
+  }
+
+  // Gérer le succès du paiement de slot
+  // Dans pro_establishment_profile_screen_controller.dart
+  // Remplacer _handleSlotPaymentSuccess par :
+
+  void _handleSlotPaymentSuccess() async {
+    try {
+      // Récupérer l'UID de l'utilisateur
+      final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (uid == null) return;
+
+      // Récupérer les données actualisées de l'établissement
+      final estabQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isNotEmpty) {
+        final doc = estabQuery.docs.first;
+        final data = doc.data();
+
+        // Mettre à jour le nombre de slots
+        final newSlots = data['enterprise_category_slots'] ?? 3;
+        enterpriseCategorySlots.value = newSlots;
+
+        // Ajouter un nouveau slot vide dans la liste
+        selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
+      }
+
+      UniquesControllers().data.snackbar(
+            'Slot ajouté !',
+            'Votre nouveau slot de catégorie est maintenant disponible.',
+            false,
+          );
+
+      // Forcer la mise à jour de l'interface
+      update();
+    } catch (e) {
+      print('Erreur après paiement slot: $e');
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Le slot a été ajouté mais l\'interface ne s\'est pas mise à jour. Rechargez la page.',
+            true,
+          );
+    }
+  }
+
+  // Méthode pour afficher la dialog de confirmation d'achat
+  void showPurchaseSlotDialog() {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.add_business, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text('Ajouter un slot'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Voulez-vous acheter un slot de catégorie supplémentaire ?',
+              style: TextStyle(fontSize: 16),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Prix :',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(
+                    '50,00 €',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('Annuler'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Get.back();
+              purchaseAdditionalSlot();
+            },
+            icon: Icon(Icons.credit_card),
+            label: Text('Acheter', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

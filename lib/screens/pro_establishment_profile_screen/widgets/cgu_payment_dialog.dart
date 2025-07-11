@@ -847,9 +847,12 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
 
       if (useTemporaryMode) {
         await _processTemporaryPayment();
+        UniquesControllers().data.isInAsyncCall.value = false;
       } else {
         // Fermer la dialog actuelle AVANT de créer la session
         Get.back();
+
+        UniquesControllers().data.isInAsyncCall.value = true;
 
         // Créer la session et récupérer l'URL et l'ID
         final result = await _createCheckoutSession();
@@ -857,6 +860,8 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         if (result != null &&
             result['url'] != null &&
             result['sessionId'] != null) {
+          UniquesControllers().data.isInAsyncCall.value = false;
+
           // Afficher immédiatement la dialog d'attente AVANT d'ouvrir Stripe
           _showPaymentWaitingDialog(result['sessionId']!);
 
@@ -866,11 +871,13 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           // Ouvrir Stripe dans un nouvel onglet
           await StripeService.to.launchCheckout(result['url']!);
         } else {
+          UniquesControllers().data.isInAsyncCall.value = false;
           throw 'Impossible de créer la session de paiement';
         }
       }
     } catch (e) {
       paymentProcessing.value = false;
+      UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar(
             'Erreur',
             'Une erreur est survenue lors du paiement: $e',
@@ -911,197 +918,132 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
     return null;
   }
 
-  // Nouvelle méthode pour afficher la dialog d'attente
   void _showPaymentWaitingDialog(String sessionId) {
+    // Variables pour gérer les subscriptions
     StreamSubscription? subscription;
     StreamSubscription? paymentIntentSubscription;
     StreamSubscription? estabSubscription;
     Timer? timeoutTimer;
     Timer? pollingTimer;
-    final RxBool hasUserClosedTab = false.obs;
+
+    // Contrôles pour éviter les déclenchements multiples
+    bool paymentProcessed = false;
+    bool dialogClosed = false;
+
+    // États de debug
     final RxString debugStatus = 'Initialisation...'.obs;
+    final RxBool isCheckingPayment = false.obs;
 
     Get.dialog(
       WillPopScope(
-        onWillPop: () async => false, // Empêcher la fermeture accidentelle
-        child: Dialog(
-          backgroundColor: Colors.white,
+        onWillPop: () async => false,
+        child: AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Container(
-            padding: const EdgeInsets.all(24),
+          content: Container(
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              minHeight: 300,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Animation de chargement
-                SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      CustomTheme.lightScheme().primary,
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 4,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.orange),
+                      ),
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 24),
-
+                SizedBox(height: 24),
                 Text(
-                  'Paiement en cours...',
+                  'Traitement du paiement',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
                   ),
-                ),
-
-                const SizedBox(height: 16),
-
-                Text(
-                  'Complétez votre paiement dans l\'onglet Stripe',
                   textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Veuillez finaliser votre paiement dans l\'onglet Stripe qui s\'est ouvert.',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Colors.grey[600],
                   ),
+                  textAlign: TextAlign.center,
                 ),
-
-                const SizedBox(height: 8),
-
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
+                SizedBox(height: 8),
+                Text(
+                  'Cette fenêtre se fermera automatiquement une fois le paiement confirmé.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
                   ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24),
+                Obx(() => Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons.info_outline,
-                            color: Colors.blue.shade700,
-                            size: 20,
+                            size: 16,
+                            color: Colors.grey[600],
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Ne fermez pas cette fenêtre',
+                              debugStatus.value,
                               style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: Colors.grey[600],
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'La fermeture de l\'onglet Stripe annulera le paiement',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Message d'attente animé
-                Obx(() => AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: hasUserClosedTab.value
-                          ? Text(
-                              'Vérification du paiement...',
-                              key: const ValueKey('checking'),
-                              style: TextStyle(
-                                color: Colors.orange,
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            )
-                          : Text(
-                              'En attente de confirmation...',
-                              key: const ValueKey('waiting'),
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
                     )),
-
-                // Debug info (à retirer en production)
-                Obx(() => Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'Session: ${sessionId.substring(0, 8)}...\n${debugStatus.value}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                          fontFamily: 'monospace',
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    )),
-
-                const SizedBox(height: 24),
-
-                // Bouton d'annulation
+                SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    // Afficher une confirmation avant d'annuler
-                    Get.dialog(
-                      AlertDialog(
-                        title: const Text('Annuler le paiement ?'),
-                        content: const Text(
-                          'Êtes-vous sûr de vouloir annuler le paiement ? '
-                          'Vous devrez recommencer la procédure.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Get.back(), // Fermer la confirmation
-                            child: const Text('Continuer le paiement'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              subscription?.cancel();
-                              paymentIntentSubscription?.cancel();
-                              estabSubscription?.cancel();
-                              timeoutTimer?.cancel();
-                              pollingTimer?.cancel();
-                              Get.back(); // Fermer la confirmation
-                              Get.back(); // Fermer la dialog d'attente
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                            ),
-                            child: const Text('Confirmer l\'annulation'),
-                          ),
-                        ],
-                      ),
-                    );
+                    subscription?.cancel();
+                    paymentIntentSubscription?.cancel();
+                    estabSubscription?.cancel();
+                    timeoutTimer?.cancel();
+                    pollingTimer?.cancel();
+                    dialogClosed = true;
+                    Get.back();
+                    UniquesControllers().data.snackbar(
+                          'Paiement annulé',
+                          'Vous pourrez réessayer plus tard',
+                          true,
+                        );
                   },
                   child: Text(
-                    'Annuler le paiement',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 16,
-                    ),
+                    'Annuler',
+                    style: TextStyle(color: Colors.red),
                   ),
                 ),
               ],
@@ -1112,46 +1054,56 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
       barrierDismissible: false,
     );
 
-    // Écouter les changements de la session de paiement
-    final user = UniquesControllers().data.firebaseAuth.currentUser;
+    // Fonction pour vérifier que le paiement est vraiment réussi
+    Future<bool> verifyPaymentSuccess(DocumentSnapshot sessionDoc) async {
+      if (!sessionDoc.exists) return false;
+
+      final data = sessionDoc.data() as Map<String, dynamic>;
+
+      // Vérifier plusieurs champs pour s'assurer du succès
+      final paymentStatus = data['payment_status'] as String?;
+      final status = data['status'] as String?;
+      final amountTotal = data['amount_total'] as int?;
+      final paymentIntent = data['payment_intent'] as String?;
+      final subscription = data['subscription'] as String?;
+
+      // Le paiement est réussi si :
+      // 1. payment_status est 'paid' ou 'succeeded'
+      // 2. OU status est 'complete' ou 'paid'
+      // 3. ET il y a un montant
+      // 4. ET il y a soit un payment_intent soit une subscription
+
+      final isPaid =
+          (paymentStatus == 'paid' || paymentStatus == 'succeeded') ||
+              (status == 'complete' || status == 'paid');
+      final hasAmount = amountTotal != null && amountTotal > 0;
+      final hasPaymentProof = paymentIntent != null || subscription != null;
+
+      return isPaid && hasAmount && hasPaymentProof;
+    }
+
+    // Écouter les changements de la session
+    final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      print('🔵 Début écoute session: $sessionId pour user: ${user.uid}');
-      debugStatus.value = 'Écoute session...';
+      debugStatus.value = 'Connexion à Stripe...';
 
-      // Écouter aussi la collection payments pour cette session
-      paymentIntentSubscription = UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('customers')
-          .doc(user.uid)
-          .collection('payments')
-          .orderBy('created', descending: true)
-          .limit(1)
-          .snapshots()
-          .listen((snapshot) {
-        if (snapshot.docs.isNotEmpty) {
-          final paymentData = snapshot.docs.first.data();
-          print('💳 Payment détecté: ${paymentData['status']}');
-
-          if (paymentData['status'] == 'succeeded') {
-            print('✅ Paiement réussi détecté via payments collection!');
-            subscription?.cancel();
-            paymentIntentSubscription?.cancel();
-            estabSubscription?.cancel();
-            timeoutTimer?.cancel();
-            pollingTimer?.cancel();
-
-            Get.back();
-
-            // S'assurer que l'établissement est bien activé
-            //await _ensureEstablishmentActivated();
-            _ensureEstablishmentActivated();
-
-            _handlePaymentSuccess();
-          }
+      // Timeout de 5 minutes
+      timeoutTimer = Timer(Duration(minutes: 5), () {
+        if (!paymentProcessed && !dialogClosed) {
+          subscription?.cancel();
+          paymentIntentSubscription?.cancel();
+          estabSubscription?.cancel();
+          pollingTimer?.cancel();
+          Get.back();
+          UniquesControllers().data.snackbar(
+                'Temps écoulé',
+                'Le délai de paiement a expiré. Veuillez réessayer.',
+                true,
+              );
         }
       });
 
+      // Écouter spécifiquement les changements de la session
       subscription = UniquesControllers()
           .data
           .firebaseFirestore
@@ -1161,151 +1113,101 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           .doc(sessionId)
           .snapshots()
           .listen((snapshot) async {
-        if (snapshot.exists) {
+        if (snapshot.exists && !paymentProcessed && !dialogClosed) {
           final data = snapshot.data()!;
-          print('📘 Session mise à jour: ${data.keys.join(', ')}');
 
-          // Afficher TOUS les champs pour debug
-          data.forEach((key, value) {
-            if (value != null && value.toString().isNotEmpty) {
-              print(
-                  '   - $key: ${value.runtimeType == String && (value as String).length > 50 ? '${value.substring(0, 50)}...' : value}');
+          // Debug
+          print('📘 Session mise à jour:');
+          print('   - payment_status: ${data['payment_status']}');
+          print('   - status: ${data['status']}');
+          print('   - amount_total: ${data['amount_total']}');
+
+          debugStatus.value =
+              'Statut: ${data['payment_status'] ?? data['status'] ?? 'en attente'}';
+
+          // Vérifier si c'est vraiment un succès
+          if (await verifyPaymentSuccess(snapshot)) {
+            paymentProcessed = true;
+            debugStatus.value = '✅ Paiement confirmé!';
+
+            print('✅ Paiement réussi confirmé!');
+
+            // Attendre un peu pour l'affichage
+            await Future.delayed(Duration(seconds: 1));
+
+            // Nettoyer et fermer
+            subscription?.cancel();
+            paymentIntentSubscription?.cancel();
+            estabSubscription?.cancel();
+            timeoutTimer?.cancel();
+            pollingTimer?.cancel();
+
+            if (!dialogClosed) {
+              Get.back();
+              await _ensureEstablishmentActivated();
+              _handlePaymentSuccess();
             }
-          });
-
-          // Debug: afficher tous les champs
-          debugStatus.value = 'Champs: ${data.keys.length}\n';
-
-          // Vérifier TOUS les champs possibles qui pourraient indiquer un succès
-          final bool isPaid = data['payment_status'] == 'paid' ||
-              data['payment_status'] == 'succeeded' ||
-              data['status'] == 'paid' ||
-              data['status'] == 'complete' ||
-              data['status'] == 'success' ||
-              data['payment_intent'] != null ||
-              data['subscription'] != null ||
-              data['invoice'] != null;
-
-          if (isPaid) {
-            print('✅ Paiement détecté comme réussi!');
-            subscription?.cancel();
-            paymentIntentSubscription?.cancel();
-            estabSubscription?.cancel();
-            timeoutTimer?.cancel();
-            pollingTimer?.cancel();
-
-            // Fermer la dialog d'attente
-            Get.back();
-
-            // S'assurer que l'établissement est bien activé
-            await _ensureEstablishmentActivated();
-
-            // Traiter le succès du paiement
-            await _handlePaymentSuccess();
-          } else if (data['status'] == 'expired' ||
-              data['status'] == 'canceled' ||
-              data['error'] != null) {
-            print('❌ Paiement échoué ou annulé');
-            subscription?.cancel();
-            paymentIntentSubscription?.cancel();
-            estabSubscription?.cancel();
-            timeoutTimer?.cancel();
-            pollingTimer?.cancel();
-
-            Get.back();
-            UniquesControllers().data.snackbar(
-                  'Paiement échoué',
-                  'Le paiement n\'a pas pu être complété',
-                  true,
-                );
           }
-        } else {
-          print('⚠️ Document de session non trouvé');
-          debugStatus.value = 'Session non trouvée';
-        }
-      }, onError: (error) {
-        print('❌ Erreur listener: $error');
-        debugStatus.value = 'Erreur: $error';
-      });
 
-      // Polling supplémentaire toutes les 2 secondes pendant 30 secondes, puis toutes les 5 secondes
-      int pollCount = 0;
-      pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-        pollCount++;
+          // Vérifier si c'est une annulation
+          if (data['status'] == 'expired' || data['status'] == 'canceled') {
+            debugStatus.value = '❌ Paiement annulé';
+            print('❌ Paiement annulé ou expiré');
 
-        // Après 15 tentatives (30 secondes), réduire la fréquence
-        if (pollCount == 15) {
-          timer.cancel();
-          pollingTimer =
-              Timer.periodic(const Duration(seconds: 5), (newTimer) async {
-            await _performPolling(
-                user,
-                sessionId,
-                subscription,
-                paymentIntentSubscription,
-                estabSubscription,
-                newTimer,
-                timeoutTimer);
-          });
-        } else {
-          await _performPolling(
-              user,
-              sessionId,
-              subscription,
-              paymentIntentSubscription,
-              estabSubscription,
-              timer,
-              timeoutTimer);
-        }
-      });
-
-      // Ajouter aussi un listener sur l'établissement pour détecter les changements
-      estabSubscription = UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('establishments')
-          .where('user_id', isEqualTo: user.uid)
-          .limit(1)
-          .snapshots()
-          .listen((snapshot) {
-        if (snapshot.docs.isNotEmpty) {
-          final data = snapshot.docs.first.data();
-          final hasActiveSubscription =
-              data['has_active_subscription'] ?? false;
-          final hasAcceptedContract = data['has_accepted_contract'] ?? false;
-
-          print(
-              '🏢 Établissement mis à jour - Subscription: $hasActiveSubscription, Contract: $hasAcceptedContract');
-
-          if (hasActiveSubscription && hasAcceptedContract) {
-            print('✅ Abonnement actif détecté sur l\'établissement!');
             subscription?.cancel();
             paymentIntentSubscription?.cancel();
             estabSubscription?.cancel();
             timeoutTimer?.cancel();
             pollingTimer?.cancel();
 
-            Get.back();
-
-            // Appeler handlePaymentSuccess pour s'assurer que tout est bien mis à jour
-            //await _handlePaymentSuccess();
-            _handlePaymentSuccess();
+            if (!dialogClosed) {
+              Get.back();
+              UniquesControllers().data.snackbar(
+                    'Paiement annulé',
+                    'Le paiement a été annulé ou a expiré',
+                    true,
+                  );
+            }
           }
         }
       });
 
-      // Timeout après 10 minutes
-      timeoutTimer = Timer(const Duration(minutes: 10), () {
-        subscription?.cancel();
-        paymentIntentSubscription?.cancel();
-        estabSubscription?.cancel();
-        pollingTimer?.cancel();
-        Get.back();
-        UniquesControllers().data.snackbar(
-              'Timeout',
-              'Le délai de paiement a expiré. Veuillez réessayer.',
-              true,
-            );
+      // Vérification périodique toutes les 3 secondes
+      pollingTimer = Timer.periodic(Duration(seconds: 3), (timer) async {
+        if (!isCheckingPayment.value && !paymentProcessed && !dialogClosed) {
+          isCheckingPayment.value = true;
+
+          try {
+            final sessionDoc = await UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('customers')
+                .doc(user.uid)
+                .collection('checkout_sessions')
+                .doc(sessionId)
+                .get();
+
+            if (await verifyPaymentSuccess(sessionDoc)) {
+              paymentProcessed = true;
+              timer.cancel();
+
+              subscription?.cancel();
+              paymentIntentSubscription?.cancel();
+              estabSubscription?.cancel();
+              timeoutTimer?.cancel();
+
+              if (!dialogClosed) {
+                Get.back();
+                await _ensureEstablishmentActivated();
+                _handlePaymentSuccess();
+              }
+            }
+          } catch (e) {
+            print('Erreur vérification: $e');
+          } finally {
+            isCheckingPayment.value = false;
+          }
+        }
       });
     }
   }

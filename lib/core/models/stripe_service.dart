@@ -18,6 +18,8 @@ class StripeService extends GetxService {
       'price_1ReLhpPLJZjht3nFtCCeJXQp';
   static const String PRICE_ID_ANNUAL_RECURRING =
       'price_1ReLjHPLJZjht3nFi2tzqXWu';
+  static const String PRICE_ID_ADDITIONAL_SLOT =
+      'price_1RjMd0PLJZjht3nFtfGuQWVu';
 
   // Créer ou récupérer un customer Stripe
   Future<String> _ensureStripeCustomer() async {
@@ -81,7 +83,12 @@ class StripeService extends GetxService {
     ''');
   }
 
+  // Dans StripeService - Remplacer la méthode createMonthlyOptionCheckout
+
+  // Dans StripeService - Remplacer createMonthlyOptionCheckout et createMonthlyOptionCheckoutWithId
+
   // Créer une session de checkout pour l'option mensuelle
+  // NOUVELLE VERSION : Affiche les deux montants sur la page de checkout
   Future<String?> createMonthlyOptionCheckout({
     required String userType,
     required String successUrl,
@@ -93,29 +100,206 @@ class StripeService extends GetxService {
 
       final customerId = await _ensureStripeCustomer();
 
-      // URLs de redirection avec auto-fermeture
       final successUrlWithAutoClose =
           'https://app.ventemoi.fr/stripe-success.html';
       final cancelUrlWithAutoClose =
           'https://app.ventemoi.fr/stripe-cancel.html';
 
-      // Données de la session
+      // IMPORTANT : On utilise le mode "subscription" mais on ajoute les deux items visibles
       final checkoutData = {
-        'mode': 'payment',
+        'mode': 'subscription',
         'success_url': successUrlWithAutoClose,
         'cancel_url': cancelUrlWithAutoClose,
         'line_items': [
+          // 1. Frais d'adhésion (visible sur la page de checkout)
           {
-            'price': PRICE_ID_MONTHLY_FIRST_YEAR,
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Frais d\'adhésion VenteMoi (unique)',
+                'description': 'Accès à la plateforme pour votre établissement',
+              },
+              'unit_amount': 27000, // 270€
+              'recurring': null, // Pas récurrent
+            },
+            'quantity': 1,
+          },
+          // 2. Abonnement mensuel
+          {
+            'price': PRICE_ID_MONTHLY_RECURRING, // 55€/mois
             'quantity': 1,
           }
         ],
+        'subscription_data': {
+          'metadata': {
+            'user_type': userType,
+            'user_id': customerId,
+            'subscription_type': 'monthly_with_setup',
+            'setup_fee_paid': 'true',
+          },
+        },
         'metadata': {
           'purchase_type': 'first_year_monthly',
           'user_type': userType,
           'user_id': customerId,
-          'needs_subscription': 'true', // Utiliser string au lieu de bool
-          'subscription_price_id': PRICE_ID_MONTHLY_RECURRING,
+          'includes_setup_fee': 'true',
+          'setup_fee_amount': '270',
+        },
+        'allow_promotion_codes': true,
+      };
+
+      print('🔵 Données checkout: $checkoutData');
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      print('🔵 Session créée avec ID: ${sessionRef.id}');
+
+      return await _waitForCheckoutUrl(customerId, sessionRef.id);
+    } catch (e) {
+      print('❌ Erreur création checkout mensuel: $e');
+      rethrow;
+    }
+  }
+
+  // Version avec ID
+  Future<Map<String, String>?> createMonthlyOptionCheckoutWithId({
+    required String userType,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      print(
+          '🔵 Création checkout mensuel avec ID pour user: ${_auth.currentUser?.uid}');
+
+      final customerId = await _ensureStripeCustomer();
+
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      final checkoutData = {
+        'mode': 'subscription',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          // Frais d'adhésion visibles
+          {
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Frais d\'adhésion VenteMoi (unique)',
+                'description': 'Accès à la plateforme pour votre établissement',
+              },
+              'unit_amount': 27000, // 270€
+            },
+            'quantity': 1,
+          },
+          // Abonnement mensuel
+          {
+            'price': PRICE_ID_MONTHLY_RECURRING, // 55€/mois
+            'quantity': 1,
+          }
+        ],
+        'subscription_data': {
+          'metadata': {
+            'user_type': userType,
+            'user_id': customerId,
+            'subscription_type': 'monthly_with_setup',
+          },
+        },
+        'metadata': {
+          'purchase_type': 'first_year_monthly',
+          'user_type': userType,
+          'user_id': customerId,
+          'includes_setup_fee': 'true',
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final sessionId = sessionRef.id;
+      print('🔵 Session créée avec ID: $sessionId');
+
+      final url = await _waitForCheckoutUrl(customerId, sessionId);
+
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': sessionId,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ Erreur création checkout mensuel: $e');
+      rethrow;
+    }
+  }
+
+  // Version alternative si vous voulez utiliser un seul prix de 325€ pour le premier mois
+  // (270€ adhésion + 55€ premier mois) puis 55€/mois
+  Future<String?> createMonthlyOptionCheckoutAlternative({
+    required String userType,
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      print(
+          '🔵 Création checkout mensuel alternatif pour user: ${_auth.currentUser?.uid}');
+
+      final customerId = await _ensureStripeCustomer();
+
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Créer un abonnement avec un prix spécial pour le premier mois
+      final checkoutData = {
+        'mode': 'subscription',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price': PRICE_ID_MONTHLY_RECURRING, // 55€/mois
+            'quantity': 1,
+          }
+        ],
+        'subscription_data': {
+          // Ajouter les frais d'adhésion comme élément unique sur la première facture
+          'add_invoice_items': [
+            {
+              'price_data': {
+                'currency': 'eur',
+                'product_data': {
+                  'name': 'Frais d\'adhésion VenteMoi',
+                },
+                'unit_amount': 27000, // 270€ en centimes
+              },
+              'quantity': 1,
+            }
+          ],
+          'metadata': {
+            'user_type': userType,
+            'user_id': customerId,
+            'subscription_type': 'monthly',
+          },
+        },
+        'metadata': {
+          'purchase_type': 'first_year_monthly',
+          'user_type': userType,
+          'user_id': customerId,
         },
         'allow_promotion_codes': true,
       };
@@ -193,73 +377,6 @@ class StripeService extends GetxService {
       return await _waitForCheckoutUrl(customerId, sessionRef.id);
     } catch (e) {
       print('❌ Erreur création checkout annuel: $e');
-      rethrow;
-    }
-  }
-
-  // Créer une session de checkout pour l'option mensuelle (avec ID)
-  Future<Map<String, String>?> createMonthlyOptionCheckoutWithId({
-    required String userType,
-    required String successUrl,
-    required String cancelUrl,
-  }) async {
-    try {
-      print(
-          '🔵 Création checkout mensuel avec ID pour user: ${_auth.currentUser?.uid}');
-
-      final customerId = await _ensureStripeCustomer();
-
-      // URLs de redirection avec auto-fermeture
-      final successUrlWithAutoClose =
-          'https://app.ventemoi.fr/stripe-success.html';
-      final cancelUrlWithAutoClose =
-          'https://app.ventemoi.fr/stripe-cancel.html';
-
-      // Données de la session
-      final checkoutData = {
-        'mode': 'payment',
-        'success_url': successUrlWithAutoClose,
-        'cancel_url': cancelUrlWithAutoClose,
-        'line_items': [
-          {
-            'price': PRICE_ID_MONTHLY_FIRST_YEAR,
-            'quantity': 1,
-          }
-        ],
-        'metadata': {
-          'purchase_type': 'first_year_monthly',
-          'user_type': userType,
-          'user_id': customerId,
-          'needs_subscription': 'true',
-          'subscription_price_id': PRICE_ID_MONTHLY_RECURRING,
-        },
-        'allow_promotion_codes': true,
-        'created': FieldValue.serverTimestamp(),
-      };
-
-      // Créer la session de checkout
-      final sessionRef = await _firestore
-          .collection('customers')
-          .doc(customerId)
-          .collection('checkout_sessions')
-          .add(checkoutData);
-
-      final sessionId = sessionRef.id;
-      print('🔵 Session créée avec ID: $sessionId');
-
-      // Attendre que l'URL soit générée
-      final url = await _waitForCheckoutUrl(customerId, sessionId);
-
-      if (url != null) {
-        return {
-          'url': url,
-          'sessionId': sessionId,
-        };
-      }
-
-      return null;
-    } catch (e) {
-      print('❌ Erreur création checkout mensuel: $e');
       rethrow;
     }
   }
@@ -564,20 +681,61 @@ Vérifiez que:
 
   // Créer une session de paiement pour un slot additionnel
   Future<String?> createAdditionalSlotCheckout({
-    required int priceInCents,
     required String successUrl,
     required String cancelUrl,
   }) async {
     try {
       final customerId = await _ensureStripeCustomer();
 
-      // URLs de redirection avec auto-fermeture
       final successUrlWithAutoClose =
           'https://app.ventemoi.fr/stripe-success.html';
       final cancelUrlWithAutoClose =
           'https://app.ventemoi.fr/stripe-cancel.html';
 
-      // Créer un prix à la volée pour le slot
+      final checkoutData = {
+        'mode': 'subscription',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price': PRICE_ID_ADDITIONAL_SLOT,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'additional_category_slot',
+          'user_id': customerId,
+          'purchase_type': 'category_slot',
+        },
+        'allow_promotion_codes': true,
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      return await _waitForCheckoutUrl(customerId, sessionRef.id);
+    } catch (e) {
+      print('❌ Erreur création checkout slot: $e');
+      rethrow;
+    }
+  }
+
+  // Dans stripe_service.dart
+  Future<Map<String, String>?> createAdditionalSlotCheckoutWithId({
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      final customerId = await _ensureStripeCustomer();
+
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
       final checkoutData = {
         'mode': 'payment',
         'success_url': successUrlWithAutoClose,
@@ -589,9 +747,9 @@ Vérifiez que:
               'product_data': {
                 'name': 'Slot de catégorie supplémentaire',
                 'description':
-                    'Permet d\'ajouter une catégorie d\'entreprise supplémentaire',
+                    'Accès à une catégorie d\'entreprise supplémentaire',
               },
-              'unit_amount': priceInCents,
+              'unit_amount': 5000, // 50€
             },
             'quantity': 1,
           }
@@ -599,19 +757,28 @@ Vérifiez que:
         'metadata': {
           'type': 'additional_category_slot',
           'user_id': customerId,
+          'purchase_type': 'category_slot',
         },
         'allow_promotion_codes': true,
       };
 
-      // Créer la session
       final sessionRef = await _firestore
           .collection('customers')
           .doc(customerId)
           .collection('checkout_sessions')
           .add(checkoutData);
 
-      // Attendre l'URL
-      return await _waitForCheckoutUrl(customerId, sessionRef.id);
+      final sessionId = sessionRef.id;
+      final url = await _waitForCheckoutUrl(customerId, sessionId);
+
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': sessionId,
+        };
+      }
+
+      return null;
     } catch (e) {
       print('❌ Erreur création checkout slot: $e');
       rethrow;

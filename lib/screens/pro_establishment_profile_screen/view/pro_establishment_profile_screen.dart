@@ -988,35 +988,31 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Widget de sélection en cascade
-              //
+              EnterpriseCategoryCascadingSelector(
+                categories: categories,
+                selectedIds: ec.selectedEnterpriseCategoryIds,
+                onToggle: ec.toggleEnterpriseCategory,
+                onRemove: ec.removeEnterpriseCategory,
+                maxSelections: slots,
+              ),
 
-              Row(children: [
-                EnterpriseCategoryCascadingSelector(
-                  categories: categories,
-                  selectedIds: ec.selectedEnterpriseCategoryIds,
-                  onToggle: ec.toggleEnterpriseCategory,
-                  onRemove: ec.removeEnterpriseCategory,
-                  maxSelections: slots,
-                ),
-                // Boutons d'action si modifications
-                if (hasModifications)
-                  ElevatedButton(
-                    onPressed: ec.resetEnterpriseCategoriesChanges,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+              // Boutons d'action si modifications
+              if (hasModifications)
+                ElevatedButton(
+                  onPressed: ec.resetEnterpriseCategoriesChanges,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
-                    child: Text('Annuler'),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-              ]),
+                  child: Text('Annuler'),
+                ),
 
               // Option pour acheter des slots supplémentaires
               if (slots < 5) // Limite max
@@ -1037,16 +1033,9 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle:
-                          Text('Achetez des slots supplémentaires (5€/slot)'),
+                          Text('Achetez des slots supplémentaires (50€/slot)'),
                       trailing: TextButton(
-                        onPressed: () {
-                          // Implémenter l'achat de slots
-                          Get.snackbar(
-                            'Bientôt disponible',
-                            'L\'achat de slots supplémentaires sera bientôt disponible',
-                            snackPosition: SnackPosition.BOTTOM,
-                          );
-                        },
+                        onPressed: ec.showPurchaseSlotDialog,
                         child: Text('Acheter'),
                       ),
                     ),

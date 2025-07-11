@@ -56,6 +56,7 @@ class PaymentListenerController extends GetxController {
 
       if (metadata == null) return;
 
+      final userId = metadata['user_id'] as String?;
       final purchaseType = metadata['purchase_type'] as String?;
       final paymentType = metadata['type'] as String?;
 
@@ -84,6 +85,36 @@ class PaymentListenerController extends GetxController {
               false,
             );
         _refreshCurrentController();
+      } else if (paymentType == 'additional_category_slot' ||
+          purchaseType == 'category_slot') {
+        // Incrémenter le nombre de slots
+        final estabQuery = await FirebaseFirestore.instance
+            .collection('establishments')
+            .where('user_id', isEqualTo: userId)
+            .limit(1)
+            .get();
+
+        if (estabQuery.docs.isNotEmpty) {
+          final doc = estabQuery.docs.first;
+          final currentSlots = doc.data()['enterprise_category_slots'] ?? 2;
+
+          await doc.reference.update({
+            'enterprise_category_slots': currentSlots + 1,
+          });
+
+          UniquesControllers().data.snackbar(
+                'Slot ajouté !',
+                'Votre nouveau slot de catégorie a été ajouté avec succès.',
+                false,
+              );
+
+          // Rafraîchir le contrôleur si nécessaire
+          if (Get.isRegistered<ProEstablishmentProfileScreenController>()) {
+            final controller =
+                Get.find<ProEstablishmentProfileScreenController>();
+            controller.enterpriseCategorySlots.value = currentSlots + 1;
+          }
+        }
       }
     } catch (e) {
       print('Erreur lors du traitement du paiement réussi: $e');

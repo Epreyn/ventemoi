@@ -147,71 +147,74 @@ class EnterpriseCategoryCascadingSelector extends StatelessWidget {
 
       return Padding(
         padding: EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.category, size: 18, color: Colors.orange),
-            SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          mainCat?.name ?? 'Catégorie',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      if (entry.value.length == 1 &&
-                          entry.value.first.isMainCategory)
-                        InkWell(
-                          onTap: () => onRemove(entry.value.first.id),
-                          child: Container(
-                            padding: EdgeInsets.all(4),
-                            child:
-                                Icon(Icons.close, size: 16, color: Colors.red),
-                          ),
-                        ),
-                    ],
-                  ),
-                  ...entry.value
-                      .where((c) => c.isSubCategory)
-                      .map((subcat) => Padding(
-                            padding: EdgeInsets.only(left: 16, top: 4),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.subdirectory_arrow_right,
-                                  size: 14,
-                                  color: Colors.grey,
-                                ),
-                                SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    subcat.name,
-                                    style: TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () => onRemove(subcat.id),
-                                  child: Container(
-                                    padding: EdgeInsets.all(4),
-                                    child: Icon(Icons.close,
-                                        size: 16, color: Colors.red),
-                                  ),
-                                ),
-                              ],
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 600),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.category, size: 18, color: Colors.orange),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            mainCat?.name ?? 'Catégorie',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
-                          )),
-                ],
+                          ),
+                        ),
+                        if (entry.value.length == 1 &&
+                            entry.value.first.isMainCategory)
+                          InkWell(
+                            onTap: () => onRemove(entry.value.first.id),
+                            child: Container(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(Icons.close,
+                                  size: 16, color: Colors.red),
+                            ),
+                          ),
+                      ],
+                    ),
+                    ...entry.value
+                        .where((c) => c.isSubCategory)
+                        .map((subcat) => Padding(
+                              padding: EdgeInsets.only(left: 16, top: 4),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.subdirectory_arrow_right,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      subcat.name,
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () => onRemove(subcat.id),
+                                    child: Container(
+                                      padding: EdgeInsets.all(4),
+                                      child: Icon(Icons.close,
+                                          size: 16, color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }).toList();
