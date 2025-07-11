@@ -7,11 +7,18 @@ import 'package:flutter/material.dart';
 import '../../screens/pro_establishment_profile_screen/controllers/pro_establishment_profile_screen_controller.dart'
     show ProEstablishmentProfileScreenController;
 import '../classes/unique_controllers.dart';
+import 'enterprise_category.dart';
 import 'stripe_service.dart';
 
 class PaymentListenerController extends GetxController {
   StreamSubscription<QuerySnapshot>? _paymentSubscription;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final RxString lastPaymentType = ''.obs;
+  final Rx<DateTime?> lastPaymentDate = Rx<DateTime?>(null);
+
+  final RxBool slotPaymentDetected = false.obs;
+  final RxString lastSlotSessionId = ''.obs;
 
   @override
   void onInit() {
@@ -41,83 +48,22 @@ class PaymentListenerController extends GetxController {
           change.type == DocumentChangeType.modified) {
         final sessionData = change.doc.data() as Map<String, dynamic>;
         final paymentStatus = sessionData['payment_status'] as String?;
+        final metadata = sessionData['metadata'] as Map<String, dynamic>?;
+
+        print('💰 PaymentListener - Session ${change.doc.id}:');
+        print('   - payment_status: $paymentStatus');
+        print('   - type: ${metadata?['type']}');
 
         if (paymentStatus == 'paid') {
+          // Si c'est un paiement de slot
+          if (metadata?['type'] == 'additional_category_slot') {
+            lastSlotSessionId.value = change.doc.id;
+            slotPaymentDetected.value = true;
+          }
+
           await _processSuccessfulPayment(change.doc);
         }
       }
-    }
-  }
-
-  Future<void> _processSuccessfulPayment(DocumentSnapshot sessionDoc) async {
-    try {
-      final sessionData = sessionDoc.data() as Map<String, dynamic>;
-      final metadata = sessionData['metadata'] as Map<String, dynamic>?;
-
-      if (metadata == null) return;
-
-      final userId = metadata['user_id'] as String?;
-      final purchaseType = metadata['purchase_type'] as String?;
-      final paymentType = metadata['type'] as String?;
-
-      // Traiter le paiement via le service Stripe
-      await StripeService.to.handleSuccessfulPayment(sessionDoc);
-
-      // Afficher une notification selon le type
-      if (purchaseType == 'first_year_annual') {
-        UniquesControllers().data.snackbar(
-              'Paiement réussi !',
-              'Votre abonnement annuel est activé. Un bon cadeau de 50€ vous a été attribué.',
-              false,
-            );
-        _refreshCurrentController();
-      } else if (purchaseType == 'first_year_monthly') {
-        UniquesControllers().data.snackbar(
-              'Paiement réussi !',
-              'Votre abonnement mensuel est activé. Un bon cadeau de 50€ vous a été attribué.',
-              false,
-            );
-        _refreshCurrentController();
-      } else if (paymentType == 'additional_category_slot') {
-        UniquesControllers().data.snackbar(
-              'Slot ajouté !',
-              'Votre nouveau slot de catégorie a été ajouté avec succès.',
-              false,
-            );
-        _refreshCurrentController();
-      } else if (paymentType == 'additional_category_slot' ||
-          purchaseType == 'category_slot') {
-        // Incrémenter le nombre de slots
-        final estabQuery = await FirebaseFirestore.instance
-            .collection('establishments')
-            .where('user_id', isEqualTo: userId)
-            .limit(1)
-            .get();
-
-        if (estabQuery.docs.isNotEmpty) {
-          final doc = estabQuery.docs.first;
-          final currentSlots = doc.data()['enterprise_category_slots'] ?? 2;
-
-          await doc.reference.update({
-            'enterprise_category_slots': currentSlots + 1,
-          });
-
-          UniquesControllers().data.snackbar(
-                'Slot ajouté !',
-                'Votre nouveau slot de catégorie a été ajouté avec succès.',
-                false,
-              );
-
-          // Rafraîchir le contrôleur si nécessaire
-          if (Get.isRegistered<ProEstablishmentProfileScreenController>()) {
-            final controller =
-                Get.find<ProEstablishmentProfileScreenController>();
-            controller.enterpriseCategorySlots.value = currentSlots + 1;
-          }
-        }
-      }
-    } catch (e) {
-      print('Erreur lors du traitement du paiement réussi: $e');
     }
   }
 
@@ -248,5 +194,99 @@ class PaymentListenerController extends GetxController {
       print('Erreur lors de la vérification du paiement: $e');
       return false;
     }
+  }
+
+  Future<void> _processSuccessfulPayment(DocumentSnapshot sessionDoc) async {
+    try {
+      final sessionData = sessionDoc.data() as Map<String, dynamic>;
+      final metadata = sessionData['metadata'] as Map<String, dynamic>?;
+
+      if (metadata == null) return;
+
+      final userId = metadata['user_id'] as String?;
+      final purchaseType = metadata['purchase_type'] as String?;
+      final paymentType = metadata['type'] as String?;
+
+      if (userId == null) return;
+
+      // Mettre à jour les observables
+      lastPaymentType.value = purchaseType ?? paymentType ?? '';
+      lastPaymentDate.value = DateTime.now();
+
+      // Log détaillé
+      print('💰 Paiement détecté:');
+      print('   - Type: ${purchaseType ?? paymentType}');
+      print('   - User: $userId');
+      print('   - Session: ${sessionDoc.id}');
+
+      // Traiter selon le type
+      await StripeService.to.handleSuccessfulPayment(sessionDoc);
+
+      // Notifier selon le type de paiement
+      if (paymentType == 'additional_category_slot' ||
+          purchaseType == 'category_slot') {
+        await _handleSlotPayment(userId, sessionDoc);
+      } else if (purchaseType == 'first_year_annual' ||
+          purchaseType == 'first_year_monthly') {
+        _showSuccessNotification(purchaseType!);
+        _refreshCurrentController();
+      }
+
+      // Marquer comme traité
+      await sessionDoc.reference.update({
+        'processed_by_app': true,
+        'processed_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('❌ Erreur traitement paiement: $e');
+    }
+  }
+
+  Future<void> _handleSlotPayment(
+      String userId, DocumentSnapshot sessionDoc) async {
+    final estabQuery = await FirebaseFirestore.instance
+        .collection('establishments')
+        .where('user_id', isEqualTo: userId)
+        .limit(1)
+        .get();
+
+    if (estabQuery.docs.isNotEmpty) {
+      final doc = estabQuery.docs.first;
+      final currentSlots = doc.data()['enterprise_category_slots'] ?? 2;
+
+      await doc.reference.update({
+        'enterprise_category_slots': currentSlots + 1,
+        'last_slot_purchase': FieldValue.serverTimestamp(),
+      });
+
+      print('✅ Slot ajouté. Total: ${currentSlots + 1}');
+
+      UniquesControllers().data.snackbar(
+            'Slot ajouté !',
+            'Votre nouveau slot de catégorie est disponible.',
+            false,
+          );
+
+      // Rafraîchir le contrôleur
+      if (Get.isRegistered<ProEstablishmentProfileScreenController>()) {
+        final controller = Get.find<ProEstablishmentProfileScreenController>();
+        controller.enterpriseCategorySlots.value = currentSlots + 1;
+        controller.selectedEnterpriseCategories
+            .add(Rx<EnterpriseCategory?>(null));
+        controller.update();
+      }
+    }
+  }
+
+  void _showSuccessNotification(String purchaseType) {
+    final message = purchaseType == 'first_year_annual'
+        ? 'Votre abonnement annuel est activé.'
+        : 'Votre abonnement mensuel est activé.';
+
+    UniquesControllers().data.snackbar(
+          'Paiement réussi !',
+          '$message Un bon cadeau de 50€ vous a été attribué.',
+          false,
+        );
   }
 }

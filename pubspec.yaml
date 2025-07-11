@@ -47,6 +47,14 @@ flutter:
     - images/onboarding/admin_1.png
     - images/onboarding/admin_2.png
     - images/onboarding/admin_3.png
+    - images/onboarding/boutique_1.png
+    - images/onboarding/boutique_2.png
+    - images/onboarding/boutique_3.png
+    - images/onboarding/boutique_4.png
+    - images/onboarding/entreprise_1.png
+    - images/onboarding/entreprise_2.png
+    - images/onboarding/entreprise_3.png
+    - images/onboarding/entreprise_4.png
 
   fonts:
     - family: SpaceGrotesk
@@ -61,3 +69,6 @@ flutter:
     - family: Montserrat
       fonts:
         - asset: fonts/Montserrat-Regular.ttf
+    - family: Questrial
+      fonts:
+        - asset: fonts/Questrial-Regular.ttf

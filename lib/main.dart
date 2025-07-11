@@ -8,6 +8,7 @@ import 'package:ventemoi/core/theme/custom_theme.dart';
 import 'core/models/payment_listener.dart';
 import 'core/models/stripe_service.dart';
 import 'core/routes/app_screens.dart';
+import 'core/services/stripe_payment_manager.dart';
 import 'core/theme/util.dart';
 
 import 'features/screen_layout/controllers/screen_layout_controller.dart';
@@ -18,8 +19,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Dans votre fonction main ou setupServices
   await Get.putAsync(() async => StripeService());
+  Get.put(StripePaymentManager());
   Get.put(PaymentListenerController());
 
   await GetStorage.init('Storage');

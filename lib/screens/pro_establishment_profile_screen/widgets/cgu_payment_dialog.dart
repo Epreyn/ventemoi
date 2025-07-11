@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/stripe_service.dart';
 import '../../../core/services/automatic_gift_voucher_service.dart';
+import '../../../core/services/stripe_payment_manager.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
 
@@ -829,7 +830,8 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
     );
   }
 
-  // Nouvelle méthode pour traiter le paiement avec Stripe
+  // Dans cgu_payment_dialog.dart, remplacer _processStripePayment par :
+
   Future<void> _processStripePayment() async {
     if (!acceptedCGU.value) {
       UniquesControllers().data.snackbar(
@@ -843,44 +845,29 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
     paymentProcessing.value = true;
 
     try {
-      final bool useTemporaryMode = false; // Mode production Stripe
+      final bool useTemporaryMode = false;
 
       if (useTemporaryMode) {
         await _processTemporaryPayment();
-        UniquesControllers().data.isInAsyncCall.value = false;
       } else {
-        // Fermer la dialog actuelle AVANT de créer la session
+        // Fermer la dialog CGU
         Get.back();
 
-        UniquesControllers().data.isInAsyncCall.value = true;
-
-        // Créer la session et récupérer l'URL et l'ID
-        final result = await _createCheckoutSession();
-
-        if (result != null &&
-            result['url'] != null &&
-            result['sessionId'] != null) {
-          UniquesControllers().data.isInAsyncCall.value = false;
-
-          // Afficher immédiatement la dialog d'attente AVANT d'ouvrir Stripe
-          _showPaymentWaitingDialog(result['sessionId']!);
-
-          // Attendre un peu pour que la dialog s'affiche
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          // Ouvrir Stripe dans un nouvel onglet
-          await StripeService.to.launchCheckout(result['url']!);
-        } else {
-          UniquesControllers().data.isInAsyncCall.value = false;
-          throw 'Impossible de créer la session de paiement';
-        }
+        // Utiliser le manager centralisé
+        await StripePaymentManager.to.processSubscriptionPayment(
+          userType: widget.userType,
+          paymentOption: selectedPaymentOption.value,
+          onSuccess: () async {
+            await _ensureEstablishmentActivated();
+            _handlePaymentSuccess();
+          },
+        );
       }
     } catch (e) {
       paymentProcessing.value = false;
-      UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar(
             'Erreur',
-            'Une erreur est survenue lors du paiement: $e',
+            'Une erreur est survenue: $e',
             true,
           );
     }

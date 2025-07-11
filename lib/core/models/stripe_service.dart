@@ -83,12 +83,6 @@ class StripeService extends GetxService {
     ''');
   }
 
-  // Dans StripeService - Remplacer la méthode createMonthlyOptionCheckout
-
-  // Dans StripeService - Remplacer createMonthlyOptionCheckout et createMonthlyOptionCheckoutWithId
-
-  // Créer une session de checkout pour l'option mensuelle
-  // NOUVELLE VERSION : Affiche les deux montants sur la page de checkout
   Future<String?> createMonthlyOptionCheckout({
     required String userType,
     required String successUrl,
@@ -228,15 +222,15 @@ class StripeService extends GetxService {
           .collection('checkout_sessions')
           .add(checkoutData);
 
-      final sessionId = sessionRef.id;
-      print('🔵 Session créée avec ID: $sessionId');
+      final firestoreDocId = sessionRef.id;
+      print('📄 Document Firestore créé: $firestoreDocId');
 
-      final url = await _waitForCheckoutUrl(customerId, sessionId);
+      final url = await _waitForCheckoutUrl(customerId, firestoreDocId);
 
       if (url != null) {
         return {
           'url': url,
-          'sessionId': sessionId,
+          'sessionId': firestoreDocId,
         };
       }
 
@@ -723,7 +717,6 @@ Vérifiez que:
     }
   }
 
-  // Dans stripe_service.dart
   Future<Map<String, String>?> createAdditionalSlotCheckoutWithId({
     required String successUrl,
     required String cancelUrl,
@@ -749,7 +742,7 @@ Vérifiez que:
                 'description':
                     'Accès à une catégorie d\'entreprise supplémentaire',
               },
-              'unit_amount': 5000, // 50€
+              'unit_amount': 5000,
             },
             'quantity': 1,
           }
@@ -768,13 +761,15 @@ Vérifiez que:
           .collection('checkout_sessions')
           .add(checkoutData);
 
-      final sessionId = sessionRef.id;
-      final url = await _waitForCheckoutUrl(customerId, sessionId);
+      final firestoreDocId = sessionRef.id;
+      print('📄 Document Firestore créé: $firestoreDocId');
+
+      final url = await _waitForCheckoutUrl(customerId, firestoreDocId);
 
       if (url != null) {
         return {
           'url': url,
-          'sessionId': sessionId,
+          'sessionId': firestoreDocId,
         };
       }
 

@@ -18,6 +18,7 @@ import '../../../core/models/enterprise_category.dart';
 import '../../../core/models/establishment_category.dart';
 import '../../../core/models/stripe_service.dart';
 import '../../../core/models/user_type.dart';
+import '../../../core/services/stripe_payment_manager.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../widgets/cgu_payment_dialog.dart';
 
@@ -1088,40 +1089,12 @@ class ProEstablishmentProfileScreenController extends GetxController
     );
   }
 
-  // Dans pro_establishment_profile_screen_controller.dart
   Future<void> purchaseAdditionalSlot() async {
-    try {
-      UniquesControllers().data.isInAsyncCall.value = true;
-
-      // Créer la session et récupérer l'URL ET l'ID
-      final result = await StripeService.to.createAdditionalSlotCheckoutWithId(
-        successUrl: 'https://app.ventemoi.fr/stripe-success.html',
-        cancelUrl: 'https://app.ventemoi.fr/stripe-cancel.html',
-      );
-
-      if (result != null &&
-          result['url'] != null &&
-          result['sessionId'] != null) {
-        // Afficher la dialog d'attente
-        _showSlotPaymentWaitingDialog(result['sessionId']!);
-
-        // Attendre un peu
-        await Future.delayed(Duration(milliseconds: 300));
-
-        // Ouvrir Stripe
-        await StripeService.to.launchCheckout(result['url']!);
-      } else {
-        throw 'Impossible de créer la session de paiement';
-      }
-    } catch (e) {
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Erreur lors de l\'achat: $e',
-            true,
-          );
-    } finally {
-      UniquesControllers().data.isInAsyncCall.value = false;
-    }
+    await StripePaymentManager.to.processSlotPayment(
+      onSuccess: () {
+        _handleSlotPaymentSuccess();
+      },
+    );
   }
 
   // Méthode pour extraire l'ID de session de l'URL (à adapter selon votre logique)
@@ -1393,17 +1366,15 @@ class ProEstablishmentProfileScreenController extends GetxController
     }
   }
 
-  // Gérer le succès du paiement de slot
-  // Dans pro_establishment_profile_screen_controller.dart
-  // Remplacer _handleSlotPaymentSuccess par :
-
   void _handleSlotPaymentSuccess() async {
     try {
-      // Récupérer l'UID de l'utilisateur
       final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
       if (uid == null) return;
 
-      // Récupérer les données actualisées de l'établissement
+      // Attendre que Firestore se mette à jour
+      await Future.delayed(Duration(seconds: 1));
+
+      // Recharger les données
       final estabQuery = await UniquesControllers()
           .data
           .firebaseFirestore
@@ -1416,29 +1387,22 @@ class ProEstablishmentProfileScreenController extends GetxController
         final doc = estabQuery.docs.first;
         final data = doc.data();
 
-        // Mettre à jour le nombre de slots
         final newSlots = data['enterprise_category_slots'] ?? 3;
         enterpriseCategorySlots.value = newSlots;
 
-        // Ajouter un nouveau slot vide dans la liste
+        // Ajouter un slot vide
         selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
       }
 
       UniquesControllers().data.snackbar(
             'Slot ajouté !',
-            'Votre nouveau slot de catégorie est maintenant disponible.',
+            'Votre nouveau slot est disponible.',
             false,
           );
 
-      // Forcer la mise à jour de l'interface
       update();
     } catch (e) {
       print('Erreur après paiement slot: $e');
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Le slot a été ajouté mais l\'interface ne s\'est pas mise à jour. Rechargez la page.',
-            true,
-          );
     }
   }
 
