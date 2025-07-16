@@ -1,6 +1,9 @@
-// Créer un nouveau fichier : lib/core/services/stripe_payment_manager.dart
+// lib/core/services/stripe_payment_manager.dart
 
+import 'dart:async';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/stripe_service.dart';
 import '../widgets/stripe_payment_dialog.dart';
 import '../classes/unique_controllers.dart';
@@ -13,6 +16,10 @@ class StripePaymentManager extends GetxService {
     required String userType,
     required String paymentOption, // 'monthly' ou 'annual'
     required Function() onSuccess,
+    Function(String)? onError,
+    bool enablePolling = true,
+    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = const Duration(minutes: 5),
   }) async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
@@ -36,7 +43,9 @@ class StripePaymentManager extends GetxService {
       if (result != null &&
           result['url'] != null &&
           result['sessionId'] != null) {
-        // Afficher la dialog d'attente
+        UniquesControllers().data.isInAsyncCall.value = false;
+
+        // Afficher la dialog d'attente améliorée
         StripePaymentDialog.show(
           sessionId: result['sessionId']!,
           title: 'Traitement du paiement',
@@ -44,37 +53,53 @@ class StripePaymentManager extends GetxService {
               ? 'Abonnement annuel'
               : 'Abonnement mensuel',
           onSuccess: onSuccess,
-          onError: (error) {
-            UniquesControllers().data.snackbar(
-                  'Erreur',
-                  error,
-                  true,
-                );
+          onError: onError ??
+              (error) {
+                UniquesControllers().data.snackbar(
+                      'Erreur',
+                      error,
+                      true,
+                    );
+              },
+          enablePolling: enablePolling,
+          pollingInterval: pollingInterval,
+          timeout: timeout,
+          metadata: {
+            'userType': userType,
+            'paymentOption': paymentOption,
           },
         );
 
         // Attendre que la dialog soit affichée
         await Future.delayed(Duration(milliseconds: 300));
 
-        // Ouvrir Stripe
+        // Ouvrir Stripe dans un nouvel onglet
         await StripeService.to.launchCheckout(result['url']!);
       } else {
         throw 'Impossible de créer la session de paiement';
       }
     } catch (e) {
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Erreur lors du paiement: $e',
-            true,
-          );
-    } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
+
+      if (onError != null) {
+        onError('Erreur lors du paiement: $e');
+      } else {
+        UniquesControllers().data.snackbar(
+              'Erreur',
+              'Erreur lors du paiement: $e',
+              true,
+            );
+      }
     }
   }
 
   // Paiement de slot additionnel
   Future<void> processSlotPayment({
     required Function() onSuccess,
+    Function(String)? onError,
+    bool enablePolling = true,
+    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = const Duration(minutes: 5),
   }) async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
@@ -87,17 +112,26 @@ class StripePaymentManager extends GetxService {
       if (result != null &&
           result['url'] != null &&
           result['sessionId'] != null) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+
         StripePaymentDialog.show(
           sessionId: result['sessionId']!,
           title: 'Achat de slot',
           subtitle: 'Catégorie supplémentaire',
           onSuccess: onSuccess,
-          onError: (error) {
-            UniquesControllers().data.snackbar(
-                  'Erreur',
-                  error,
-                  true,
-                );
+          onError: onError ??
+              (error) {
+                UniquesControllers().data.snackbar(
+                      'Erreur',
+                      error,
+                      true,
+                    );
+              },
+          enablePolling: enablePolling,
+          pollingInterval: pollingInterval,
+          timeout: timeout,
+          metadata: {
+            'purchaseType': 'category_slot',
           },
         );
 
@@ -107,13 +141,55 @@ class StripePaymentManager extends GetxService {
         throw 'Impossible de créer la session de paiement';
       }
     } catch (e) {
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Erreur lors de l\'achat: $e',
-            true,
-          );
-    } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
+
+      if (onError != null) {
+        onError('Erreur lors de l\'achat: $e');
+      } else {
+        UniquesControllers().data.snackbar(
+              'Erreur',
+              'Erreur lors de l\'achat: $e',
+              true,
+            );
+      }
+    }
+  }
+
+  // Méthode utilitaire pour débugger une session
+  Future<void> debugSession(String sessionId) async {
+    try {
+      await StripeService.to.debugCheckoutSession(sessionId);
+    } catch (e) {
+      print('Erreur debug session: $e');
+    }
+  }
+
+  // Méthode pour vérifier manuellement le statut d'un paiement
+  Future<bool> verifyPaymentStatus(String sessionId) async {
+    try {
+      return await StripeService.to.checkPaymentSuccess(sessionId);
+    } catch (e) {
+      print('Erreur vérification paiement: $e');
+      return false;
+    }
+  }
+
+  // Méthode pour forcer la mise à jour du statut
+  Future<void> forceCheckSessionStatus(String sessionId) async {
+    try {
+      await StripeService.to.forceCheckSessionStatus(sessionId);
+    } catch (e) {
+      print('Erreur force check: $e');
+    }
+  }
+
+  // Méthode pour vérifier via Cloud Function (optionnelle)
+  Future<bool> verifyViaCloudFunction(String sessionId) async {
+    try {
+      return await StripeService.to.verifyPaymentViaCloudFunction(sessionId);
+    } catch (e) {
+      print('Cloud Function non disponible: $e');
+      return false;
     }
   }
 }

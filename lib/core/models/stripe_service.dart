@@ -860,4 +860,218 @@ Vérifiez que:
 
     print('⏱️ Timeout - vérifiez les logs Cloud Functions');
   }
+
+  // Ajouter ces méthodes dans la classe StripeService (lib/core/models/stripe_service.dart)
+
+  // Méthode pour forcer la mise à jour du statut (en cas d'urgence)
+  Future<void> forceCheckSessionStatus(String sessionId) async {
+    print('🔄 Forçage de la vérification du statut...');
+
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Récupérer la session
+      final sessionRef = _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId);
+
+      final sessionDoc = await sessionRef.get();
+      if (!sessionDoc.exists) {
+        print('❌ Session introuvable');
+        return;
+      }
+
+      final data = sessionDoc.data()!;
+
+      // Si la session a un payment_intent mais pas de payment_status
+      if (data['payment_intent'] != null && data['payment_status'] == null) {
+        print('⚠️ Session avec payment_intent mais sans payment_status');
+        print('   → Mise à jour forcée du statut');
+
+        await sessionRef.update({
+          'payment_status': 'paid',
+          'status': 'complete',
+          'force_updated': true,
+          'force_updated_at': FieldValue.serverTimestamp(),
+        });
+
+        print('✅ Statut forcé à "paid"');
+      } else {
+        print('ℹ️ Session déjà à jour ou pas de payment_intent');
+      }
+    } catch (e) {
+      print('❌ Erreur force update: $e');
+    }
+  }
+
+  // Méthode pour vérifier via Cloud Function (optionnelle)
+  // Note: Cette méthode nécessite le déploiement d'une Cloud Function
+  Future<bool> verifyPaymentViaCloudFunction(String sessionId) async {
+    try {
+      print('☁️ Tentative de vérification via Cloud Function...');
+
+      // Si vous n'avez pas de Cloud Function déployée, retournez false
+      // Cette méthode est un placeholder pour une future implémentation
+
+      // Pour implémenter cette fonctionnalité :
+      // 1. Déployez la Cloud Function fournie précédemment
+      // 2. Remplacez ce code par l'appel réel à la fonction
+
+      // Exemple d'implémentation (décommentez si vous avez la Cloud Function) :
+      /*
+        final HttpsCallable callable = FirebaseFunctions
+            .instanceFor(region: 'europe-west1')
+            .httpsCallable('verifyPaymentStatus');
+
+        final result = await callable.call({
+          'sessionId': sessionId,
+        });
+
+        final data = result.data as Map<String, dynamic>;
+        print('☁️ Résultat: ${data['success']} - Status: ${data['status']}');
+
+        return data['success'] == true;
+        */
+
+      // Pour l'instant, retourner false car non implémenté
+      print('⚠️ Cloud Function non implémentée, utilisation du fallback');
+      return false;
+    } catch (e) {
+      print('❌ Erreur Cloud Function: $e');
+      return false;
+    }
+  }
+
+  // Méthode de debug améliorée pour vérifier la configuration
+  Future<void> debugCheckoutSession(String sessionId) async {
+    print('\n🔍 === DEBUG CHECKOUT SESSION ===\n');
+
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('❌ Aucun utilisateur connecté');
+      return;
+    }
+
+    try {
+      // 1. Vérifier la session
+      final sessionDoc = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId)
+          .get();
+
+      if (!sessionDoc.exists) {
+        print('❌ Session introuvable: $sessionId');
+        return;
+      }
+
+      final data = sessionDoc.data()!;
+      print('📄 Session trouvée:');
+      print('   ID: $sessionId');
+
+      // Afficher tous les champs
+      data.forEach((key, value) {
+        if (value is Map) {
+          print(
+              '   $key: ${value.entries.map((e) => '${e.key}=${e.value}').join(', ')}');
+        } else if (value is Timestamp) {
+          print('   $key: ${value.toDate()}');
+        } else {
+          print('   $key: $value');
+        }
+      });
+
+      // 2. Vérifier les champs critiques
+      print('\n🔎 Analyse:');
+
+      final hasUrl = data.containsKey('url');
+      final hasPaymentStatus = data.containsKey('payment_status');
+      final hasStatus = data.containsKey('status');
+      final hasPaymentIntent = data.containsKey('payment_intent');
+      final hasError = data.containsKey('error');
+
+      print('   ✓ URL générée: ${hasUrl ? '✅' : '❌'}');
+      print(
+          '   ✓ payment_status: ${hasPaymentStatus ? '✅ (${data['payment_status']})' : '❌'}');
+      print('   ✓ status: ${hasStatus ? '✅ (${data['status']})' : '❌'}');
+      print('   ✓ payment_intent: ${hasPaymentIntent ? '✅' : '❌'}');
+      print('   ✓ Erreur: ${hasError ? '❌ ${data['error']}' : '✅ Aucune'}');
+
+      // 3. Vérifier l'abonnement si c'est un mode subscription
+      if (data['mode'] == 'subscription' && data['subscription'] != null) {
+        print('\n📊 Abonnement:');
+        final subId = data['subscription'];
+
+        final subscriptions = await _firestore
+            .collection('customers')
+            .doc(user.uid)
+            .collection('subscriptions')
+            .where(FieldPath.documentId, isEqualTo: subId)
+            .get();
+
+        if (subscriptions.docs.isNotEmpty) {
+          final subData = subscriptions.docs.first.data();
+          print('   Status: ${subData['status']}');
+          print('   Créé: ${subData['created']?.toDate()}');
+        } else {
+          print('   ❌ Abonnement non trouvé dans Firestore');
+        }
+      }
+
+      // 4. Vérifier le webhook secret
+      print('\n🔌 Configuration Extension:');
+      print('   Pour vérifier les webhooks, allez dans:');
+      print('   1. Firebase Console → Extensions → firestore-stripe-payments');
+      print('   2. Cliquez sur "Reconfigure extension"');
+      print('   3. Vérifiez que STRIPE_WEBHOOK_SECRET est configuré');
+      print('   4. Dans Stripe Dashboard → Webhooks, vérifiez l\'endpoint');
+    } catch (e) {
+      print('❌ Erreur debug: $e');
+    }
+
+    print('\n=== FIN DEBUG ===\n');
+  }
+
+  // Méthode utilitaire pour vérifier si un paiement est réussi
+  Future<bool> checkPaymentSuccess(String sessionId) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final sessionDoc = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId)
+          .get();
+
+      if (!sessionDoc.exists) return false;
+
+      final data = sessionDoc.data()!;
+
+      // Vérifier plusieurs indicateurs de succès
+      final paymentStatus = data['payment_status'] as String?;
+      final status = data['status'] as String?;
+      final paymentIntent = data['payment_intent'] as String?;
+      final subscription = data['subscription'] as String?;
+      final invoice = data['invoice'] as String?;
+      final amountTotal = data['amount_total'] as int?;
+
+      final isPaid = (paymentStatus == 'paid' ||
+              paymentStatus == 'succeeded') ||
+          (status == 'complete' || status == 'paid' || status == 'success') ||
+          (paymentIntent != null || subscription != null || invoice != null);
+
+      final hasAmount = amountTotal != null && amountTotal > 0;
+
+      return isPaid && hasAmount;
+    } catch (e) {
+      print('Erreur vérification paiement: $e');
+      return false;
+    }
+  }
 }
