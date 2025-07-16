@@ -93,6 +93,23 @@
                     transform: rotate(360deg);
                 }
             }
+            .close-button {
+                margin-top: 20px;
+                padding: 12px 24px;
+                background: rgba(255, 255, 255, 0.2);
+                border: 2px solid rgba(255, 255, 255, 0.5);
+                border-radius: 8px;
+                color: white;
+                font-size: 16px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: none;
+            }
+            .close-button:hover {
+                background: rgba(255, 255, 255, 0.3);
+                border-color: white;
+                transform: translateY(-2px);
+            }
         </style>
     </head>
     <body>
@@ -108,12 +125,97 @@
             <p class="countdown" id="countdown">
                 Fermeture automatique dans 3 secondes...
             </p>
+            <button
+                class="close-button"
+                id="closeButton"
+                onclick="closeWindow()"
+            >
+                Retourner à VenteMoi
+            </button>
         </div>
 
         <script>
+            // Fonction pour fermer la fenêtre
+            function closeWindow() {
+                window.close();
+                // Si ça ne marche pas, essayer de rediriger
+                setTimeout(() => {
+                    if (window.opener) {
+                        window.opener.focus();
+                    }
+                    // En dernier recours, informer l'utilisateur
+                    document.getElementById("countdown").innerHTML =
+                        "Veuillez fermer manuellement cet onglet.";
+                }, 100);
+            }
+
+            // Envoyer immédiatement un signal d'annulation
+            function sendCancelSignal() {
+                try {
+                    // Pour les iframes
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage(
+                            {
+                                type: "stripe-payment-cancelled",
+                                status: "cancelled",
+                                timestamp: Date.now(),
+                            },
+                            "*",
+                        );
+                    }
+
+                    // Pour les WebViews Flutter
+                    if (window.flutter_inappwebview) {
+                        window.flutter_inappwebview.callHandler(
+                            "paymentCancelled",
+                            {
+                                status: "cancelled",
+                                timestamp: Date.now(),
+                            },
+                        );
+                    }
+
+                    // Essayer de notifier via localStorage (pour les autres onglets)
+                    try {
+                        localStorage.setItem(
+                            "stripe_payment_status",
+                            JSON.stringify({
+                                status: "cancelled",
+                                timestamp: Date.now(),
+                            }),
+                        );
+                        // Nettoyer après 5 secondes
+                        setTimeout(() => {
+                            localStorage.removeItem("stripe_payment_status");
+                        }, 5000);
+                    } catch (e) {
+                        // localStorage peut ne pas être disponible
+                    }
+
+                    console.log("❌ Signal d'annulation envoyé");
+                } catch (e) {
+                    console.error("Erreur envoi signal:", e);
+                }
+            }
+
+            // Envoyer le signal dès le chargement
+            sendCancelSignal();
+
+            // Renvoyer le signal toutes les secondes pendant 5 secondes
+            let signalCount = 0;
+            const signalInterval = setInterval(() => {
+                signalCount++;
+                if (signalCount < 5) {
+                    sendCancelSignal();
+                } else {
+                    clearInterval(signalInterval);
+                }
+            }, 1000);
+
             // Compte à rebours
             let seconds = 3;
             const countdownEl = document.getElementById("countdown");
+            const closeBtn = document.getElementById("closeButton");
 
             const interval = setInterval(() => {
                 seconds--;
@@ -125,19 +227,45 @@
                 }
             }, 1000);
 
-            // Tentative de fermeture de l'onglet après 3 secondes
+            // Tentatives de fermeture
             setTimeout(() => {
-                // Essayer de fermer l'onglet
+                // Première tentative
                 window.close();
 
-                // Si window.close() ne fonctionne pas (certains navigateurs le bloquent),
-                // afficher un message alternatif
+                // Deuxième tentative après 500ms
                 setTimeout(() => {
-                    countdownEl.innerHTML =
-                        "Vous pouvez fermer cet onglet.<br>Retournez à VenteMoi pour réessayer.";
-                    document.querySelector(".spinner").style.display = "none";
+                    // Si on est toujours là, essayer d'autres méthodes
+                    if (!window.closed) {
+                        // Pour Chrome/Edge
+                        window.open("", "_self", "");
+                        window.close();
+
+                        // Si on est dans un popup
+                        if (window.opener) {
+                            window.opener.focus();
+                            window.close();
+                        }
+                    }
                 }, 500);
+
+                // Après 1 seconde, afficher le bouton si toujours ouvert
+                setTimeout(() => {
+                    if (!window.closed) {
+                        countdownEl.innerHTML =
+                            "Vous pouvez fermer cet onglet.<br>Retournez à VenteMoi pour réessayer.";
+                        document.querySelector(".spinner").style.display =
+                            "none";
+                        closeBtn.style.display = "inline-block";
+                    }
+                }, 1000);
             }, 3000);
+
+            // Écouter les messages de l'app
+            window.addEventListener("message", (event) => {
+                if (event.data === "close-payment-window") {
+                    closeWindow();
+                }
+            });
         </script>
     </body>
 </html>
