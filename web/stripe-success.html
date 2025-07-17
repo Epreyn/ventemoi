@@ -5,62 +5,58 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Paiement réussi - VenteMoi</title>
         <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
             body {
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    Arial, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                margin: 0;
+                    sans-serif;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 color: white;
             }
+
             .container {
                 text-align: center;
-                padding: 40px;
                 background: rgba(255, 255, 255, 0.1);
-                backdrop-filter: blur(10px);
+                padding: 3rem;
                 border-radius: 20px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                max-width: 400px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+                max-width: 500px;
+                margin: 20px;
             }
+
             .success-icon {
                 width: 80px;
                 height: 80px;
-                margin: 0 auto 20px;
-                background-color: #4caf50;
+                margin: 0 auto 2rem;
+                background: #4caf50;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 animation: scaleIn 0.5s ease-out;
             }
+
             .checkmark {
                 width: 40px;
                 height: 40px;
                 stroke: white;
                 stroke-width: 3;
                 fill: none;
+                animation: checkmark 0.5s ease-out 0.3s forwards;
                 stroke-dasharray: 100;
-                animation: checkmark 0.8s ease-out 0.3s forwards;
+                stroke-dashoffset: 100;
             }
-            h1 {
-                margin: 20px 0;
-                font-size: 28px;
-                font-weight: 600;
-            }
-            p {
-                margin: 10px 0;
-                opacity: 0.9;
-                font-size: 18px;
-            }
-            .countdown {
-                font-size: 14px;
-                opacity: 0.7;
-                margin-top: 20px;
-            }
+
             @keyframes scaleIn {
                 from {
                     transform: scale(0);
@@ -71,44 +67,64 @@
                     opacity: 1;
                 }
             }
+
             @keyframes checkmark {
-                from {
-                    stroke-dashoffset: 100;
-                }
                 to {
                     stroke-dashoffset: 0;
                 }
             }
-            .spinner {
-                margin: 20px auto;
-                width: 40px;
-                height: 40px;
-                border: 3px solid rgba(255, 255, 255, 0.3);
-                border-top-color: white;
+
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 1rem;
+                font-weight: 600;
+            }
+
+            p {
+                font-size: 1.1rem;
+                opacity: 0.9;
+                margin-bottom: 2rem;
+                line-height: 1.6;
+            }
+
+            .countdown {
+                font-size: 1rem;
+                opacity: 0.8;
+                margin-top: 2rem;
+            }
+
+            .loading-dots {
+                display: inline-flex;
+                gap: 4px;
+            }
+
+            .dot {
+                width: 8px;
+                height: 8px;
+                background: white;
                 border-radius: 50%;
-                animation: spin 1s linear infinite;
+                opacity: 0.5;
+                animation: pulse 1.5s ease-in-out infinite;
             }
-            @keyframes spin {
-                to {
-                    transform: rotate(360deg);
+
+            .dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+
+            .dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 0.5;
+                    transform: scale(1);
                 }
-            }
-            .close-button {
-                margin-top: 20px;
-                padding: 12px 24px;
-                background: rgba(255, 255, 255, 0.2);
-                border: 2px solid rgba(255, 255, 255, 0.5);
-                border-radius: 8px;
-                color: white;
-                font-size: 16px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                display: none;
-            }
-            .close-button:hover {
-                background: rgba(255, 255, 255, 0.3);
-                border-color: white;
-                transform: translateY(-2px);
+                50% {
+                    opacity: 1;
+                    transform: scale(1.2);
+                }
             }
         </style>
     </head>
@@ -116,67 +132,65 @@
         <div class="container">
             <div class="success-icon">
                 <svg class="checkmark" viewBox="0 0 52 52">
-                    <path d="M14 27 L22 35 L38 17" />
+                    <path d="M14 27 L22 35 L38 17"></path>
                 </svg>
             </div>
+
             <h1>Paiement réussi !</h1>
-            <p>Votre paiement a été traité avec succès.</p>
-            <div class="spinner"></div>
-            <p class="countdown" id="countdown">
-                Fermeture automatique dans 3 secondes...
+            <p>
+                Votre paiement a été traité avec succès.<br />Vous allez être
+                redirigé automatiquement.
             </p>
-            <button
-                class="close-button"
-                id="closeButton"
-                onclick="closeWindow()"
-            >
-                Retourner à VenteMoi
-            </button>
+
+            <div class="countdown">
+                <span id="message">Retour à l'application</span>
+                <div class="loading-dots">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                </div>
+            </div>
         </div>
 
         <script>
-            // Fonction pour fermer la fenêtre
-            function closeWindow() {
-                window.close();
-                // Si ça ne marche pas, essayer de rediriger
-                setTimeout(() => {
-                    if (window.opener) {
-                        window.opener.focus();
-                    }
-                    // En dernier recours, informer l'utilisateur
-                    document.getElementById("countdown").innerHTML =
-                        "Veuillez fermer manuellement cet onglet.";
-                }, 100);
-            }
+            // Configuration
+            const AUTO_CLOSE_DELAY = 3000; // 3 secondes
+            const SIGNAL_INTERVAL = 500; // Envoyer un signal toutes les 500ms
+            const MAX_SIGNALS = 10; // Maximum 10 signaux (5 secondes)
 
-            // Envoyer immédiatement un signal de succès
+            // Fonction pour envoyer le signal de succès
             function sendSuccessSignal() {
+                const messageData = {
+                    type: "stripe-payment-success",
+                    status: "completed",
+                    timestamp: Date.now(),
+                    source: "stripe-success-page",
+                };
+
                 try {
-                    // Pour les iframes
+                    // 1. PostMessage pour les iframes
                     if (window.parent && window.parent !== window) {
-                        window.parent.postMessage(
-                            {
-                                type: "stripe-payment-success",
-                                status: "completed",
-                                timestamp: Date.now(),
-                            },
-                            "*",
-                        );
+                        window.parent.postMessage(messageData, "*");
+                        console.log("✅ Signal envoyé au parent iframe");
                     }
 
-                    // Pour les WebViews Flutter
-                    if (window.flutter_inappwebview) {
-                        window.flutter_inappwebview.callHandler(
-                            "paymentSuccess",
-                            {
-                                status: "completed",
-                                timestamp: Date.now(),
-                            },
-                        );
+                    // 2. PostMessage pour l'opener (si ouvert par window.open)
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage(messageData, "*");
+                        console.log("✅ Signal envoyé à l'opener");
                     }
 
-                    // Essayer de notifier via localStorage (pour les autres onglets)
-                    try {
+                    // 3. Broadcast Channel API (pour communication entre onglets)
+                    if ("BroadcastChannel" in window) {
+                        const channel = new BroadcastChannel(
+                            "stripe_payment_status",
+                        );
+                        channel.postMessage(messageData);
+                        console.log("✅ Signal envoyé via BroadcastChannel");
+                    }
+
+                    // 4. LocalStorage (fallback pour les anciens navigateurs)
+                    if (window.localStorage) {
                         localStorage.setItem(
                             "stripe_payment_status",
                             JSON.stringify({
@@ -184,86 +198,75 @@
                                 timestamp: Date.now(),
                             }),
                         );
-                        // Nettoyer après 5 secondes
+                        console.log("✅ Signal enregistré dans localStorage");
+
+                        // Nettoyer après 10 secondes
                         setTimeout(() => {
                             localStorage.removeItem("stripe_payment_status");
-                        }, 5000);
-                    } catch (e) {
-                        // localStorage peut ne pas être disponible
+                        }, 10000);
                     }
 
-                    console.log("✅ Signal de succès envoyé");
+                    // 5. WebView Flutter handler
+                    if (window.flutter_inappwebview) {
+                        window.flutter_inappwebview.callHandler(
+                            "paymentSuccess",
+                            messageData,
+                        );
+                        console.log("✅ Signal envoyé à Flutter WebView");
+                    }
                 } catch (e) {
                     console.error("Erreur envoi signal:", e);
                 }
             }
 
-            // Envoyer le signal dès le chargement
+            // Envoyer les signaux
+            let signalCount = 0;
+
+            // Premier signal immédiat
             sendSuccessSignal();
 
-            // Renvoyer le signal toutes les secondes pendant 5 secondes
-            let signalCount = 0;
+            // Signaux répétés
             const signalInterval = setInterval(() => {
                 signalCount++;
-                if (signalCount < 5) {
+                if (signalCount < MAX_SIGNALS) {
                     sendSuccessSignal();
                 } else {
                     clearInterval(signalInterval);
+                    console.log("🏁 Fin des signaux de succès");
                 }
-            }, 1000);
+            }, SIGNAL_INTERVAL);
 
-            // Compte à rebours
-            let seconds = 3;
-            const countdownEl = document.getElementById("countdown");
-            const closeBtn = document.getElementById("closeButton");
-
-            const interval = setInterval(() => {
-                seconds--;
-                if (seconds > 0) {
-                    countdownEl.textContent = `Fermeture automatique dans ${seconds} seconde${seconds > 1 ? "s" : ""}...`;
-                } else {
-                    countdownEl.textContent = "Fermeture...";
-                    clearInterval(interval);
-                }
-            }, 1000);
-
-            // Tentatives de fermeture
+            // Fermeture automatique
             setTimeout(() => {
-                // Première tentative
-                window.close();
+                document.getElementById("message").textContent =
+                    "Fermeture de la fenêtre...";
 
-                // Deuxième tentative après 500ms
+                // Essayer de fermer la fenêtre
                 setTimeout(() => {
-                    // Si on est toujours là, essayer d'autres méthodes
-                    if (!window.closed) {
-                        // Pour Chrome/Edge
-                        window.open("", "_self", "");
-                        window.close();
-
-                        // Si on est dans un popup
+                    try {
+                        // Si c'est un popup
                         if (window.opener) {
-                            window.opener.focus();
                             window.close();
-                        }
-                    }
-                }, 500);
+                        } else {
+                            // Sinon, essayer de revenir en arrière
+                            window.history.back();
 
-                // Après 1 seconde, afficher le bouton si toujours ouvert
-                setTimeout(() => {
-                    if (!window.closed) {
-                        countdownEl.innerHTML =
-                            "Retournez à VenteMoi pour continuer.";
-                        document.querySelector(".spinner").style.display =
-                            "none";
-                        closeBtn.style.display = "inline-block";
+                            // Si ça ne marche pas, rediriger vers l'app
+                            setTimeout(() => {
+                                window.location.href = "/";
+                            }, 500);
+                        }
+                    } catch (e) {
+                        console.error("Impossible de fermer la fenêtre:", e);
+                        window.location.href = "/";
                     }
                 }, 1000);
-            }, 3000);
+            }, AUTO_CLOSE_DELAY);
 
-            // Écouter les messages de l'app
+            // Écouter les messages de l'application
             window.addEventListener("message", (event) => {
-                if (event.data === "close-payment-window") {
-                    closeWindow();
+                if (event.data && event.data.type === "close-payment-window") {
+                    window.close();
                 }
             });
         </script>

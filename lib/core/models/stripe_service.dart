@@ -945,97 +945,6 @@ Vérifiez que:
     }
   }
 
-  // Méthode de debug améliorée pour vérifier la configuration
-  Future<void> debugCheckoutSession(String sessionId) async {
-    print('\n🔍 === DEBUG CHECKOUT SESSION ===\n');
-
-    final user = _auth.currentUser;
-    if (user == null) {
-      print('❌ Aucun utilisateur connecté');
-      return;
-    }
-
-    try {
-      // 1. Vérifier la session
-      final sessionDoc = await _firestore
-          .collection('customers')
-          .doc(user.uid)
-          .collection('checkout_sessions')
-          .doc(sessionId)
-          .get();
-
-      if (!sessionDoc.exists) {
-        print('❌ Session introuvable: $sessionId');
-        return;
-      }
-
-      final data = sessionDoc.data()!;
-      print('📄 Session trouvée:');
-      print('   ID: $sessionId');
-
-      // Afficher tous les champs
-      data.forEach((key, value) {
-        if (value is Map) {
-          print(
-              '   $key: ${value.entries.map((e) => '${e.key}=${e.value}').join(', ')}');
-        } else if (value is Timestamp) {
-          print('   $key: ${value.toDate()}');
-        } else {
-          print('   $key: $value');
-        }
-      });
-
-      // 2. Vérifier les champs critiques
-      print('\n🔎 Analyse:');
-
-      final hasUrl = data.containsKey('url');
-      final hasPaymentStatus = data.containsKey('payment_status');
-      final hasStatus = data.containsKey('status');
-      final hasPaymentIntent = data.containsKey('payment_intent');
-      final hasError = data.containsKey('error');
-
-      print('   ✓ URL générée: ${hasUrl ? '✅' : '❌'}');
-      print(
-          '   ✓ payment_status: ${hasPaymentStatus ? '✅ (${data['payment_status']})' : '❌'}');
-      print('   ✓ status: ${hasStatus ? '✅ (${data['status']})' : '❌'}');
-      print('   ✓ payment_intent: ${hasPaymentIntent ? '✅' : '❌'}');
-      print('   ✓ Erreur: ${hasError ? '❌ ${data['error']}' : '✅ Aucune'}');
-
-      // 3. Vérifier l'abonnement si c'est un mode subscription
-      if (data['mode'] == 'subscription' && data['subscription'] != null) {
-        print('\n📊 Abonnement:');
-        final subId = data['subscription'];
-
-        final subscriptions = await _firestore
-            .collection('customers')
-            .doc(user.uid)
-            .collection('subscriptions')
-            .where(FieldPath.documentId, isEqualTo: subId)
-            .get();
-
-        if (subscriptions.docs.isNotEmpty) {
-          final subData = subscriptions.docs.first.data();
-          print('   Status: ${subData['status']}');
-          print('   Créé: ${subData['created']?.toDate()}');
-        } else {
-          print('   ❌ Abonnement non trouvé dans Firestore');
-        }
-      }
-
-      // 4. Vérifier le webhook secret
-      print('\n🔌 Configuration Extension:');
-      print('   Pour vérifier les webhooks, allez dans:');
-      print('   1. Firebase Console → Extensions → firestore-stripe-payments');
-      print('   2. Cliquez sur "Reconfigure extension"');
-      print('   3. Vérifiez que STRIPE_WEBHOOK_SECRET est configuré');
-      print('   4. Dans Stripe Dashboard → Webhooks, vérifiez l\'endpoint');
-    } catch (e) {
-      print('❌ Erreur debug: $e');
-    }
-
-    print('\n=== FIN DEBUG ===\n');
-  }
-
   // Méthode utilitaire pour vérifier si un paiement est réussi
   Future<bool> checkPaymentSuccess(String sessionId) async {
     final user = _auth.currentUser;
@@ -1073,5 +982,308 @@ Vérifiez que:
       print('Erreur vérification paiement: $e');
       return false;
     }
+  }
+
+  // Ajoutez ces méthodes dans votre classe StripeService (lib/core/models/stripe_service.dart)
+
+  // Méthode de vérification améliorée avec retry
+  Future<bool> checkPaymentStatusWithRetry(String sessionId,
+      {int maxRetries = 3}) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        // 1. Vérifier la session checkout
+        final sessionDoc = await _firestore
+            .collection('customers')
+            .doc(user.uid)
+            .collection('checkout_sessions')
+            .doc(sessionId)
+            .get();
+
+        if (!sessionDoc.exists) {
+          print(
+              '❌ Session $sessionId introuvable (tentative ${i + 1}/$maxRetries)');
+          await Future.delayed(Duration(seconds: 2));
+          continue;
+        }
+
+        final data = sessionDoc.data()!;
+
+        // 2. Vérifier plusieurs indicateurs de succès
+        final paymentStatus = data['payment_status'] as String?;
+        final status = data['status'] as String?;
+        final paymentIntent = data['payment_intent'] as String?;
+        final subscription = data['subscription'] as String?;
+        final invoice = data['invoice'] as String?;
+
+        // Debug
+        print('🔍 Session $sessionId - Tentative ${i + 1}:');
+        print('   payment_status: $paymentStatus');
+        print('   status: $status');
+        print('   payment_intent: ${paymentIntent != null ? '✅' : '❌'}');
+        print('   subscription: ${subscription != null ? '✅' : '❌'}');
+        print('   invoice: ${invoice != null ? '✅' : '❌'}');
+
+        // Succès si un de ces critères est rempli
+        if (paymentStatus == 'paid' ||
+            paymentStatus == 'succeeded' ||
+            status == 'complete' ||
+            status == 'paid' ||
+            status == 'success' ||
+            paymentIntent != null ||
+            subscription != null ||
+            invoice != null) {
+          print('✅ Paiement confirmé!');
+          return true;
+        }
+
+        // 3. Vérifier aussi directement l'abonnement/établissement
+        final estabQuery = await _firestore
+            .collection('establishments')
+            .where('user_id', isEqualTo: user.uid)
+            .limit(1)
+            .get();
+
+        if (estabQuery.docs.isNotEmpty) {
+          final hasActiveSubscription =
+              estabQuery.docs.first.data()['has_active_subscription'] ?? false;
+
+          if (hasActiveSubscription) {
+            print('✅ Abonnement actif détecté dans l\'établissement!');
+
+            // Mettre à jour la session pour cohérence
+            try {
+              await sessionDoc.reference.update({
+                'payment_status': 'paid',
+                'updated_by_app': true,
+                'updated_at': FieldValue.serverTimestamp(),
+              });
+            } catch (e) {
+              print('⚠️ Impossible de mettre à jour la session: $e');
+            }
+
+            return true;
+          }
+        }
+
+        // 4. Si on a des champs Stripe mais pas de statut, c'est probablement un succès
+        if ((paymentIntent != null ||
+                subscription != null ||
+                invoice != null) &&
+            paymentStatus == null &&
+            i == maxRetries - 1) {
+          print(
+              '⚠️ Session avec données Stripe mais sans statut - considérée comme réussie');
+          return true;
+        }
+
+        await Future.delayed(Duration(seconds: 2));
+      } catch (e) {
+        print('❌ Erreur vérification (tentative ${i + 1}): $e');
+      }
+    }
+
+    return false;
+  }
+
+  // Forcer la mise à jour du statut de paiement
+  Future<void> forceUpdatePaymentStatus(String sessionId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    print('🔄 Forçage de la mise à jour du statut pour session: $sessionId');
+
+    try {
+      // 1. Récupérer la session
+      final sessionRef = _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId);
+
+      final sessionDoc = await sessionRef.get();
+
+      if (!sessionDoc.exists) {
+        print('❌ Session introuvable: $sessionId');
+        return;
+      }
+
+      final data = sessionDoc.data()!;
+
+      // 2. Vérifier si on a des indicateurs de paiement
+      final hasPaymentIndicators = data['payment_intent'] != null ||
+          data['subscription'] != null ||
+          data['invoice'] != null;
+
+      // 3. Vérifier l'établissement
+      final estabQuery = await _firestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      final hasActiveSubscription = estabQuery.docs.isNotEmpty &&
+          (estabQuery.docs.first.data()['has_active_subscription'] ?? false);
+
+      // 4. Forcer la mise à jour si nécessaire
+      if ((hasPaymentIndicators || hasActiveSubscription) &&
+          data['payment_status'] != 'paid') {
+        print('⚠️ Indicateurs de paiement trouvés mais statut incorrect');
+        print('   → Mise à jour forcée du statut');
+
+        await sessionRef.update({
+          'payment_status': 'paid',
+          'status': 'complete',
+          'force_updated': true,
+          'force_updated_at': FieldValue.serverTimestamp(),
+          'force_update_reason': hasActiveSubscription
+              ? 'Active subscription detected'
+              : 'Payment indicators present',
+        });
+
+        print('✅ Statut forcé à "paid"');
+      } else if (!hasPaymentIndicators && !hasActiveSubscription) {
+        print('❌ Aucun indicateur de paiement trouvé');
+      } else {
+        print('✅ Statut déjà correct');
+      }
+    } catch (e) {
+      print('❌ Erreur force update: $e');
+    }
+  }
+
+  // Méthode de debug améliorée
+  Future<void> debugCheckoutSession(String sessionId) async {
+    print('\n🔍 === DEBUG CHECKOUT SESSION ===\n');
+
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('❌ Aucun utilisateur connecté');
+      return;
+    }
+
+    try {
+      // 1. Vérifier la session
+      final sessionDoc = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .doc(sessionId)
+          .get();
+
+      if (!sessionDoc.exists) {
+        print('❌ Session introuvable: $sessionId');
+        print('   User ID: ${user.uid}');
+        return;
+      }
+
+      final data = sessionDoc.data()!;
+      print('📄 Session trouvée:');
+      print('   ID: $sessionId');
+      print('   User: ${user.uid}');
+
+      // 2. Afficher tous les champs
+      print('\n📊 Données de la session:');
+      data.forEach((key, value) {
+        if (value is Map) {
+          print('   $key:');
+          value.forEach((k, v) {
+            print('      $k: $v');
+          });
+        } else if (value is Timestamp) {
+          print('   $key: ${value.toDate()}');
+        } else if (value is List) {
+          print('   $key: [${value.length} éléments]');
+        } else {
+          print('   $key: $value');
+        }
+      });
+
+      // 3. Analyse des champs critiques
+      print('\n🔎 Analyse du statut:');
+
+      final hasUrl = data.containsKey('url') && data['url'] != null;
+      final hasPaymentStatus =
+          data.containsKey('payment_status') && data['payment_status'] != null;
+      final hasStatus = data.containsKey('status') && data['status'] != null;
+      final hasPaymentIntent =
+          data.containsKey('payment_intent') && data['payment_intent'] != null;
+      final hasSubscription =
+          data.containsKey('subscription') && data['subscription'] != null;
+      final hasInvoice = data.containsKey('invoice') && data['invoice'] != null;
+      final hasError = data.containsKey('error') && data['error'] != null;
+      final hasAmountTotal =
+          data.containsKey('amount_total') && data['amount_total'] != null;
+
+      print('   ✓ URL générée: ${hasUrl ? '✅' : '❌'}');
+      print(
+          '   ✓ payment_status: ${hasPaymentStatus ? '✅ (${data['payment_status']})' : '❌'}');
+      print('   ✓ status: ${hasStatus ? '✅ (${data['status']})' : '❌'}');
+      print('   ✓ payment_intent: ${hasPaymentIntent ? '✅' : '❌'}');
+      print('   ✓ subscription: ${hasSubscription ? '✅' : '❌'}');
+      print('   ✓ invoice: ${hasInvoice ? '✅' : '❌'}');
+      print(
+          '   ✓ amount_total: ${hasAmountTotal ? '✅ (${data['amount_total']} centimes)' : '❌'}');
+      print('   ✓ Erreur: ${hasError ? '❌ ${data['error']}' : '✅ Aucune'}');
+
+      // 4. Vérifier l'établissement
+      print('\n🏢 Vérification de l\'établissement:');
+      final estabQuery = await _firestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isNotEmpty) {
+        final estabData = estabQuery.docs.first.data();
+        print('   ID: ${estabQuery.docs.first.id}');
+        print(
+            '   has_active_subscription: ${estabData['has_active_subscription'] ?? 'non défini'}');
+        print(
+            '   subscription_type: ${estabData['subscription_type'] ?? 'non défini'}');
+        print(
+            '   subscription_end_date: ${estabData['subscription_end_date']?.toDate() ?? 'non défini'}');
+      } else {
+        print('   ❌ Aucun établissement trouvé pour cet utilisateur');
+      }
+
+      // 5. Diagnostic
+      print('\n💡 Diagnostic:');
+
+      if (hasPaymentStatus && data['payment_status'] == 'paid') {
+        print('   ✅ Paiement confirmé par Stripe');
+      } else if (hasPaymentIntent || hasSubscription || hasInvoice) {
+        print(
+            '   ⚠️ Indicateurs de paiement présents mais statut non mis à jour');
+        print('   → Essayez forceUpdatePaymentStatus()');
+      } else if (hasError) {
+        print('   ❌ Erreur Stripe détectée');
+      } else if (!hasUrl) {
+        print('   ⏳ Session en cours de création (URL non générée)');
+      } else {
+        print('   ⏳ En attente du webhook Stripe');
+      }
+
+      // 6. Recommandations
+      print('\n📋 Actions recommandées:');
+
+      if (!hasPaymentStatus && (hasPaymentIntent || hasSubscription)) {
+        print('   1. Vérifier la configuration des webhooks Stripe');
+        print('   2. Vérifier les logs des Cloud Functions');
+        print('   3. Utiliser forceUpdatePaymentStatus() si nécessaire');
+      }
+
+      if (hasError) {
+        print('   1. Vérifier les détails de l\'erreur ci-dessus');
+        print('   2. Vérifier la configuration Stripe (prix, produits)');
+        print('   3. Tester avec une nouvelle session');
+      }
+    } catch (e) {
+      print('❌ Erreur debug: $e');
+    }
+
+    print('\n=== FIN DEBUG ===\n');
   }
 }

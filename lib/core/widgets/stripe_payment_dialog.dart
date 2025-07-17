@@ -1,16 +1,18 @@
 // lib/core/widgets/stripe_payment_dialog.dart
+// Version simplifiée et corrigée
 
 import 'dart:async';
-import 'dart:html' as html;
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../classes/unique_controllers.dart';
+import 'dart:html' as html;
+import '../models/stripe_service.dart';
 
 class StripePaymentDialog {
+  static bool _isProcessing = false; // Guard contre les doublons
   static bool _isListeningToMessages = false;
   static StreamSubscription? _messageSubscription;
   static Timer? _localStorageTimer;
@@ -18,7 +20,7 @@ class StripePaymentDialog {
   static void show({
     required String sessionId,
     required String title,
-    required String subtitle,
+    String? subtitle,
     required Function() onSuccess,
     Function(String)? onError,
     bool enablePolling = true,
@@ -26,173 +28,186 @@ class StripePaymentDialog {
     Duration timeout = const Duration(minutes: 5),
     Map<String, dynamic>? metadata,
   }) {
-    // Variables pour gérer les subscriptions
-    StreamSubscription? subscription;
-    Timer? timeoutTimer;
-    Timer? pollingTimer;
+    // Éviter les doublons
+    if (_isProcessing) {
+      print('⚠️ Paiement déjà en cours, ignoré');
+      return;
+    }
+    _isProcessing = true;
 
-    // Contrôles pour éviter les déclenchements multiples
+    // Variables d'état locales
     bool paymentProcessed = false;
     bool dialogClosed = false;
 
-    // États de debug
-    final RxString debugStatus = 'Initialisation...'.obs;
+    // Variables observables pour l'UI
     final RxBool isCheckingPayment = false.obs;
     final RxInt attemptCount = 0.obs;
+    final RxString debugStatus = 'Initialisation...'.obs;
+    final RxInt consecutiveSuccessChecks = 0.obs;
 
-    // Commencer à écouter les messages des pages HTML
-    _startListeningToHtmlMessages(
-      sessionId: sessionId,
-      onSuccess: () {
-        if (!paymentProcessed && !dialogClosed) {
-          paymentProcessed = true;
-          subscription?.cancel();
-          pollingTimer?.cancel();
-          timeoutTimer?.cancel();
-          Get.back();
-          onSuccess();
-        }
-      },
-      onCancel: () {
-        if (!dialogClosed) {
-          subscription?.cancel();
-          pollingTimer?.cancel();
-          timeoutTimer?.cancel();
-          Get.back();
-          onError?.call('Paiement annulé');
-        }
-      },
-    );
+    // Timers et subscriptions
+    Timer? pollingTimer;
+    Timer? timeoutTimer;
+    StreamSubscription? firestoreSubscription;
 
+    // Fonction de nettoyage
+    void cleanup() {
+      pollingTimer?.cancel();
+      timeoutTimer?.cancel();
+      firestoreSubscription?.cancel();
+      _stopListeningToHtmlMessages();
+      _isProcessing = false;
+      dialogClosed = true;
+    }
+
+    // Callback de succès
+    void handleSuccess() {
+      if (!paymentProcessed && !dialogClosed) {
+        paymentProcessed = true;
+        cleanup();
+        Get.back();
+        onSuccess();
+      }
+    }
+
+    // Callback d'erreur
+    void handleError(String error) {
+      if (!dialogClosed) {
+        cleanup();
+        Get.back();
+        onError?.call(error);
+      }
+    }
+
+    // Afficher la dialog
     Get.dialog(
       WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
+        onWillPop: () async {
+          cleanup();
+          return true;
+        },
+        child: Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          content: Container(
-            constraints: BoxConstraints(
-              maxWidth: 400,
-              minHeight: 300,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Animation de chargement
                 Container(
-                  width: 120,
-                  height: 120,
+                  width: 80,
+                  height: 80,
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    shape: BoxShape.circle,
+                    color: Colors.purple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(40),
                   ),
-                  child: Center(
-                    child: SizedBox(
-                      width: 60,
-                      height: 60,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 4,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.orange),
-                      ),
-                    ),
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.purple),
+                    strokeWidth: 3,
                   ),
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: 20),
+
+                // Titre
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 12),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.w500,
+                if (subtitle != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Veuillez finaliser votre paiement dans l\'onglet Stripe qui s\'est ouvert.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Cette fenêtre se fermera automatiquement une fois le paiement confirmé.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 24),
-                Obx(() => Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                ],
+                const SizedBox(height: 20),
+
+                // Status
+                Obx(() => Text(
+                      debugStatus.value,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 16,
-                                color: Colors.grey[600],
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  debugStatus.value,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (attemptCount.value > 0)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                'Tentative ${attemptCount.value}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ),
-                        ],
+                      textAlign: TextAlign.center,
+                    )),
+                const SizedBox(height: 8),
+
+                // Compteur de tentatives
+                Obx(() => Text(
+                      'Vérification ${attemptCount.value > 0 ? "(${attemptCount.value})" : ""}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[400],
                       ),
                     )),
-                SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // Instructions
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue[700],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Complétez votre paiement dans l\'onglet Stripe',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Bouton d'annulation
                 TextButton(
                   onPressed: () {
-                    subscription?.cancel();
-                    pollingTimer?.cancel();
-                    timeoutTimer?.cancel();
-                    dialogClosed = true;
-                    Get.back();
-                    onError?.call('Paiement annulé par l\'utilisateur');
+                    handleError('Paiement annulé par l\'utilisateur');
                   },
                   child: Text(
                     'Annuler',
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -201,165 +216,184 @@ class StripePaymentDialog {
         ),
       ),
       barrierDismissible: false,
-    ).then((_) {
-      dialogClosed = true;
-      subscription?.cancel();
-      timeoutTimer?.cancel();
-      pollingTimer?.cancel();
-      _stopListeningToHtmlMessages();
+    ).whenComplete(() {
+      cleanup();
     });
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      debugStatus.value = 'Connexion à Stripe...';
-
-      // Timeout global
-      timeoutTimer = Timer(timeout, () {
-        if (!paymentProcessed && !dialogClosed) {
-          subscription?.cancel();
-          pollingTimer?.cancel();
-          Get.back();
-          onError?.call('Le délai de paiement a expiré. Veuillez réessayer.');
-        }
-      });
-
-      // 1. Écouter les changements en temps réel dans Firestore
-      subscription = FirebaseFirestore.instance
-          .collection('customers')
-          .doc(user.uid)
-          .collection('checkout_sessions')
-          .doc(sessionId)
-          .snapshots()
-          .listen((snapshot) async {
-        if (snapshot.exists && !paymentProcessed && !dialogClosed) {
-          final data = snapshot.data()!;
-
-          debugStatus.value =
-              'Statut: ${data['payment_status'] ?? data['status'] ?? 'en attente'}';
-
-          // Vérifier le succès avec plusieurs indicateurs
-          if (_isPaymentSuccessful(data)) {
-            paymentProcessed = true;
-            debugStatus.value = '✅ Paiement confirmé!';
-
-            print('✅ Paiement réussi détecté par listener!');
-
-            await Future.delayed(Duration(seconds: 1));
-
-            subscription?.cancel();
-            timeoutTimer?.cancel();
-            pollingTimer?.cancel();
-
-            if (!dialogClosed) {
-              Get.back();
-              onSuccess();
-            }
-          }
-
-          // Vérifier si c'est une annulation
-          if (_isPaymentCancelled(data)) {
-            debugStatus.value = '❌ Paiement annulé';
-            print('❌ Paiement annulé ou expiré');
-
-            subscription?.cancel();
-            timeoutTimer?.cancel();
-            pollingTimer?.cancel();
-
-            if (!dialogClosed) {
-              Get.back();
-              onError?.call('Le paiement a été annulé ou a expiré');
-            }
-          }
-
-          // Gérer les erreurs
-          if (data['error'] != null) {
-            final error = data['error'];
-            debugStatus.value = '❌ Erreur: ${error['message'] ?? error}';
-            print('❌ Erreur Stripe: $error');
-
-            subscription?.cancel();
-            timeoutTimer?.cancel();
-            pollingTimer?.cancel();
-
-            if (!dialogClosed) {
-              Get.back();
-              onError?.call('Erreur: ${error['message'] ?? error}');
-            }
-          }
-        }
-      });
-
-      // 2. Polling si activé
-      if (enablePolling) {
-        pollingTimer = Timer.periodic(pollingInterval, (timer) async {
-          if (!isCheckingPayment.value && !paymentProcessed && !dialogClosed) {
-            isCheckingPayment.value = true;
-            attemptCount.value++;
-
-            try {
-              debugStatus.value = 'Vérification en cours...';
-
-              // Vérifier la session
-              final sessionDoc = await FirebaseFirestore.instance
-                  .collection('customers')
-                  .doc(user.uid)
-                  .collection('checkout_sessions')
-                  .doc(sessionId)
-                  .get();
-
-              if (sessionDoc.exists &&
-                  _isPaymentSuccessful(sessionDoc.data()!)) {
-                paymentProcessed = true;
-                debugStatus.value = '✅ Paiement confirmé par polling!';
-                timer.cancel();
-
-                subscription?.cancel();
-                timeoutTimer?.cancel();
-
-                if (!dialogClosed) {
-                  Get.back();
-                  onSuccess();
-                }
-              }
-
-              // Vérifier aussi directement l'établissement
-              final estabQuery = await FirebaseFirestore.instance
-                  .collection('establishments')
-                  .where('user_id', isEqualTo: user.uid)
-                  .limit(1)
-                  .get();
-
-              if (estabQuery.docs.isNotEmpty) {
-                final estabData = estabQuery.docs.first.data();
-                final hasActiveSubscription =
-                    estabData['has_active_subscription'] ?? false;
-
-                if (hasActiveSubscription && !paymentProcessed) {
-                  print('✅ Abonnement actif détecté dans l\'établissement');
-                  paymentProcessed = true;
-                  timer.cancel();
-
-                  subscription?.cancel();
-                  timeoutTimer?.cancel();
-
-                  if (!dialogClosed) {
-                    Get.back();
-                    onSuccess();
-                  }
-                }
-              }
-            } catch (e) {
-              print('Erreur vérification: $e');
-            } finally {
-              isCheckingPayment.value = false;
-            }
-          }
-        });
-      }
-    }
+    // Démarrer les vérifications
+    _startAllVerifications(
+      sessionId: sessionId,
+      handleSuccess: handleSuccess,
+      handleError: handleError,
+      enablePolling: enablePolling,
+      pollingInterval: pollingInterval,
+      timeout: timeout,
+      isCheckingPayment: isCheckingPayment,
+      attemptCount: attemptCount,
+      debugStatus: debugStatus,
+      consecutiveSuccessChecks: consecutiveSuccessChecks,
+      paymentProcessed: () => paymentProcessed,
+      dialogClosed: () => dialogClosed,
+      setPollingTimer: (timer) => pollingTimer = timer,
+      setTimeoutTimer: (timer) => timeoutTimer = timer,
+      setFirestoreSubscription: (sub) => firestoreSubscription = sub,
+    );
   }
 
-  // Écouter les messages postMessage depuis les pages HTML
+  // Méthode qui gère toutes les vérifications
+  static void _startAllVerifications({
+    required String sessionId,
+    required Function() handleSuccess,
+    required Function(String) handleError,
+    required bool enablePolling,
+    required Duration pollingInterval,
+    required Duration timeout,
+    required RxBool isCheckingPayment,
+    required RxInt attemptCount,
+    required RxString debugStatus,
+    required RxInt consecutiveSuccessChecks,
+    required bool Function() paymentProcessed,
+    required bool Function() dialogClosed,
+    required Function(Timer?) setPollingTimer,
+    required Function(Timer?) setTimeoutTimer,
+    required Function(StreamSubscription?) setFirestoreSubscription,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      handleError('Utilisateur non connecté');
+      return;
+    }
+
+    debugStatus.value = 'Configuration de l\'écoute...';
+
+    // 1. Écouter les changements Firestore en temps réel
+    final firestoreSubscription = FirebaseFirestore.instance
+        .collection('customers')
+        .doc(user.uid)
+        .collection('checkout_sessions')
+        .doc(sessionId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+      print(
+          '📊 Firestore update: payment_status=${data['payment_status']}, status=${data['status']}');
+
+      // Vérifier le succès
+      if (_isPaymentSuccessful(data) && !paymentProcessed()) {
+        debugStatus.value = '✅ Paiement confirmé !';
+        handleSuccess();
+      }
+
+      // Vérifier les erreurs
+      if (data.containsKey('error') && data['error'] != null) {
+        final error = data['error'];
+        debugStatus.value = '❌ Erreur: ${error['message'] ?? error}';
+        handleError('Erreur: ${error['message'] ?? error}');
+      }
+    });
+    setFirestoreSubscription(firestoreSubscription);
+
+    // 2. Écouter les messages web (pour le retour des pages HTML)
+    if (kIsWeb) {
+      _startListeningToHtmlMessages(
+        sessionId: sessionId,
+        onSuccess: () {
+          if (!paymentProcessed()) {
+            debugStatus.value = '✅ Paiement confirmé (via page web) !';
+            handleSuccess();
+          }
+        },
+        onCancel: () {
+          if (!paymentProcessed() && !dialogClosed()) {
+            handleError('Paiement annulé');
+          }
+        },
+      );
+    }
+
+    // 3. Polling actif si activé
+    if (enablePolling) {
+      debugStatus.value = 'Vérification du paiement...';
+
+      final pollingTimer = Timer.periodic(pollingInterval, (timer) async {
+        if (!isCheckingPayment.value &&
+            !paymentProcessed() &&
+            !dialogClosed()) {
+          isCheckingPayment.value = true;
+          attemptCount.value++;
+
+          try {
+            // Vérifier directement dans Firestore
+            final sessionDoc = await FirebaseFirestore.instance
+                .collection('customers')
+                .doc(user.uid)
+                .collection('checkout_sessions')
+                .doc(sessionId)
+                .get();
+
+            if (sessionDoc.exists) {
+              final data = sessionDoc.data()!;
+
+              if (_isPaymentSuccessful(data)) {
+                consecutiveSuccessChecks.value++;
+                debugStatus.value =
+                    'Paiement détecté (${consecutiveSuccessChecks.value}/2)...';
+
+                // Confirmer avec 2 vérifications consécutives
+                if (consecutiveSuccessChecks.value >= 2) {
+                  debugStatus.value = '✅ Paiement confirmé !';
+                  timer.cancel();
+                  handleSuccess();
+                }
+              } else {
+                consecutiveSuccessChecks.value = 0;
+              }
+            }
+
+            // Vérifier aussi l'établissement directement
+            final estabQuery = await FirebaseFirestore.instance
+                .collection('establishments')
+                .where('user_id', isEqualTo: user.uid)
+                .limit(1)
+                .get();
+
+            if (estabQuery.docs.isNotEmpty) {
+              final estabData = estabQuery.docs.first.data();
+              final hasActiveSubscription =
+                  estabData['has_active_subscription'] ?? false;
+
+              if (hasActiveSubscription && !paymentProcessed()) {
+                print('✅ Abonnement actif détecté dans l\'établissement');
+                debugStatus.value = '✅ Paiement confirmé (via établissement) !';
+                timer.cancel();
+                handleSuccess();
+              }
+            }
+          } catch (e) {
+            print('Erreur vérification: $e');
+            consecutiveSuccessChecks.value = 0;
+          } finally {
+            isCheckingPayment.value = false;
+          }
+        }
+      });
+      setPollingTimer(pollingTimer);
+    }
+
+    // 4. Timeout
+    final timeoutTimer = Timer(timeout, () {
+      if (!paymentProcessed() && !dialogClosed()) {
+        debugStatus.value = '⏱️ Délai dépassé';
+        handleError(
+            'Délai de vérification dépassé. Veuillez vérifier votre paiement.');
+      }
+    });
+    setTimeoutTimer(timeoutTimer);
+  }
+
+  // Méthodes d'écoute pour le web
   static void _startListeningToHtmlMessages({
     required String sessionId,
     required Function() onSuccess,
@@ -386,9 +420,11 @@ class StripePaymentDialog {
           // Vérifier si c'est un message de nos pages Stripe
           if (messageData['type'] == 'stripe-payment-success') {
             print('✅ Message de succès reçu de la page Stripe!');
+            html.window.localStorage.remove('stripe_payment_status');
             onSuccess();
           } else if (messageData['type'] == 'stripe-payment-cancelled') {
             print('❌ Message d\'annulation reçu de la page Stripe!');
+            html.window.localStorage.remove('stripe_payment_status');
             onCancel();
           }
         }
@@ -445,11 +481,5 @@ class StripePaymentDialog {
     final hasAmount = amountTotal != null && amountTotal > 0;
 
     return isPaid && hasAmount;
-  }
-
-  // Vérifier si le paiement est annulé
-  static bool _isPaymentCancelled(Map<String, dynamic> data) {
-    final status = data['status'] as String?;
-    return status == 'expired' || status == 'canceled' || status == 'cancelled';
   }
 }
