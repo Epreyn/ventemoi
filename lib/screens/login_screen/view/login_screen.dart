@@ -169,7 +169,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      'v 1.6.3',
+                      'v 1.6.6',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -187,184 +187,192 @@ class LoginScreen extends StatelessWidget {
   }
 
   Widget _buildLoginForm(LoginScreenController cc, BuildContext context) {
-    return Form(
-      child: Column(
-        children: [
-          // Logo et titre intégrés
-          CustomCardAnimation(
-            index: 1,
-            child: Column(
-              children: [
-                // Stack pour superposer le logo et le texte
-                Stack(
-                  alignment: Alignment.center,
-                  clipBehavior: Clip.none, // Permet au logo de dépasser
-                  children: [
-                    // Logo en arrière-plan avec opacité
-                    Positioned(
-                      top: -20,
-                      child: Opacity(
-                        opacity: 0.15,
-                        child: SizedBox(
-                          width: 140,
-                          height: 140,
-                          child: const CustomLogo(),
-                        ),
+    // return Form(
+    // child:
+    return Column(
+      children: [
+        // Logo et titre intégrés
+        CustomCardAnimation(
+          key: Key('login_screen_logo'),
+          index: 1,
+          child: Column(
+            children: [
+              // Stack pour superposer le logo et le texte
+              Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none, // Permet au logo de dépasser
+                children: [
+                  // Logo en arrière-plan avec opacité
+                  Positioned(
+                    top: -20,
+                    child: Opacity(
+                      opacity: 0.15,
+                      child: SizedBox(
+                        width: 140,
+                        height: 140,
+                        child: const CustomLogo(),
                       ),
                     ),
+                  ),
 
-                    // Contenu principal
-                    Column(
-                      children: [
-                        const SizedBox(height: 20),
+                  // Contenu principal
+                  Column(
+                    children: [
+                      const SizedBox(height: 20),
 
-                        // Titre principal en noir
-                        const Text(
-                          'VENTE MOI',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 4,
-                            color: Colors.black, // Changé en noir
-                            height: 1,
-                          ),
+                      // Titre principal en noir
+                      const Text(
+                        'VENTE MOI',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                          color: Colors.black, // Changé en noir
+                          height: 1,
                         ),
-                        const SizedBox(height: 8),
+                      ),
+                      const SizedBox(height: 8),
 
-                        // Sous-titre
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 6),
-                          decoration: BoxDecoration(
+                      // Sous-titre
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: CustomTheme.lightScheme()
+                              .primary
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
                             color: CustomTheme.lightScheme()
                                 .primary
-                                .withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: CustomTheme.lightScheme()
-                                  .primary
-                                  .withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            'Le Don des Affaires',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: CustomTheme.lightScheme().primary,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 2,
-                            ),
+                                .withOpacity(0.3),
+                            width: 1,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 40),
-
-          // Champ Email
-          CustomCardAnimation(
-            index: 2,
-            child: CustomTextFormField(
-              tag: cc.emailTag,
-              controller: cc.emailController,
-              labelText: cc.emailLabel,
-              iconData: cc.emailIconData,
-              keyboardType: cc.emailInputType,
-              textInputAction: cc.emailInputAction,
-              validatorPattern:
-                  r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-              errorText: cc.emailError,
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Champ Mot de passe
-          CustomCardAnimation(
-            index: 3,
-            child: CustomTextFormField(
-              tag: cc.passwordTag,
-              controller: cc.passwordController,
-              labelText: cc.passwordLabel,
-              iconData: cc.passwordIconData,
-              isPassword: true,
-              keyboardType: cc.passwordInputType,
-              textInputAction: cc.passwordInputAction,
-              validatorPattern: r'^.{6,}$',
-              errorText: cc.passwordError,
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Mot de passe oublié
-          CustomCardAnimation(
-            index: 4,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: cc.passwordScreenOnPressed,
-                child: Text(
-                  cc.forgotPasswordLabel,
-                  style: TextStyle(
-                    color: CustomTheme.lightScheme().primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                        child: Text(
+                          'Le Don des Affaires',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: CustomTheme.lightScheme().primary,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 40),
+
+        // Champ Email
+        CustomCardAnimation(
+          key: Key('email_card'),
+          index: 2,
+          child: CustomTextFormField(
+            tag: cc.emailTag,
+            controller: cc.emailController,
+            labelText: cc.emailLabel,
+            iconData: cc.emailIconData,
+            keyboardType: cc.emailInputType,
+            textInputAction: cc.emailInputAction,
+            validatorPattern:
+                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+            errorText: cc.emailError,
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Champ Mot de passe
+        CustomCardAnimation(
+          key: Key('password_card'),
+          index: 3,
+          child: CustomTextFormField(
+            tag: cc.passwordTag,
+            controller: cc.passwordController,
+            labelText: cc.passwordLabel,
+            iconData: cc.passwordIconData,
+            isPassword: true,
+            keyboardType: cc.passwordInputType,
+            textInputAction: cc.passwordInputAction,
+            validatorPattern: r'^.{6,}$',
+            errorText: cc.passwordError,
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Mot de passe oublié
+        CustomCardAnimation(
+          key: Key('forgot_password_card'),
+          index: 4,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: cc.passwordScreenOnPressed,
+              child: Text(
+                cc.forgotPasswordLabel,
+                style: TextStyle(
+                  color: CustomTheme.lightScheme().primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
             ),
           ),
+        ),
 
-          const SizedBox(height: 32),
+        const SizedBox(height: 32),
 
-          // Bouton de connexion
-          CustomCardAnimation(
-            index: 5,
-            child: CustomFABButton(
-              tag: cc.connectionTag,
-              text: cc.connectionLabel,
-              iconData: cc.connectionIconData,
-              onPressed: cc.login,
-            ),
+        // Bouton de connexion
+        CustomCardAnimation(
+          key: Key('login_screen_login_button'),
+          index: 5,
+          child: CustomFABButton(
+            tag: cc.connectionTag,
+            text: cc.connectionLabel,
+            iconData: cc.connectionIconData,
+            onPressed: cc.login,
           ),
+        ),
 
-          const SizedBox(height: 24),
+        const SizedBox(height: 24),
 
-          // Divider
-          CustomCardAnimation(
-            index: 6,
-            child: CustomDivider(
-              tag: cc.dividerTag,
-              text: cc.dividerLabel,
-              dividerColor: Colors.grey.withOpacity(0.3),
-              dividerTextColor: Colors.grey[600],
-              width: cc.dividerWidth,
-            ),
+        // Divider
+        CustomCardAnimation(
+          key: Key('login_screen_divider'),
+          index: 6,
+          child: CustomDivider(
+            tag: cc.dividerTag,
+            text: cc.dividerLabel,
+            dividerColor: Colors.grey.withOpacity(0.3),
+            dividerTextColor: Colors.grey[600],
+            width: cc.dividerWidth,
           ),
+        ),
 
-          const SizedBox(height: 24),
+        const SizedBox(height: 24),
 
-          // Bouton d'inscription
-          CustomCardAnimation(
-            index: 7,
-            child: CustomFABButton(
-              tag: cc.registerTag,
-              text: cc.registerLabel,
-              iconData: cc.registerIconData,
-              onPressed: cc.registerScreenOnPressed,
-              backgroundColor: Colors.grey[900],
-              foregroundColor: Colors.white,
-            ),
+        // Bouton d'inscription
+        CustomCardAnimation(
+          key: Key('login_screen_register_button'),
+          index: 7,
+          child: CustomFABButton(
+            tag: cc.registerTag,
+            text: cc.registerLabel,
+            iconData: cc.registerIconData,
+            onPressed: cc.registerScreenOnPressed,
+            backgroundColor: Colors.grey[900],
+            foregroundColor: Colors.white,
           ),
-        ],
-      ),
+        ),
+      ],
+      // ),
     );
   }
 }

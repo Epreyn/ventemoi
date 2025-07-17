@@ -1,5 +1,5 @@
 // lib/core/widgets/stripe_payment_dialog.dart
-// Version simplifiée et corrigée
+// Version corrigée qui gère les timestamps Unix
 
 import 'dart:async';
 import 'dart:convert';
@@ -12,7 +12,7 @@ import 'dart:html' as html;
 import '../models/stripe_service.dart';
 
 class StripePaymentDialog {
-  static bool _isProcessing = false; // Guard contre les doublons
+  static bool _isProcessing = false;
   static bool _isListeningToMessages = false;
   static StreamSubscription? _messageSubscription;
   static Timer? _localStorageTimer;
@@ -25,32 +25,26 @@ class StripePaymentDialog {
     Function(String)? onError,
     bool enablePolling = true,
     Duration pollingInterval = const Duration(seconds: 2),
-    Duration timeout = const Duration(minutes: 5),
+    Duration timeout = const Duration(minutes: 2),
     Map<String, dynamic>? metadata,
   }) {
-    // Éviter les doublons
     if (_isProcessing) {
       print('⚠️ Paiement déjà en cours, ignoré');
       return;
     }
     _isProcessing = true;
 
-    // Variables d'état locales
     bool paymentProcessed = false;
     bool dialogClosed = false;
 
-    // Variables observables pour l'UI
     final RxBool isCheckingPayment = false.obs;
     final RxInt attemptCount = 0.obs;
     final RxString debugStatus = 'Initialisation...'.obs;
-    final RxInt consecutiveSuccessChecks = 0.obs;
 
-    // Timers et subscriptions
     Timer? pollingTimer;
     Timer? timeoutTimer;
     StreamSubscription? firestoreSubscription;
 
-    // Fonction de nettoyage
     void cleanup() {
       pollingTimer?.cancel();
       timeoutTimer?.cancel();
@@ -60,7 +54,6 @@ class StripePaymentDialog {
       dialogClosed = true;
     }
 
-    // Callback de succès
     void handleSuccess() {
       if (!paymentProcessed && !dialogClosed) {
         paymentProcessed = true;
@@ -70,7 +63,6 @@ class StripePaymentDialog {
       }
     }
 
-    // Callback d'erreur
     void handleError(String error) {
       if (!dialogClosed) {
         cleanup();
@@ -79,7 +71,6 @@ class StripePaymentDialog {
       }
     }
 
-    // Afficher la dialog
     Get.dialog(
       WillPopScope(
         onWillPop: () async {
@@ -108,7 +99,6 @@ class StripePaymentDialog {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Animation de chargement
                 Container(
                   width: 80,
                   height: 80,
@@ -123,8 +113,6 @@ class StripePaymentDialog {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Titre
                 Text(
                   title,
                   style: const TextStyle(
@@ -146,8 +134,6 @@ class StripePaymentDialog {
                   ),
                 ],
                 const SizedBox(height: 20),
-
-                // Status
                 Obx(() => Text(
                       debugStatus.value,
                       style: TextStyle(
@@ -157,8 +143,6 @@ class StripePaymentDialog {
                       textAlign: TextAlign.center,
                     )),
                 const SizedBox(height: 8),
-
-                // Compteur de tentatives
                 Obx(() => Text(
                       'Vérification ${attemptCount.value > 0 ? "(${attemptCount.value})" : ""}',
                       style: TextStyle(
@@ -167,8 +151,6 @@ class StripePaymentDialog {
                       ),
                     )),
                 const SizedBox(height: 20),
-
-                // Instructions
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -196,8 +178,6 @@ class StripePaymentDialog {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Bouton d'annulation
                 TextButton(
                   onPressed: () {
                     handleError('Paiement annulé par l\'utilisateur');
@@ -220,7 +200,6 @@ class StripePaymentDialog {
       cleanup();
     });
 
-    // Démarrer les vérifications
     _startAllVerifications(
       sessionId: sessionId,
       handleSuccess: handleSuccess,
@@ -231,7 +210,6 @@ class StripePaymentDialog {
       isCheckingPayment: isCheckingPayment,
       attemptCount: attemptCount,
       debugStatus: debugStatus,
-      consecutiveSuccessChecks: consecutiveSuccessChecks,
       paymentProcessed: () => paymentProcessed,
       dialogClosed: () => dialogClosed,
       setPollingTimer: (timer) => pollingTimer = timer,
@@ -240,7 +218,33 @@ class StripePaymentDialog {
     );
   }
 
-  // Méthode qui gère toutes les vérifications
+  // Helper pour convertir le timestamp en DateTime
+  static DateTime? _getDateFromPayment(dynamic created) {
+    if (created == null) return null;
+
+    try {
+      // Si c'est un Timestamp Firestore
+      if (created is Timestamp) {
+        return created.toDate();
+      }
+
+      // Si c'est un nombre (timestamp Unix en secondes)
+      if (created is num) {
+        return DateTime.fromMillisecondsSinceEpoch(created.toInt() * 1000);
+      }
+
+      // Si c'est déjà une DateTime
+      if (created is DateTime) {
+        return created;
+      }
+
+      return null;
+    } catch (e) {
+      print('Erreur conversion date: $e');
+      return null;
+    }
+  }
+
   static void _startAllVerifications({
     required String sessionId,
     required Function() handleSuccess,
@@ -251,7 +255,6 @@ class StripePaymentDialog {
     required RxBool isCheckingPayment,
     required RxInt attemptCount,
     required RxString debugStatus,
-    required RxInt consecutiveSuccessChecks,
     required bool Function() paymentProcessed,
     required bool Function() dialogClosed,
     required Function(Timer?) setPollingTimer,
@@ -266,36 +269,42 @@ class StripePaymentDialog {
 
     debugStatus.value = 'Configuration de l\'écoute...';
 
-    // 1. Écouter les changements Firestore en temps réel
-    final firestoreSubscription = FirebaseFirestore.instance
+    // 1. Écouter les changements dans payments en temps réel
+    final paymentsSubscription = FirebaseFirestore.instance
         .collection('customers')
         .doc(user.uid)
-        .collection('checkout_sessions')
-        .doc(sessionId)
+        .collection('payments')
+        .orderBy('created', descending: true)
+        .limit(1)
         .snapshots()
         .listen((snapshot) {
-      if (!snapshot.exists) return;
+      if (snapshot.docs.isNotEmpty) {
+        final paymentDoc = snapshot.docs.first;
+        final data = paymentDoc.data();
 
-      final data = snapshot.data()!;
-      print(
-          '📊 Firestore update: payment_status=${data['payment_status']}, status=${data['status']}');
+        // Utiliser la méthode helper pour gérer différents formats
+        final created = _getDateFromPayment(data['created']);
 
-      // Vérifier le succès
-      if (_isPaymentSuccessful(data) && !paymentProcessed()) {
-        debugStatus.value = '✅ Paiement confirmé !';
-        handleSuccess();
+        if (created != null &&
+            DateTime.now().difference(created).inMinutes < 5 &&
+            data['status'] == 'succeeded' &&
+            !paymentProcessed()) {
+          print('✅ Paiement détecté via listener!');
+          print('   ID: ${paymentDoc.id}');
+          print('   Amount: ${data['amount']}');
+          print('   Status: ${data['status']}');
+          print('   Created: $created');
+
+          debugStatus.value = '✅ Paiement confirmé !';
+          handleSuccess();
+        }
       }
-
-      // Vérifier les erreurs
-      if (data.containsKey('error') && data['error'] != null) {
-        final error = data['error'];
-        debugStatus.value = '❌ Erreur: ${error['message'] ?? error}';
-        handleError('Erreur: ${error['message'] ?? error}');
-      }
+    }, onError: (error) {
+      print('Erreur listener payments: $error');
     });
-    setFirestoreSubscription(firestoreSubscription);
+    setFirestoreSubscription(paymentsSubscription);
 
-    // 2. Écouter les messages web (pour le retour des pages HTML)
+    // 2. Écouter les messages web
     if (kIsWeb) {
       _startListeningToHtmlMessages(
         sessionId: sessionId,
@@ -313,7 +322,7 @@ class StripePaymentDialog {
       );
     }
 
-    // 3. Polling actif si activé
+    // 3. Polling actif
     if (enablePolling) {
       debugStatus.value = 'Vérification du paiement...';
 
@@ -325,55 +334,82 @@ class StripePaymentDialog {
           attemptCount.value++;
 
           try {
-            // Vérifier directement dans Firestore
-            final sessionDoc = await FirebaseFirestore.instance
+            // Vérifier dans la collection payments
+            final paymentsQuery = await FirebaseFirestore.instance
                 .collection('customers')
                 .doc(user.uid)
-                .collection('checkout_sessions')
-                .doc(sessionId)
+                .collection('payments')
+                .orderBy('created', descending: true)
+                .limit(5)
                 .get();
 
-            if (sessionDoc.exists) {
-              final data = sessionDoc.data()!;
+            for (var paymentDoc in paymentsQuery.docs) {
+              final paymentData = paymentDoc.data();
 
-              if (_isPaymentSuccessful(data)) {
-                consecutiveSuccessChecks.value++;
-                debugStatus.value =
-                    'Paiement détecté (${consecutiveSuccessChecks.value}/2)...';
+              // Utiliser la méthode helper pour gérer différents formats
+              final created = _getDateFromPayment(paymentData['created']);
 
-                // Confirmer avec 2 vérifications consécutives
-                if (consecutiveSuccessChecks.value >= 2) {
+              if (created != null &&
+                  DateTime.now().difference(created).inMinutes < 5 &&
+                  paymentData['status'] == 'succeeded') {
+                print('✅ Paiement trouvé dans payments !');
+                print('   ID: ${paymentDoc.id}');
+                print('   Amount: ${paymentData['amount']}');
+                print('   Status: ${paymentData['status']}');
+                print('   Created: $created');
+
+                // Vérifier le montant ou les metadata
+                final amount = paymentData['amount'];
+                final metadata =
+                    paymentData['metadata'] as Map<String, dynamic>?;
+
+                // Si c'est probablement notre paiement
+                if (amount == 5000 || // 50€ en centimes
+                    (metadata != null &&
+                        (metadata['user_id'] == user.uid ||
+                            metadata['purchase_type'] == 'category_slot'))) {
                   debugStatus.value = '✅ Paiement confirmé !';
                   timer.cancel();
                   handleSuccess();
+                  return;
                 }
-              } else {
-                consecutiveSuccessChecks.value = 0;
               }
             }
 
-            // Vérifier aussi l'établissement directement
-            final estabQuery = await FirebaseFirestore.instance
-                .collection('establishments')
-                .where('user_id', isEqualTo: user.uid)
-                .limit(1)
-                .get();
+            // Log périodique
+            if (attemptCount.value % 5 == 0) {
+              print(
+                  '🔍 Tentative ${attemptCount.value} - Pas de paiement récent trouvé');
+              debugStatus.value =
+                  'Vérification en cours... (${attemptCount.value})';
+            }
 
-            if (estabQuery.docs.isNotEmpty) {
-              final estabData = estabQuery.docs.first.data();
-              final hasActiveSubscription =
-                  estabData['has_active_subscription'] ?? false;
+            // Après 10 tentatives, vérifier l'établissement
+            if (attemptCount.value == 10) {
+              debugStatus.value = 'Vérification alternative...';
 
-              if (hasActiveSubscription && !paymentProcessed()) {
-                print('✅ Abonnement actif détecté dans l\'établissement');
-                debugStatus.value = '✅ Paiement confirmé (via établissement) !';
-                timer.cancel();
-                handleSuccess();
+              final estabQuery = await FirebaseFirestore.instance
+                  .collection('establishments')
+                  .where('user_id', isEqualTo: user.uid)
+                  .limit(1)
+                  .get();
+
+              if (estabQuery.docs.isNotEmpty) {
+                final hasActiveSubscription =
+                    estabQuery.docs.first.data()['has_active_subscription'] ??
+                        false;
+
+                if (hasActiveSubscription) {
+                  print('✅ Abonnement actif détecté dans l\'établissement!');
+                  debugStatus.value = '✅ Paiement confirmé !';
+                  timer.cancel();
+                  handleSuccess();
+                  return;
+                }
               }
             }
           } catch (e) {
-            print('Erreur vérification: $e');
-            consecutiveSuccessChecks.value = 0;
+            print('❌ Erreur vérification: $e');
           } finally {
             isCheckingPayment.value = false;
           }
@@ -393,7 +429,6 @@ class StripePaymentDialog {
     setTimeoutTimer(timeoutTimer);
   }
 
-  // Méthodes d'écoute pour le web
   static void _startListeningToHtmlMessages({
     required String sessionId,
     required Function() onSuccess,
@@ -403,7 +438,6 @@ class StripePaymentDialog {
 
     _isListeningToMessages = true;
 
-    // Écouter les messages postMessage
     _messageSubscription = html.window.onMessage.listen((event) {
       try {
         final data = event.data;
@@ -417,7 +451,6 @@ class StripePaymentDialog {
             messageData = Map<String, dynamic>.from(data);
           }
 
-          // Vérifier si c'est un message de nos pages Stripe
           if (messageData['type'] == 'stripe-payment-success') {
             print('✅ Message de succès reçu de la page Stripe!');
             html.window.localStorage.remove('stripe_payment_status');
@@ -433,7 +466,6 @@ class StripePaymentDialog {
       }
     });
 
-    // Écouter les changements de localStorage
     _localStorageTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       try {
         final storageData = html.window.localStorage['stripe_payment_status'];
@@ -455,6 +487,38 @@ class StripePaymentDialog {
         // Ignorer les erreurs
       }
     });
+
+    if (kIsWeb) {
+      try {
+        final channel = html.BroadcastChannel('stripe_payment_status');
+        channel.onMessage.listen((event) {
+          try {
+            final data = event.data;
+            if (data is Map || data is String) {
+              Map<String, dynamic> messageData;
+
+              if (data is String) {
+                messageData = json.decode(data);
+              } else {
+                messageData = Map<String, dynamic>.from(data);
+              }
+
+              if (messageData['type'] == 'stripe-payment-success') {
+                print('✅ Succès reçu via BroadcastChannel!');
+                onSuccess();
+              } else if (messageData['type'] == 'stripe-payment-cancelled') {
+                print('❌ Annulation reçue via BroadcastChannel!');
+                onCancel();
+              }
+            }
+          } catch (e) {
+            print('Erreur BroadcastChannel: $e');
+          }
+        });
+      } catch (e) {
+        print('BroadcastChannel non supporté');
+      }
+    }
   }
 
   static void _stopListeningToHtmlMessages() {
@@ -463,23 +527,5 @@ class StripePaymentDialog {
     _localStorageTimer?.cancel();
     _localStorageTimer = null;
     _isListeningToMessages = false;
-  }
-
-  // Méthode pour vérifier si le paiement est réussi
-  static bool _isPaymentSuccessful(Map<String, dynamic> data) {
-    final paymentStatus = data['payment_status'] as String?;
-    final status = data['status'] as String?;
-    final paymentIntent = data['payment_intent'] as String?;
-    final subscription = data['subscription'] as String?;
-    final invoice = data['invoice'] as String?;
-    final amountTotal = data['amount_total'] as int?;
-
-    final isPaid = (paymentStatus == 'paid' || paymentStatus == 'succeeded') ||
-        (status == 'complete' || status == 'paid' || status == 'success') ||
-        (paymentIntent != null || subscription != null || invoice != null);
-
-    final hasAmount = amountTotal != null && amountTotal > 0;
-
-    return isPaid && hasAmount;
   }
 }

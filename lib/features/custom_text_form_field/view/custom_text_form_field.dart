@@ -79,11 +79,6 @@ class CustomTextFormField extends StatelessWidget {
     cc.initIsPassword(isPassword);
     cc.maxCharactersListener();
 
-    // Fix pour iOS Web
-    final bool isIOSWeb = kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            Theme.of(context).platform == TargetPlatform.iOS);
-
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: maxWidth ?? cc.maxWith,
@@ -92,10 +87,7 @@ class CustomTextFormField extends StatelessWidget {
         children: [
           Obx(
             () => TextFormField(
-              // Propriétés pour iOS
-              autocorrect: autocorrect ?? false,
-              enableSuggestions: enableSuggestions ?? false,
-              focusNode: focusNode,
+              //focusNode: focusNode,
               textInputAction: textInputAction ?? TextInputAction.done,
               keyboardType: keyboardType ?? TextInputType.text,
               textCapitalization: textCapitalization ?? TextCapitalization.none,
@@ -118,7 +110,7 @@ class CustomTextFormField extends StatelessWidget {
                   onTap!();
                 }
                 // Fix spécifique pour iOS Web
-                if (isIOSWeb && focusNode != null) {
+                if (focusNode != null) {
                   // Forcer le focus après un court délai
                   Future.delayed(const Duration(milliseconds: 100), () {
                     if (!focusNode!.hasFocus) {
