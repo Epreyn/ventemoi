@@ -9,17 +9,16 @@ class StripeService extends GetxService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Prix IDs Stripe (à adapter selon votre configuration)
   static const String PRICE_ID_MONTHLY_FIRST_YEAR =
-      'price_1ReLkQPLJZjht3nFComM7tLk';
+      'price_1RnEnpAOsm6ulZWoaL9qF82e'; // ADHESION + VIDEO
   static const String PRICE_ID_MONTHLY_RECURRING =
-      'price_1ReLlFPLJZjht3nFjMOlVjqG';
+      'price_1RnEnmAOsm6ulZWoEjr61X2l';
   static const String PRICE_ID_ANNUAL_FIRST_YEAR =
-      'price_1ReLhpPLJZjht3nFtCCeJXQp';
+      'price_1RnEnxAOsm6ulZWoklEwYoXm'; // Pack Première Année - Annuel
   static const String PRICE_ID_ANNUAL_RECURRING =
-      'price_1ReLjHPLJZjht3nFi2tzqXWu';
+      'price_1RnEnxAOsm6ulZWoklEwYoXm';
   static const String PRICE_ID_ADDITIONAL_SLOT =
-      'price_1RjMd0PLJZjht3nFtfGuQWVu';
+      'price_1RnEnjAOsm6ulZWoSj3PQQe6';
 
   // Créer ou récupérer un customer Stripe
   Future<String> _ensureStripeCustomer() async {
