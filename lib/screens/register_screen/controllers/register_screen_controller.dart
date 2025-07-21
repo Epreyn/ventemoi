@@ -668,7 +668,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       await sendModernWelcomeEmail(
           user.email ?? '', nameController.text.trim());
 
-      Get.toNamed(Routes.login);
+      Get.offAllNamed(Routes.login);
 
       // Message personnalisé en fonction des points reçus
       String successMessage = 'Inscription réussie !';

@@ -1,6 +1,7 @@
 abstract class Routes {
   Routes._();
 
+  static const test = RoutePaths.test;
   static const login = RoutePaths.login;
   static const register = RoutePaths.register;
   static const password = RoutePaths.password;
@@ -27,6 +28,7 @@ abstract class Routes {
 abstract class RoutePaths {
   RoutePaths._();
 
+  static const test = '/test';
   static const login = '/login';
   static const password = '/password';
   static const register = '/register';

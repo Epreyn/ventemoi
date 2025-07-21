@@ -2,26 +2,26 @@
 <html>
     <head>
         <base href="/" />
+
         <meta charset="UTF-8" />
         <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
         <meta
             name="description"
-            content="VenteMoi - Plateforme solidaire de bons d'achat"
-        />
-        <!-- Viewport optimisé pour iOS -->
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+            content="VenteMoi - Votre plateforme de vente"
         />
 
         <!-- iOS meta tags & icons -->
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-            name="apple-mobile-web-app-status-bar-style"
-            content="black-translucent"
-        />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="VenteMoi" />
         <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+
+        <!-- Meta viewport améliorée pour iOS -->
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+        />
 
         <!-- Favicon -->
         <link rel="icon" type="image/png" href="favicon.png" />
@@ -29,7 +29,7 @@
         <title>VenteMoi</title>
         <link rel="manifest" href="manifest.json" />
 
-        <!-- Script Google Maps -->
+        <!-- Script Google Maps avec chargement asynchrone -->
         <script>
             ((g) => {
                 var h,
@@ -80,107 +80,126 @@
         </script>
 
         <style>
-            /* Styles de base */
-            * {
-                -webkit-tap-highlight-color: transparent;
-                -webkit-touch-callout: none;
-                -webkit-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
-                user-select: none;
-            }
-
-            /* Permettre la sélection de texte dans les inputs */
-            input,
-            textarea {
-                -webkit-user-select: text;
-                -moz-user-select: text;
-                -ms-user-select: text;
-                user-select: text;
+            /* CSS pour empêcher le pull-to-refresh sur iOS */
+            html {
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                -webkit-overflow-scrolling: touch;
             }
 
             body {
                 margin: 0;
                 padding: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+                /* Empêcher la sélection de texte pendant le scroll */
+                -webkit-user-select: none;
+                -webkit-touch-callout: none;
+                /* Empêcher le zoom sur double tap */
+                touch-action: manipulation;
+            }
+
+            /* Fix pour les inputs sur iOS */
+            input,
+            textarea {
+                font-size: 16px !important; /* Empêche le zoom automatique sur iOS */
+                -webkit-appearance: none;
+                -webkit-border-radius: 0;
+                border-radius: 0;
+            }
+
+            /* Loading screen avec les couleurs orange VenteMoi */
+            .loading {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                transition: opacity 0.3s ease-out;
+            }
+
+            .loading.fade-out {
+                opacity: 0;
+            }
+
+            .loading p {
+                color: white;
+                margin-top: 20px;
                 font-family:
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                     sans-serif;
-                background-color: #fafafa;
-                /* Fix pour empêcher le bounce effect sur iOS */
-                position: fixed;
-                width: 100%;
-                height: 100%;
-                overflow: hidden;
-            }
-
-            /* Fix pour les inputs sur iOS - TRÈS IMPORTANT */
-            input,
-            textarea,
-            select {
-                -webkit-appearance: none;
-                -moz-appearance: none;
-                appearance: none;
-                border-radius: 0;
-                /* Font-size de 16px minimum pour empêcher le zoom automatique sur iOS */
-                font-size: 16px !important;
-                /* Empêcher le zoom sur focus */
-                transform: scale(1);
-            }
-
-            /* Fix pour le focus sur iOS */
-            input:focus,
-            textarea:focus,
-            select:focus {
-                font-size: 16px !important;
-                transform: scale(1);
-            }
-
-            /* Container scrollable */
-            .scroll-container {
-                -webkit-overflow-scrolling: touch;
-                overflow-y: auto;
-                height: 100%;
-            }
-
-            /* Styles du loader */
-            .loading {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                flex-direction: column;
+                font-size: 16px;
+                font-weight: 500;
+                letter-spacing: 0.5px;
             }
 
             .loader-logo {
                 width: 120px;
                 height: 120px;
-                margin-bottom: 20px;
-                background: linear-gradient(135deg, #ff9500 0%, #ff7a00 100%);
-                border-radius: 30%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 10px 30px rgba(255, 122, 0, 0.3);
-                animation: pulse 2s ease-in-out infinite;
-                padding: 20px;
             }
 
             .loader-logo img {
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
+                /* Filtre pour rendre le logo blanc */
                 filter: brightness(0) invert(1);
+                animation: pulse 2s infinite ease-in-out;
             }
 
+            /* Animation de pulsation */
             @keyframes pulse {
                 0% {
                     transform: scale(1);
+                    opacity: 1;
                 }
                 50% {
-                    transform: scale(1.05);
+                    transform: scale(1.1);
+                    opacity: 0.8;
                 }
                 100% {
                     transform: scale(1);
+                    opacity: 1;
+                }
+            }
+
+            /* Barre de progression */
+            .progress-bar {
+                width: 200px;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 2px;
+                margin-top: 30px;
+                overflow: hidden;
+            }
+
+            .progress-bar-fill {
+                height: 100%;
+                background: white;
+                border-radius: 2px;
+                width: 0%;
+                animation: load 2s ease-out forwards;
+            }
+
+            @keyframes load {
+                0% {
+                    width: 0%;
+                }
+                100% {
+                    width: 100%;
                 }
             }
 
@@ -195,19 +214,22 @@
             }
         </style>
 
-        <!-- This script adds the flutter initialization JS code -->
         <script src="flutter.js" defer></script>
     </head>
     <body>
-        <div class="loading">
+        <!-- Écran de chargement -->
+        <div class="loading" id="loading-screen">
             <div class="loader-logo">
                 <img src="icons/Icon-192.png" alt="VenteMoi Logo" />
             </div>
             <p>Chargement de VenteMoi...</p>
+            <div class="progress-bar">
+                <div class="progress-bar-fill"></div>
+            </div>
         </div>
 
         <script>
-            // Détection iOS
+            // Détection iOS et Safari
             const isIOS =
                 /iPad|iPhone|iPod/.test(navigator.userAgent) &&
                 !window.MSStream;
@@ -215,86 +237,66 @@
                 navigator.userAgent,
             );
 
-            // Fix pour empêcher le pull-to-refresh sur iOS
-            let preventPullToRefresh = false;
-            let lastTouchY = 0;
-
-            document.addEventListener(
-                "touchstart",
-                function (e) {
-                    if (e.touches.length === 1) {
-                        lastTouchY = e.touches[0].clientY;
-                        preventPullToRefresh = window.pageYOffset === 0;
-                    }
-                },
-                { passive: false },
-            );
-
-            document.addEventListener(
-                "touchmove",
-                function (e) {
-                    if (e.touches.length !== 1) return;
-
-                    const touchY = e.touches[0].clientY;
-                    const touchYDelta = touchY - lastTouchY;
-                    lastTouchY = touchY;
-
-                    if (
-                        preventPullToRefresh &&
-                        touchYDelta > 0 &&
-                        window.pageYOffset === 0
-                    ) {
-                        e.preventDefault();
-                    }
-
-                    // Empêcher le scroll pendant qu'un input est focus
-                    if (
-                        document.activeElement &&
-                        (document.activeElement.tagName === "INPUT" ||
-                            document.activeElement.tagName === "TEXTAREA")
-                    ) {
-                        if (e.cancelable) {
-                            e.preventDefault();
-                        }
-                    }
-                },
-                { passive: false },
-            );
-
-            // Empêcher le zoom sur double tap
-            let lastTouchEnd = 0;
-            document.addEventListener(
-                "touchend",
-                function (e) {
-                    const now = new Date().getTime();
-                    if (now - lastTouchEnd <= 300) {
-                        e.preventDefault();
-                    }
-                    lastTouchEnd = now;
-                },
-                false,
-            );
-
-            // Fix pour le focus des inputs sur iOS
+            // Configuration spéciale pour iOS
             if (isIOS) {
+                // Empêcher le pull-to-refresh
+                let preventPullToRefresh = false;
+                let lastTouchY = 0;
+
+                document.addEventListener(
+                    "touchstart",
+                    function (e) {
+                        if (e.touches.length === 1) {
+                            lastTouchY = e.touches[0].clientY;
+                            preventPullToRefresh = window.pageYOffset === 0;
+                        }
+                    },
+                    { passive: false },
+                );
+
+                document.addEventListener(
+                    "touchmove",
+                    function (e) {
+                        if (e.touches.length !== 1) return;
+
+                        const touchY = e.touches[0].clientY;
+                        const touchYDelta = touchY - lastTouchY;
+                        lastTouchY = touchY;
+
+                        if (
+                            preventPullToRefresh &&
+                            touchYDelta > 0 &&
+                            window.pageYOffset === 0
+                        ) {
+                            e.preventDefault();
+                            return;
+                        }
+
+                        // Empêcher le scroll si un input est focus
+                        if (
+                            document.activeElement &&
+                            (document.activeElement.tagName === "INPUT" ||
+                                document.activeElement.tagName === "TEXTAREA")
+                        ) {
+                            if (e.cancelable) {
+                                e.preventDefault();
+                            }
+                        }
+                    },
+                    { passive: false },
+                );
+
+                // Fix pour le clavier iOS
                 document.addEventListener("focusin", function (e) {
                     if (
                         e.target.tagName === "INPUT" ||
                         e.target.tagName === "TEXTAREA"
                     ) {
-                        // Empêcher le comportement par défaut
+                        // Empêcher le scroll automatique d'iOS
                         setTimeout(() => {
-                            // S'assurer que l'élément reste en focus
-                            if (document.activeElement !== e.target) {
-                                e.target.focus();
-                            }
-                            // Scroll pour rendre l'input visible
-                            e.target.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                                inline: "nearest",
-                            });
-                        }, 300);
+                            window.scrollTo(0, 0);
+                            document.body.scrollTop = 0;
+                        }, 0);
                     }
                 });
 
@@ -315,7 +317,9 @@
                 document.documentElement.style.setProperty("--vh", `${vh}px`);
 
                 // Fixer la hauteur du body
-                document.body.style.height = window.innerHeight + "px";
+                if (isIOS) {
+                    document.body.style.height = window.innerHeight + "px";
+                }
             }
 
             // Initialiser et écouter les changements
@@ -323,7 +327,18 @@
             window.addEventListener("resize", setViewportHeight);
             window.addEventListener("orientationchange", setViewportHeight);
 
-            // Initialisation Flutter
+            // Fonction pour cacher l'écran de chargement
+            function hideLoadingScreen() {
+                const loadingScreen = document.getElementById("loading-screen");
+                if (loadingScreen) {
+                    loadingScreen.classList.add("fade-out");
+                    setTimeout(() => {
+                        loadingScreen.style.display = "none";
+                    }, 300);
+                }
+            }
+
+            // Initialisation Flutter - SANS serviceWorkerVersion comme dans votre ancien fichier
             window.addEventListener("load", function (ev) {
                 // Download main.dart.js sans service worker
                 _flutter.loader.loadEntrypoint({
@@ -331,11 +346,24 @@
                         engineInitializer
                             .initializeEngine()
                             .then(function (appRunner) {
-                                appRunner.runApp();
+                                appRunner.runApp().then(function () {
+                                    // Cacher l'écran de chargement une fois Flutter chargé
+                                    hideLoadingScreen();
+                                });
                             });
                     },
                 });
             });
+
+            // Timeout de sécurité pour cacher l'écran de chargement
+            setTimeout(hideLoadingScreen, 3000); // 3 secondes max
+
+            // Charger Google Maps Places après Flutter
+            if (window.google && window.google.maps) {
+                window.google.maps.importLibrary("places").then(() => {
+                    console.log("Google Maps Places library loaded");
+                });
+            }
         </script>
     </body>
 </html>

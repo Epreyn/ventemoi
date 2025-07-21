@@ -4,6 +4,7 @@ import 'package:ventemoi/screens/admin_establishments_screen/view/admin_establis
 import 'package:ventemoi/screens/admin_points_requests_screen/view/admin_points_requests_screen.dart';
 import 'package:ventemoi/screens/admin_sells_screen/view/admin_sells_screen.dart';
 import 'package:ventemoi/screens/sponsorship_screen/view/sponsorship_screen.dart';
+import 'package:ventemoi/screens/test_screen/test_screen.dart';
 
 import '../../screens/admin_categories_screen/view/admin_categories_screen.dart';
 import '../../screens/admin_enterprise_categories_screen/view/admin_enterprise_categories_screen.dart';
@@ -29,6 +30,10 @@ class AppScreens {
   static const initial = Routes.login;
 
   static final routes = [
+    GetPage(
+      name: RoutePaths.test,
+      page: () => const TestScreen(),
+    ),
     GetPage(
       name: RoutePaths.login,
       page: () => const LoginScreen(),

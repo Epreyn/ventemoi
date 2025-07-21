@@ -37,23 +37,30 @@ class PasswordScreenController extends GetxController {
   }
 
   void loginScreenOnPressed() {
-    Get.toNamed(Routes.login);
+    Get.offAllNamed(Routes.login);
   }
 
   void resetPassword() async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
 
-      await UniquesControllers().data.firebaseAuth.sendPasswordResetEmail(email: emailController.text);
+      await UniquesControllers()
+          .data
+          .firebaseAuth
+          .sendPasswordResetEmail(email: emailController.text);
 
       UniquesControllers().data.isInAsyncCall.value = false;
-      Get.toNamed(Routes.login);
-      UniquesControllers().data.snackbar('Demande de réinitialisation de mot de passe',
-          'Un email de réinitialisation de mot de passe vous a été envoyé', false);
+      Get.offAllNamed(Routes.login);
+      UniquesControllers().data.snackbar(
+          'Demande de réinitialisation de mot de passe',
+          'Un email de réinitialisation de mot de passe vous a été envoyé',
+          false);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Erreur lors de la réinitialisation de mot de passe',
-          'L\'adresse mail entrée n\'existe pas ou n\'est pas associée à un compte', true);
+      UniquesControllers().data.snackbar(
+          'Erreur lors de la réinitialisation de mot de passe',
+          'L\'adresse mail entrée n\'existe pas ou n\'est pas associée à un compte',
+          true);
     }
   }
 

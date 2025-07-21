@@ -249,7 +249,7 @@ class ProEstablishmentEnterpriseCategoriesSection extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () {
               // Naviguer vers la page d'abonnement
-              Get.toNamed('/subscription');
+              Get.offAllNamed('/subscription');
             },
             icon: Icon(Icons.star),
             label: Text('Voir les abonnements'),

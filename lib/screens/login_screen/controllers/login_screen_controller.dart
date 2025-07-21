@@ -1,3 +1,5 @@
+// lib/screens/login_screen/controllers/login_screen_controller.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
@@ -8,6 +10,10 @@ import '../../onboarding_screen/controllers/onboarding_screen_controller.dart';
 
 class LoginScreenController extends GetxController {
   String pageTitle = 'Connexion';
+
+  // ⚠️ AJOUT DES FOCUSNODES
+  final FocusNode emailFocusNode = FocusNode();
+  final FocusNode passwordFocusNode = FocusNode();
 
   String emailTag = 'email';
   String emailLabel = 'Email';
@@ -48,6 +54,16 @@ class LoginScreenController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+  }
+
+  // ⚠️ IMPORTANT : Disposer des FocusNodes
+  @override
+  void onClose() {
+    emailFocusNode.dispose();
+    passwordFocusNode.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    super.onClose();
   }
 
   void togglePasswordVisibility() {
@@ -113,7 +129,7 @@ class LoginScreenController extends GetxController {
       final shouldShowOnboarding =
           await OnboardingScreenController.shouldShowOnboarding();
       if (shouldShowOnboarding) {
-        Get.toNamed(Routes.onboarding);
+        Get.offAllNamed(Routes.onboarding);
         return;
       }
 
@@ -127,48 +143,23 @@ class LoginScreenController extends GetxController {
           .get();
       final userType = userTypeDoc.data()!['name'] as String;
 
-      switch (userType) {
-        case 'Administrateur':
-          Get.toNamed(Routes.adminUsers);
-          break;
-        case 'Particulier':
-          Get.toNamed(Routes.shopEstablishment);
-          break;
-        case 'Entreprise':
-          Get.toNamed(Routes.shopEstablishment);
-          break;
-        case 'Boutique':
-          Get.toNamed(Routes.shopEstablishment);
-          break;
-        case 'Association':
-          Get.toNamed(Routes.shopEstablishment);
-          break;
-        default:
-          Get.toNamed(Routes.login);
-          break;
+      // Redirection selon le type d'utilisateur
+      if (userType == 'Administrateur') {
+        Get.offAllNamed(Routes.adminUsers);
+      } else if (userType == 'Particulier') {
+        Get.offAllNamed(Routes.shopEstablishment);
+      } else if (userType == 'Boutique') {
+        Get.offAllNamed(Routes.proEstablishmentProfile);
+      } else if (userType == 'Entreprise') {
+        Get.offAllNamed(Routes.proEstablishmentProfile);
+      } else {
+        UniquesControllers()
+            .data
+            .snackbar('Erreur', 'Type d\'utilisateur inconnu.', true);
       }
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers()
-          .data
-          .snackbar('Erreur lors de la connexion', e.toString(), true);
+      UniquesControllers().data.snackbar('Erreur', e.toString(), true);
     }
-  }
-
-  @override
-  void onReady() {
-    super.onReady();
-    emailController.text = UniquesControllers().getStorage.read('email') ?? '';
-    passwordController.text =
-        UniquesControllers().getStorage.read('password') ?? '';
-  }
-
-  @override
-  void onClose() {
-    // Disposer les controllers
-    emailController.dispose();
-    passwordController.dispose();
-
-    super.onClose();
   }
 }

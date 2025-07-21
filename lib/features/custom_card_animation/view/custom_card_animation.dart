@@ -23,7 +23,9 @@ class CustomCardAnimation extends StatelessWidget {
     var delayGap = this.delayGap ?? 100;
 
     return CustomAnimation(
-      key: super.key ?? UniqueKey(),
+      //key: super.key ?? UniqueKey(),
+      key: ValueKey('card_animation_$index'),
+      fixedTag: 'card_animation_$index',
       delay: Duration(milliseconds: delayGap * index),
       duration: Duration(milliseconds: 6 * delayGap),
       isOpacity: true,
