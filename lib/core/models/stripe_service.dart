@@ -574,71 +574,68 @@ Vérifiez que:
         .collection('customers')
         .doc(userId)
         .collection('checkout_sessions')
-        .where('payment_status', isEqualTo: 'paid')
+        // Ne pas filtrer ici - on veut voir TOUS les changements
+        .orderBy('created', descending: true)
+        .limit(10) // Limiter aux 10 dernières sessions
         .snapshots();
   }
 
-  // Gérer un paiement réussi
+  // Dans StripeService
   Future<void> handleSuccessfulPayment(DocumentSnapshot sessionDoc) async {
     try {
       final sessionData = sessionDoc.data() as Map<String, dynamic>;
       final metadata = sessionData['metadata'] as Map<String, dynamic>?;
 
-      if (metadata == null) return;
+      if (metadata == null) {
+        print('❌ Pas de metadata dans la session');
+        return;
+      }
 
       final userId = metadata['user_id'] as String?;
       final purchaseType = metadata['purchase_type'] as String?;
       final paymentType = metadata['type'] as String?;
 
-      print('🎉 Traitement du paiement réussi: $purchaseType / $paymentType');
+      print('🎉 handleSuccessfulPayment appelé:');
+      print('   - userId: $userId');
+      print('   - purchaseType: $purchaseType');
+      print('   - paymentType: $paymentType');
+      print('   - metadata: ${metadata.toString()}');
 
-      // Trouver l'établissement
-      final estabQuery = await _firestore
-          .collection('establishments')
-          .where('user_id', isEqualTo: userId)
-          .limit(1)
-          .get();
+      // Vérifier si c'est un paiement de slot
+      if (purchaseType == 'category_slot' ||
+          paymentType == 'additional_category_slot') {
+        print('📦 C\'est un paiement de slot!');
 
-      if (estabQuery.docs.isEmpty) {
-        print('❌ Aucun établissement trouvé pour l\'utilisateur: $userId');
-        return;
-      }
+        // Trouver l'établissement
+        final estabQuery = await _firestore
+            .collection('establishments')
+            .where('user_id', isEqualTo: userId)
+            .limit(1)
+            .get();
 
-      final establishmentId = estabQuery.docs.first.id;
-      final establishmentRef =
-          _firestore.collection('establishments').doc(establishmentId);
+        if (estabQuery.docs.isEmpty) {
+          print('❌ Aucun établissement trouvé pour user: $userId');
+          return;
+        }
 
-      // Traiter selon le type de paiement
-      if (purchaseType == 'first_year_annual' ||
-          purchaseType == 'first_year_monthly') {
-        // Activer l'abonnement
-        await establishmentRef.update({
-          'has_accepted_contract': true,
-          'has_active_subscription': true,
-          'subscription_status':
-              purchaseType == 'first_year_annual' ? 'annual' : 'monthly',
-          'subscription_start_date': FieldValue.serverTimestamp(),
-          'subscription_end_date':
-              Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
-          'payment_session_id': sessionDoc.id,
-          'temporary_mode': false, // Retirer le mode temporaire
-        });
+        final establishmentDoc = estabQuery.docs.first;
+        final establishmentId = establishmentDoc.id;
+        final currentData = establishmentDoc.data();
+        final currentSlots = currentData['enterprise_category_slots'] ?? 2;
 
-        // Créer le bon cadeau de bienvenue
-        await _createWelcomeGiftVoucher(establishmentId);
+        print('🏢 Établissement trouvé: $establishmentId');
+        print('   - Slots actuels: $currentSlots');
 
-        print('✅ Abonnement activé pour l\'établissement: $establishmentId');
-      } else if (paymentType == 'additional_category_slot') {
-        // Ajouter un slot de catégorie
-        final currentSlots = (await establishmentRef.get())
-                .data()?['enterprise_category_slots'] ??
-            2;
-
-        await establishmentRef.update({
+        // Incrémenter les slots
+        await _firestore
+            .collection('establishments')
+            .doc(establishmentId)
+            .update({
           'enterprise_category_slots': currentSlots + 1,
+          'last_slot_purchase': FieldValue.serverTimestamp(),
         });
 
-        print('✅ Slot de catégorie ajouté. Total: ${currentSlots + 1}');
+        print('✅ Slot ajouté avec succès! Nouveau total: ${currentSlots + 1}');
       }
 
       // Marquer la session comme traitée
@@ -647,7 +644,8 @@ Vérifiez que:
         'processed_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Erreur lors du traitement du paiement: $e');
+      print('❌ Erreur dans handleSuccessfulPayment: $e');
+      print('   Stack: ${e.toString()}');
       rethrow;
     }
   }
@@ -711,69 +709,6 @@ Vérifiez que:
           .add(checkoutData);
 
       return await _waitForCheckoutUrl(customerId, sessionRef.id);
-    } catch (e) {
-      print('❌ Erreur création checkout slot: $e');
-      rethrow;
-    }
-  }
-
-  Future<Map<String, String>?> createAdditionalSlotCheckoutWithId({
-    required String successUrl,
-    required String cancelUrl,
-  }) async {
-    try {
-      final customerId = await _ensureStripeCustomer();
-
-      final successUrlWithAutoClose =
-          'https://app.ventemoi.fr/stripe-success.html';
-      final cancelUrlWithAutoClose =
-          'https://app.ventemoi.fr/stripe-cancel.html';
-
-      final checkoutData = {
-        'mode': 'payment',
-        'success_url': successUrlWithAutoClose,
-        'cancel_url': cancelUrlWithAutoClose,
-        'line_items': [
-          {
-            'price_data': {
-              'currency': 'eur',
-              'product_data': {
-                'name': 'Slot de catégorie supplémentaire',
-                'description':
-                    'Accès à une catégorie d\'entreprise supplémentaire',
-              },
-              'unit_amount': 5000,
-            },
-            'quantity': 1,
-          }
-        ],
-        'metadata': {
-          'type': 'additional_category_slot',
-          'user_id': customerId,
-          'purchase_type': 'category_slot',
-        },
-        'allow_promotion_codes': true,
-      };
-
-      final sessionRef = await _firestore
-          .collection('customers')
-          .doc(customerId)
-          .collection('checkout_sessions')
-          .add(checkoutData);
-
-      final firestoreDocId = sessionRef.id;
-      print('📄 Document Firestore créé: $firestoreDocId');
-
-      final url = await _waitForCheckoutUrl(customerId, firestoreDocId);
-
-      if (url != null) {
-        return {
-          'url': url,
-          'sessionId': firestoreDocId,
-        };
-      }
-
-      return null;
     } catch (e) {
       print('❌ Erreur création checkout slot: $e');
       rethrow;
@@ -1285,5 +1220,158 @@ Vérifiez que:
     }
 
     print('\n=== FIN DEBUG ===\n');
+  }
+
+  // Dans lib/core/models/stripe_service.dart
+
+  // Créer une session de checkout pour un slot de catégorie
+  Future<Map<String, String>?> createCategorySlotCheckout({
+    required String categoryId,
+    required String establishmentId,
+  }) async {
+    try {
+      print('🔵 Création checkout slot pour catégorie: $categoryId');
+
+      final customerId = await _ensureStripeCustomer();
+
+      // URLs de redirection
+      final successUrl = 'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrl = 'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Générer un ID unique temporaire pour le tracking
+      final tempSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Données de la session avec price_data au lieu de price
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrl,
+        'cancel_url': cancelUrl,
+        'line_items': [
+          {
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Slot de catégorie supplémentaire',
+                'description':
+                    'Permet d\'ajouter une catégorie d\'entreprise supplémentaire',
+              },
+              'unit_amount': 5000, // 50€ en centimes
+            },
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'slot_purchase',
+          'purchase_type': 'category_slot',
+          'category_id': categoryId,
+          'establishment_id': establishmentId,
+          'user_id': customerId,
+          'temp_session_id': tempSessionId,
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      // Créer la session avec toutes les données
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final sessionId = sessionRef.id;
+
+      print('📄 Document Firestore créé: $sessionId');
+
+      // Attendre que l'URL soit générée
+      final url = await _waitForCheckoutUrl(customerId, sessionId);
+
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': sessionId,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ Erreur création checkout slot: $e');
+      rethrow;
+    }
+  }
+
+  // Créer une session de checkout pour un slot additionnel (avec ID)
+  Future<Map<String, String>?> createAdditionalSlotCheckoutWithId({
+    required String successUrl,
+    required String cancelUrl,
+  }) async {
+    try {
+      final customerId = await _ensureStripeCustomer();
+
+      final successUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrlWithAutoClose =
+          'https://app.ventemoi.fr/stripe-cancel.html';
+
+      // Générer un ID unique temporaire
+      final tempSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Données complètes de la session avec price_data
+      final checkoutData = {
+        'mode': 'payment',
+        'success_url': successUrlWithAutoClose,
+        'cancel_url': cancelUrlWithAutoClose,
+        'line_items': [
+          {
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Slot de catégorie supplémentaire',
+                'description':
+                    'Permet d\'ajouter une catégorie d\'entreprise supplémentaire',
+              },
+              'unit_amount': 5000, // 50€ en centimes
+            },
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'additional_category_slot',
+          'user_id': customerId,
+          'purchase_type': 'category_slot',
+          'temp_session_id': tempSessionId,
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      // Créer la session avec toutes les données
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(customerId)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final sessionId = sessionRef.id;
+
+      print('📄 Document Firestore créé: $sessionId');
+
+      // Attendre que l'URL soit générée
+      final url = await _waitForCheckoutUrl(customerId, sessionId);
+
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': sessionId,
+        };
+      }
+
+      return null;
+    } catch (e) {
+      print('❌ Erreur création checkout slot: $e');
+      rethrow;
+    }
   }
 }

@@ -1516,6 +1516,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),

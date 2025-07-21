@@ -71,6 +71,10 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                 ec.currentCategory.value = cat;
               });
             }
+
+            final slots = data['enterprise_category_slots'] ?? 2;
+            ec.enterpriseCategorySlots.value = slots;
+
             ec.initializeEnterpriseCategoriesFromStream(data);
           }
 

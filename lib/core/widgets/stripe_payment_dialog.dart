@@ -1,194 +1,111 @@
-// lib/core/widgets/stripe_payment_dialog.dart
-// Version corrigée qui gère les timestamps Unix
-
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:html' as html;
-import '../models/stripe_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+// Import conditionnel pour web
+import 'stripe_payment_dialog_web.dart'
+    if (dart.library.io) 'stripe_payment_dialog_stub.dart';
 
 class StripePaymentDialog {
-  static bool _isProcessing = false;
-  static bool _isListeningToMessages = false;
+  static RxBool paymentProcessed = false.obs;
+  static RxBool dialogClosed = false.obs;
+  static RxString debugStatus = ''.obs;
+  static RxBool isCheckingPayment = false.obs;
+  static RxInt attemptCount = 0.obs;
+
+  // Stockage des timers et subscriptions pour cleanup
+  static Timer? _pollingTimer;
+  static Timer? _timeoutTimer;
+  static StreamSubscription? _firestoreSubscription;
   static StreamSubscription? _messageSubscription;
   static Timer? _localStorageTimer;
+  static bool _isListeningToMessages = false;
+
+  // Stocker le dernier paiement traité pour éviter les doublons
+  static String? _lastProcessedPaymentId;
+  static DateTime? _lastProcessedPaymentTime;
 
   static void show({
     required String sessionId,
     required String title,
-    String? subtitle,
+    required String subtitle,
     required Function() onSuccess,
-    Function(String)? onError,
+    required Function(String) onError,
     bool enablePolling = true,
     Duration pollingInterval = const Duration(seconds: 2),
-    Duration timeout = const Duration(minutes: 2),
+    Duration timeout = const Duration(minutes: 5),
     Map<String, dynamic>? metadata,
   }) {
-    if (_isProcessing) {
-      print('⚠️ Paiement déjà en cours, ignoré');
-      return;
-    }
-    _isProcessing = true;
+    // Reset des variables
+    paymentProcessed.value = false;
+    dialogClosed.value = false;
+    debugStatus.value = '';
+    isCheckingPayment.value = false;
+    attemptCount.value = 0;
 
-    bool paymentProcessed = false;
-    bool dialogClosed = false;
-
-    final RxBool isCheckingPayment = false.obs;
-    final RxInt attemptCount = 0.obs;
-    final RxString debugStatus = 'Initialisation...'.obs;
-
-    Timer? pollingTimer;
-    Timer? timeoutTimer;
-    StreamSubscription? firestoreSubscription;
-
-    void cleanup() {
-      pollingTimer?.cancel();
-      timeoutTimer?.cancel();
-      firestoreSubscription?.cancel();
-      _stopListeningToHtmlMessages();
-      _isProcessing = false;
-      dialogClosed = true;
-    }
-
-    void handleSuccess() {
-      if (!paymentProcessed && !dialogClosed) {
-        paymentProcessed = true;
-        cleanup();
-        Get.back();
-        onSuccess();
-      }
-    }
-
-    void handleError(String error) {
-      if (!dialogClosed) {
-        cleanup();
-        Get.back();
-        onError?.call(error);
-      }
-    }
+    // Cleanup des anciens listeners
+    _cleanup();
 
     Get.dialog(
       WillPopScope(
         onWillPop: () async {
-          cleanup();
+          dialogClosed.value = true;
+          _cleanup();
           return true;
         },
         child: Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
           child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
+            padding: EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.purple),
-                    strokeWidth: 3,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                CircularProgressIndicator(),
+                SizedBox(height: 24),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Veuillez compléter le paiement dans la fenêtre Stripe',
                   textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                if (kDebugMode) ...[
+                  SizedBox(height: 16),
+                  Obx(() => Text(
+                        debugStatus.value,
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      )),
                 ],
-                const SizedBox(height: 20),
-                Obx(() => Text(
-                      debugStatus.value,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                      textAlign: TextAlign.center,
-                    )),
-                const SizedBox(height: 8),
-                Obx(() => Text(
-                      'Vérification ${attemptCount.value > 0 ? "(${attemptCount.value})" : ""}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[400],
-                      ),
-                    )),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.blue[700],
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Complétez votre paiement dans l\'onglet Stripe',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
+                SizedBox(height: 24),
                 TextButton(
                   onPressed: () {
-                    handleError('Paiement annulé par l\'utilisateur');
+                    dialogClosed.value = true;
+                    Get.back();
+                    _cleanup();
+                    onError('Paiement annulé');
                   },
-                  child: Text(
-                    'Annuler',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                    ),
-                  ),
+                  child: Text('Annuler'),
                 ),
               ],
             ),
@@ -196,182 +113,201 @@ class StripePaymentDialog {
         ),
       ),
       barrierDismissible: false,
-    ).whenComplete(() {
-      cleanup();
-    });
+    );
 
-    _startAllVerifications(
+    _startPaymentVerification(
       sessionId: sessionId,
-      handleSuccess: handleSuccess,
-      handleError: handleError,
+      onSuccess: () {
+        if (!paymentProcessed.value && !dialogClosed.value) {
+          paymentProcessed.value = true;
+          Get.back();
+          _cleanup();
+          onSuccess();
+        }
+      },
+      onError: (error) {
+        if (!dialogClosed.value) {
+          Get.back();
+          _cleanup();
+          onError(error);
+        }
+      },
       enablePolling: enablePolling,
       pollingInterval: pollingInterval,
       timeout: timeout,
-      isCheckingPayment: isCheckingPayment,
-      attemptCount: attemptCount,
-      debugStatus: debugStatus,
-      paymentProcessed: () => paymentProcessed,
-      dialogClosed: () => dialogClosed,
-      setPollingTimer: (timer) => pollingTimer = timer,
-      setTimeoutTimer: (timer) => timeoutTimer = timer,
-      setFirestoreSubscription: (sub) => firestoreSubscription = sub,
+      metadata: metadata,
     );
   }
 
-  // Helper pour convertir le timestamp en DateTime
+  static void _cleanup() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _timeoutTimer?.cancel();
+    _timeoutTimer = null;
+    _firestoreSubscription?.cancel();
+    _firestoreSubscription = null;
+    _stopListeningToHtmlMessages();
+  }
+
+  static void _stopListeningToHtmlMessages() {
+    _messageSubscription?.cancel();
+    _messageSubscription = null;
+    _localStorageTimer?.cancel();
+    _localStorageTimer = null;
+    _isListeningToMessages = false;
+  }
+
   static DateTime? _getDateFromPayment(dynamic created) {
     if (created == null) return null;
 
-    try {
-      // Si c'est un Timestamp Firestore
-      if (created is Timestamp) {
-        return created.toDate();
+    if (created is Timestamp) {
+      return created.toDate();
+    } else if (created is int) {
+      return DateTime.fromMillisecondsSinceEpoch(created * 1000);
+    } else if (created is String) {
+      try {
+        return DateTime.parse(created);
+      } catch (e) {
+        print('Erreur parsing date: $e');
+        return null;
       }
-
-      // Si c'est un nombre (timestamp Unix en secondes)
-      if (created is num) {
-        return DateTime.fromMillisecondsSinceEpoch(created.toInt() * 1000);
-      }
-
-      // Si c'est déjà une DateTime
-      if (created is DateTime) {
-        return created;
-      }
-
-      return null;
-    } catch (e) {
-      print('Erreur conversion date: $e');
-      return null;
     }
+
+    return null;
   }
 
-  static void _startAllVerifications({
+  static void _startPaymentVerification({
     required String sessionId,
-    required Function() handleSuccess,
-    required Function(String) handleError,
+    required Function() onSuccess,
+    required Function(String) onError,
     required bool enablePolling,
     required Duration pollingInterval,
     required Duration timeout,
-    required RxBool isCheckingPayment,
-    required RxInt attemptCount,
-    required RxString debugStatus,
-    required bool Function() paymentProcessed,
-    required bool Function() dialogClosed,
-    required Function(Timer?) setPollingTimer,
-    required Function(Timer?) setTimeoutTimer,
-    required Function(StreamSubscription?) setFirestoreSubscription,
-  }) async {
+    Map<String, dynamic>? metadata,
+  }) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      handleError('Utilisateur non connecté');
+      onError('Utilisateur non connecté');
       return;
     }
 
-    debugStatus.value = 'Configuration de l\'écoute...';
-
-    // 1. Écouter les changements dans payments en temps réel
-    final paymentsSubscription = FirebaseFirestore.instance
+    // 1. Écouter directement les changements dans la collection payments
+    _firestoreSubscription = FirebaseFirestore.instance
         .collection('customers')
         .doc(user.uid)
         .collection('payments')
         .orderBy('created', descending: true)
-        .limit(1)
+        .limit(5)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        final paymentDoc = snapshot.docs.first;
-        final data = paymentDoc.data();
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added &&
+            !paymentProcessed.value) {
+          final paymentData = change.doc.data();
+          final created = _getDateFromPayment(paymentData?['created']);
 
-        // Utiliser la méthode helper pour gérer différents formats
-        final created = _getDateFromPayment(data['created']);
+          if (created != null &&
+              DateTime.now().difference(created).inMinutes < 2 &&
+              paymentData?['status'] == 'succeeded') {
+            // Vérifier que ce n'est pas un ancien paiement déjà traité
+            final paymentId = change.doc.id;
+            if (_lastProcessedPaymentId == paymentId) {
+              print('⏭️ Paiement $paymentId déjà traité, ignoré');
+              continue;
+            }
 
-        if (created != null &&
-            DateTime.now().difference(created).inMinutes < 5 &&
-            data['status'] == 'succeeded' &&
-            !paymentProcessed()) {
-          print('✅ Paiement détecté via listener!');
-          print('   ID: ${paymentDoc.id}');
-          print('   Amount: ${data['amount']}');
-          print('   Status: ${data['status']}');
-          print('   Created: $created');
+            print('✅ Nouveau paiement détecté via listener!');
+            print('   ID: ${paymentId}');
+            print('   Amount: ${paymentData?['amount']}');
+            print('   Status: ${paymentData?['status']}');
+            print('   Created: $created');
 
-          debugStatus.value = '✅ Paiement confirmé !';
-          handleSuccess();
+            _lastProcessedPaymentId = paymentId;
+            _lastProcessedPaymentTime = created;
+
+            debugStatus.value = '✅ Paiement confirmé !';
+            onSuccess();
+          }
         }
       }
     }, onError: (error) {
       print('Erreur listener payments: $error');
     });
-    setFirestoreSubscription(paymentsSubscription);
 
     // 2. Écouter les messages web
     if (kIsWeb) {
       _startListeningToHtmlMessages(
         sessionId: sessionId,
         onSuccess: () {
-          if (!paymentProcessed()) {
+          if (!paymentProcessed.value) {
             debugStatus.value = '✅ Paiement confirmé (via page web) !';
-            handleSuccess();
+            onSuccess();
           }
         },
         onCancel: () {
-          if (!paymentProcessed() && !dialogClosed()) {
-            handleError('Paiement annulé');
+          if (!paymentProcessed.value && !dialogClosed.value) {
+            onError('Paiement annulé');
           }
         },
       );
     }
 
-    // 3. Polling actif
+    // 3. Polling actif amélioré
     if (enablePolling) {
       debugStatus.value = 'Vérification du paiement...';
 
-      final pollingTimer = Timer.periodic(pollingInterval, (timer) async {
+      _pollingTimer = Timer.periodic(pollingInterval, (timer) async {
         if (!isCheckingPayment.value &&
-            !paymentProcessed() &&
-            !dialogClosed()) {
+            !paymentProcessed.value &&
+            !dialogClosed.value) {
           isCheckingPayment.value = true;
           attemptCount.value++;
 
           try {
-            // Vérifier dans la collection payments
-            final paymentsQuery = await FirebaseFirestore.instance
+            // D'ABORD vérifier la session spécifique
+            final sessionDoc = await FirebaseFirestore.instance
                 .collection('customers')
                 .doc(user.uid)
-                .collection('payments')
-                .orderBy('created', descending: true)
-                .limit(5)
+                .collection('checkout_sessions')
+                .doc(sessionId)
                 .get();
 
-            for (var paymentDoc in paymentsQuery.docs) {
-              final paymentData = paymentDoc.data();
+            if (sessionDoc.exists) {
+              final sessionData = sessionDoc.data()!;
 
-              // Utiliser la méthode helper pour gérer différents formats
-              final created = _getDateFromPayment(paymentData['created']);
+              // Vérifier le statut de paiement de la session
+              final paymentStatus = sessionData['payment_status'] as String?;
+              if (paymentStatus == 'paid' || paymentStatus == 'succeeded') {
+                print('✅ Session $sessionId marquée comme payée!');
+                debugStatus.value = '✅ Paiement confirmé !';
+                timer.cancel();
+                onSuccess();
+                return;
+              }
 
-              if (created != null &&
-                  DateTime.now().difference(created).inMinutes < 5 &&
-                  paymentData['status'] == 'succeeded') {
-                print('✅ Paiement trouvé dans payments !');
-                print('   ID: ${paymentDoc.id}');
-                print('   Amount: ${paymentData['amount']}');
-                print('   Status: ${paymentData['status']}');
-                print('   Created: $created');
+              // Si la session a un payment_intent
+              final paymentIntentId = sessionData['payment_intent'] as String?;
+              if (paymentIntentId != null) {
+                // Chercher CE paiement spécifique dans la collection payments
+                final paymentsQuery = await FirebaseFirestore.instance
+                    .collection('customers')
+                    .doc(user.uid)
+                    .collection('payments')
+                    .where('id', isEqualTo: paymentIntentId)
+                    .limit(1)
+                    .get();
 
-                // Vérifier le montant ou les metadata
-                final amount = paymentData['amount'];
-                final metadata =
-                    paymentData['metadata'] as Map<String, dynamic>?;
-
-                // Si c'est probablement notre paiement
-                if (amount == 5000 || // 50€ en centimes
-                    (metadata != null &&
-                        (metadata['user_id'] == user.uid ||
-                            metadata['purchase_type'] == 'category_slot'))) {
-                  debugStatus.value = '✅ Paiement confirmé !';
-                  timer.cancel();
-                  handleSuccess();
-                  return;
+                if (paymentsQuery.docs.isNotEmpty) {
+                  final paymentData = paymentsQuery.docs.first.data();
+                  if (paymentData['status'] == 'succeeded') {
+                    print(
+                        '✅ Paiement spécifique trouvé pour session $sessionId!');
+                    print('   Payment Intent: $paymentIntentId');
+                    debugStatus.value = '✅ Paiement confirmé !';
+                    timer.cancel();
+                    onSuccess();
+                    return;
+                  }
                 }
               }
             }
@@ -379,34 +315,9 @@ class StripePaymentDialog {
             // Log périodique
             if (attemptCount.value % 5 == 0) {
               print(
-                  '🔍 Tentative ${attemptCount.value} - Pas de paiement récent trouvé');
+                  '🔍 Tentative ${attemptCount.value} - Pas de paiement trouvé pour session $sessionId');
               debugStatus.value =
                   'Vérification en cours... (${attemptCount.value})';
-            }
-
-            // Après 10 tentatives, vérifier l'établissement
-            if (attemptCount.value == 10) {
-              debugStatus.value = 'Vérification alternative...';
-
-              final estabQuery = await FirebaseFirestore.instance
-                  .collection('establishments')
-                  .where('user_id', isEqualTo: user.uid)
-                  .limit(1)
-                  .get();
-
-              if (estabQuery.docs.isNotEmpty) {
-                final hasActiveSubscription =
-                    estabQuery.docs.first.data()['has_active_subscription'] ??
-                        false;
-
-                if (hasActiveSubscription) {
-                  print('✅ Abonnement actif détecté dans l\'établissement!');
-                  debugStatus.value = '✅ Paiement confirmé !';
-                  timer.cancel();
-                  handleSuccess();
-                  return;
-                }
-              }
             }
           } catch (e) {
             print('❌ Erreur vérification: $e');
@@ -415,18 +326,16 @@ class StripePaymentDialog {
           }
         }
       });
-      setPollingTimer(pollingTimer);
     }
 
     // 4. Timeout
-    final timeoutTimer = Timer(timeout, () {
-      if (!paymentProcessed() && !dialogClosed()) {
+    _timeoutTimer = Timer(timeout, () {
+      if (!paymentProcessed.value && !dialogClosed.value) {
         debugStatus.value = '⏱️ Délai dépassé';
-        handleError(
+        onError(
             'Délai de vérification dépassé. Veuillez vérifier votre paiement.');
       }
     });
-    setTimeoutTimer(timeoutTimer);
   }
 
   static void _startListeningToHtmlMessages({
@@ -438,94 +347,10 @@ class StripePaymentDialog {
 
     _isListeningToMessages = true;
 
-    _messageSubscription = html.window.onMessage.listen((event) {
-      try {
-        final data = event.data;
-
-        if (data is Map || data is String) {
-          Map<String, dynamic> messageData;
-
-          if (data is String) {
-            messageData = json.decode(data);
-          } else {
-            messageData = Map<String, dynamic>.from(data);
-          }
-
-          if (messageData['type'] == 'stripe-payment-success') {
-            print('✅ Message de succès reçu de la page Stripe!');
-            html.window.localStorage.remove('stripe_payment_status');
-            onSuccess();
-          } else if (messageData['type'] == 'stripe-payment-cancelled') {
-            print('❌ Message d\'annulation reçu de la page Stripe!');
-            html.window.localStorage.remove('stripe_payment_status');
-            onCancel();
-          }
-        }
-      } catch (e) {
-        print('Erreur parsing message: $e');
-      }
-    });
-
-    _localStorageTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      try {
-        final storageData = html.window.localStorage['stripe_payment_status'];
-
-        if (storageData != null) {
-          final data = json.decode(storageData);
-
-          if (data['status'] == 'success') {
-            print('✅ Succès détecté via localStorage!');
-            html.window.localStorage.remove('stripe_payment_status');
-            onSuccess();
-          } else if (data['status'] == 'cancelled') {
-            print('❌ Annulation détectée via localStorage!');
-            html.window.localStorage.remove('stripe_payment_status');
-            onCancel();
-          }
-        }
-      } catch (e) {
-        // Ignorer les erreurs
-      }
-    });
-
-    if (kIsWeb) {
-      try {
-        final channel = html.BroadcastChannel('stripe_payment_status');
-        channel.onMessage.listen((event) {
-          try {
-            final data = event.data;
-            if (data is Map || data is String) {
-              Map<String, dynamic> messageData;
-
-              if (data is String) {
-                messageData = json.decode(data);
-              } else {
-                messageData = Map<String, dynamic>.from(data);
-              }
-
-              if (messageData['type'] == 'stripe-payment-success') {
-                print('✅ Succès reçu via BroadcastChannel!');
-                onSuccess();
-              } else if (messageData['type'] == 'stripe-payment-cancelled') {
-                print('❌ Annulation reçue via BroadcastChannel!');
-                onCancel();
-              }
-            }
-          } catch (e) {
-            print('Erreur BroadcastChannel: $e');
-          }
-        });
-      } catch (e) {
-        print('BroadcastChannel non supporté');
-      }
-    }
-  }
-
-  static void _stopListeningToHtmlMessages() {
-    _messageSubscription?.cancel();
-    _messageSubscription = null;
-    _localStorageTimer?.cancel();
-    _localStorageTimer = null;
-    _isListeningToMessages = false;
+    StripePaymentDialogWeb.startListening(
+      sessionId: sessionId,
+      onSuccess: onSuccess,
+      onCancel: onCancel,
+    );
   }
 }

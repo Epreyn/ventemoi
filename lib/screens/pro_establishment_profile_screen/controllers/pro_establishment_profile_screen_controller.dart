@@ -1371,6 +1371,8 @@ class ProEstablishmentProfileScreenController extends GetxController
       final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
       if (uid == null) return;
 
+      print('🎰 _handleSlotPaymentSuccess appelé pour user: $uid');
+
       // Attendre que Firestore se mette à jour
       await Future.delayed(Duration(seconds: 1));
 
@@ -1385,24 +1387,50 @@ class ProEstablishmentProfileScreenController extends GetxController
 
       if (estabQuery.docs.isNotEmpty) {
         final doc = estabQuery.docs.first;
+        final establishmentId = doc.id;
         final data = doc.data();
+        final currentSlots = data['enterprise_category_slots'] ?? 2;
+        final newSlots = currentSlots + 1;
 
-        final newSlots = data['enterprise_category_slots'] ?? 3;
+        print('📦 Slots actuels: $currentSlots');
+        print('📦 Nouveaux slots: $newSlots');
+
+        // IMPORTANT: Mettre à jour Firestore
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(establishmentId)
+            .update({
+          'enterprise_category_slots': newSlots,
+          'last_slot_purchase': FieldValue.serverTimestamp(),
+        });
+
+        print('✅ Firestore mis à jour avec $newSlots slots');
+
+        // Mettre à jour l'UI
         enterpriseCategorySlots.value = newSlots;
 
         // Ajouter un slot vide
         selectedEnterpriseCategories.add(Rx<EnterpriseCategory?>(null));
+
+        UniquesControllers().data.snackbar(
+              'Slot ajouté !',
+              'Votre nouveau slot est disponible. Total: $newSlots',
+              false,
+            );
+
+        update();
+      } else {
+        print('❌ Aucun établissement trouvé pour user: $uid');
       }
-
-      UniquesControllers().data.snackbar(
-            'Slot ajouté !',
-            'Votre nouveau slot est disponible.',
-            false,
-          );
-
-      update();
     } catch (e) {
-      print('Erreur après paiement slot: $e');
+      print('❌ Erreur après paiement slot: $e');
+      UniquesControllers().data.snackbar(
+            'Erreur',
+            'Impossible d\'ajouter le slot. Contactez le support.',
+            true,
+          );
     }
   }
 
@@ -1466,7 +1494,7 @@ class ProEstablishmentProfileScreenController extends GetxController
               Get.back();
               purchaseAdditionalSlot();
             },
-            icon: Icon(Icons.credit_card),
+            icon: Icon(Icons.credit_card, color: Colors.white),
             label: Text('Acheter', style: TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,

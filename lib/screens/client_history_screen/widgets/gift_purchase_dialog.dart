@@ -77,26 +77,24 @@ class GiftPurchaseDialog extends StatelessWidget {
                           color: Colors.orange.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.card_giftcard,
-                          color: Colors.orange[800],
+                          color: Colors.orange,
                           size: 24,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Offrir ce bon cadeau',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
                               ),
                             ),
-                            const SizedBox(height: 4),
                             Text(
                               'Bon de ${purchase.couponsCount * 50}€',
                               style: TextStyle(
@@ -108,15 +106,18 @@ class GiftPurchaseDialog extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(Icons.close, color: Colors.grey[600]),
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.close),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey[100],
+                        ),
                       ),
                     ],
                   ),
                 ),
 
-                // Contenu
-                Flexible(
+                // Content
+                Expanded(
                   child: SingleChildScrollView(
                     padding:
                         EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
@@ -308,24 +309,47 @@ class GiftPurchaseDialog extends StatelessWidget {
                       : Colors.grey[300]!,
                   width: isSelected ? 2 : 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                  // Avatar
+                  // Avatar avec initiales
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 56,
+                    height: 56,
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.2),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isSelected
+                            ? [Colors.orange, Colors.deepOrange]
+                            : [
+                                Colors.orange.withOpacity(0.3),
+                                Colors.orange.withOpacity(0.5)
+                              ],
+                      ),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Center(
                       child: Text(
                         controller.getInitials(userData),
                         style: TextStyle(
-                          color: Colors.orange[800],
+                          color: isSelected ? Colors.white : Colors.orange[800],
                           fontWeight: FontWeight.bold,
-                          fontSize: 20,
+                          fontSize: 22,
                         ),
                       ),
                     ),
@@ -336,6 +360,7 @@ class GiftPurchaseDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Prénom Nom
                         Text(
                           controller.getUserDisplayName(userData),
                           style: const TextStyle(
@@ -343,32 +368,46 @@ class GiftPurchaseDialog extends StatelessWidget {
                             fontSize: 16,
                             color: Colors.black87,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 4),
+                        // Établissement • Email
                         Text(
                           controller.getUserSubtitle(userData),
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  // Indicateur de sélection
-                  if (isSelected)
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        color: Colors.orange,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 16,
-                      ),
+                  // Indicateur de sélection animé
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: isSelected ? 28 : 24,
+                    height: isSelected ? 28 : 24,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.orange
+                          : Colors.grey.withOpacity(0.2),
+                      shape: BoxShape.circle,
                     ),
+                    child: isSelected
+                        ? const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 18,
+                          )
+                        : Icon(
+                            Icons.circle_outlined,
+                            color: Colors.grey[400],
+                            size: 20,
+                          ),
+                  ),
                 ],
               ),
             ),
