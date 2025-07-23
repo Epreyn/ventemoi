@@ -10,15 +10,12 @@ class CustomLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomAnimation(
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeInOutBack,
-      yStartPosition: UniquesControllers().data.baseSpace * 2,
-      isOpacity: true,
-      child: Image.asset(
-        'images/logo.png',
-        width: UniquesControllers().data.baseSpace * 12,
-      ),
+    return Image.asset(
+      'images/logo.png',
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      isAntiAlias: true,
+      width: UniquesControllers().data.baseSpace * 12,
     );
   }
 }

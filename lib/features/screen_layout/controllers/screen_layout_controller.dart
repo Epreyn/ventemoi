@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'dart:async';
 
 class ScreenLayoutController extends GetxController {
   // Instance singleton pour garder le même contrôleur dans toute l'app
@@ -10,53 +9,21 @@ class ScreenLayoutController extends GetxController {
     return _instance!;
   }
 
-  // Valeurs d'animation pour chaque vague (0.0 à 1.0)
-  RxDouble wave1Progress = 0.0.obs;
-  RxDouble wave2Progress = 0.0.obs;
-  RxDouble wave3Progress = 0.0.obs;
-  RxDouble wave4Progress = 0.0.obs;
-
-  Timer? _animationTimer;
-  bool _isAnimating = false;
+  // Valeurs STATIQUES pour chaque vague (0.0 à 1.0)
+  // Ces valeurs donnent une position fixe aux vagues
+  RxDouble wave1Progress = 0.3.obs; // Position fixe vague 1
+  RxDouble wave2Progress = 0.7.obs; // Position fixe vague 2
+  RxDouble wave3Progress = 0.5.obs; // Position fixe vague 3
+  RxDouble wave4Progress = 0.2.obs; // Position fixe vague 4
 
   @override
   void onInit() {
     super.onInit();
-    _startAnimations();
-  }
-
-  void _startAnimations() {
-    if (_isAnimating) return; // Éviter de démarrer plusieurs fois
-
-    _isAnimating = true;
-
-    // Timer qui update toutes les 16ms (~60fps)
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      // Vitesses réduites de moitié pour une animation plus discrète
-      wave1Progress.value = (wave1Progress.value + 0.0005) % 1.0; // Était 0.001
-      wave2Progress.value =
-          (wave2Progress.value + 0.0004) % 1.0; // Était 0.0008
-      wave3Progress.value =
-          (wave3Progress.value + 0.0006) % 1.0; // Était 0.0012
-      wave4Progress.value = (wave4Progress.value + 0.001) % 1.0; // Était 0.002
-    });
-  }
-
-  void pauseAnimations() {
-    _animationTimer?.cancel();
-    _isAnimating = false;
-  }
-
-  void resumeAnimations() {
-    if (!_isAnimating) {
-      _startAnimations();
-    }
+    // Plus d'animations ! Les vagues restent statiques
   }
 
   @override
   void onClose() {
-    _animationTimer?.cancel();
-    _isAnimating = false;
     _instance = null;
     super.onClose();
   }

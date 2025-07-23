@@ -36,7 +36,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.showDrawerButton = true,
     this.scaffoldKey,
     this.backgroundColor,
-    this.height = 80,
+    this.height = 90,
     this.showGreeting = true,
     this.modernStyle = true,
   });
@@ -49,13 +49,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final cc = Get.put(CustomAppBarActionsController());
 
     return Container(
+      height: height,
       decoration: BoxDecoration(
-        color: backgroundColor ??
-            CustomTheme.lightScheme().primary.withOpacity(0.05),
+        color: const Color(0xFFf2d8a1), // Couleur spécifiée
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Padding(
@@ -63,198 +70,176 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             horizontal: UniquesControllers().data.baseSpace * 2,
             vertical: UniquesControllers().data.baseSpace,
           ),
-          child: modernStyle
-              ? _buildModernContent(cc, context)
-              : _buildClassicContent(cc, context),
+          child: _buildNewLayoutContent(cc, context),
         ),
       ),
     );
   }
 
-  Widget _buildModernContent(
+  Widget _buildNewLayoutContent(
       CustomAppBarActionsController cc, BuildContext context) {
     return Row(
       children: [
-        // Avatar utilisateur ou leading personnalisé
-        if (leading != null)
+        // Bouton Menu tout à gauche
+        if (showDrawerButton)
           CustomAnimation(
             duration: UniquesControllers().data.baseAnimationDuration,
             delay: UniquesControllers().data.baseAnimationDuration,
             curve: Curves.easeOutQuart,
-            xStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
+            xStartPosition: -20,
             isOpacity: true,
-            child: leading!,
-          )
-        else if (showUserInfo)
-          StreamBuilder<String>(
-            stream: _getUserImageStream(),
-            builder: (context, snapshot) {
-              return CustomAnimation(
-                duration: UniquesControllers().data.baseAnimationDuration,
-                delay: UniquesControllers().data.baseAnimationDuration,
-                curve: Curves.easeOutQuart,
-                xStartPosition: -20,
-                isOpacity: true,
-                child: CircleAvatar(
-                  radius: 24,
-                  backgroundColor: CustomTheme.lightScheme().primary,
-                  backgroundImage: snapshot.hasData && snapshot.data!.isNotEmpty
-                      ? NetworkImage(snapshot.data!)
-                      : null,
-                  child: !snapshot.hasData || snapshot.data!.isEmpty
-                      ? const Icon(Icons.person, color: Colors.white)
-                      : null,
-                ),
-              );
-            },
-          ),
-
-        if (showUserInfo || leading != null) const SizedBox(width: 12),
-
-        // Titre et sous-titre ou widget titre personnalisé
-        Expanded(
-          child: title != null
-              ? CustomAnimation(
-                  duration: UniquesControllers().data.baseAnimationDuration,
-                  delay: UniquesControllers().data.baseAnimationDuration * 1.2,
-                  curve: Curves.easeOutQuart,
-                  yStartPosition: -10,
-                  isOpacity: true,
-                  child: title!,
-                )
-              : showUserInfo && showGreeting
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CustomAnimation(
-                          duration:
-                              UniquesControllers().data.baseAnimationDuration,
-                          delay:
-                              UniquesControllers().data.baseAnimationDuration *
-                                  1.2,
-                          curve: Curves.easeOutQuart,
-                          yStartPosition: -10,
-                          isOpacity: true,
-                          child: Text(
-                            'Bonjour,',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                        StreamBuilder<String>(
-                          stream: _getUserNameStream(),
-                          builder: (context, snapshot) {
-                            return CustomAnimation(
-                              duration: UniquesControllers()
-                                  .data
-                                  .baseAnimationDuration,
-                              delay: UniquesControllers()
-                                      .data
-                                      .baseAnimationDuration *
-                                  1.4,
-                              curve: Curves.easeOutQuart,
-                              yStartPosition: -10,
-                              isOpacity: true,
-                              child: Text(
-                                snapshot.data ?? 'Utilisateur',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-        ),
-
-        // Actions personnalisées ou points et drawer
-        if (actions != null)
-          ...actions!.asMap().entries.map((entry) {
-            final index = entry.key;
-            final action = entry.value;
-            return CustomAnimation(
-              duration: UniquesControllers().data.baseAnimationDuration,
-              delay:
-                  UniquesControllers().data.baseAnimationDuration * (index + 2),
-              curve: Curves.easeOutQuart,
-              xStartPosition: 20,
-              isOpacity: true,
-              child: action,
-            );
-          }).toList()
-        else ...[
-          // if (showNotifications)
-          //   CustomAnimation(
-          //     duration: UniquesControllers().data.baseAnimationDuration,
-          //     delay: UniquesControllers().data.baseAnimationDuration,
-          //     curve: Curves.easeOutQuart,
-          //     xStartPosition: 20,
-          //     isOpacity: true,
-          //     child: NotificationIconButton(
-          //       onPressed: () => Get.to(() => const NotificationsScreen()),
-          //     ),
-          //   ),
-
-          // if (showNotifications) const SizedBox(width: 12),
-          // Widget points moderne
-          if (showPoints)
-            Obx(() => CustomAnimation(
-                  duration: UniquesControllers().data.baseAnimationDuration,
-                  delay: UniquesControllers().data.baseAnimationDuration * 2,
-                  curve: Curves.easeOutQuart,
-                  xStartPosition: 20,
-                  isOpacity: true,
-                  child: _buildModernPointsWidget(cc),
-                )),
-
-          if (showPoints) const SizedBox(width: 12),
-
-          // Menu drawer moderne
-          if (showDrawerButton)
-            CustomAnimation(
-              duration: UniquesControllers().data.baseAnimationDuration,
-              delay: UniquesControllers().data.baseAnimationDuration * 3,
-              curve: Curves.easeOutQuart,
-              xStartPosition: 20,
-              isOpacity: true,
-              child: Builder(
-                builder: (context) => IconButton(
-                  icon: Container(
-                    padding:
-                        EdgeInsets.all(UniquesControllers().data.baseSpace),
-                    decoration: BoxDecoration(
-                      color: CustomTheme.lightScheme().primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.menu,
-                      color: Colors.white,
-                    ),
+            child: Builder(
+              builder: (context) => IconButton(
+                icon: Container(
+                  padding: EdgeInsets.all(UniquesControllers().data.baseSpace),
+                  decoration: BoxDecoration(
+                    color: CustomTheme.lightScheme().primary,
+                    shape: BoxShape.circle,
                   ),
-                  onPressed: () {
-                    if (scaffoldKey != null) {
-                      scaffoldKey!.currentState?.openDrawer();
-                    } else {
-                      Scaffold.of(context).openDrawer();
-                    }
-                  },
+                  child: const Icon(
+                    Icons.menu,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
+                onPressed: () {
+                  if (scaffoldKey != null) {
+                    scaffoldKey!.currentState?.openDrawer();
+                  } else {
+                    Scaffold.of(context).openDrawer();
+                  }
+                },
               ),
             ),
-        ],
+          ),
+
+        const SizedBox(width: 12),
+
+        // Titre et sous-titre à droite du bouton menu
+        CustomAnimation(
+          duration: UniquesControllers().data.baseAnimationDuration,
+          delay: UniquesControllers().data.baseAnimationDuration * 1.2,
+          curve: Curves.easeOutQuart,
+          yStartPosition: -10,
+          isOpacity: true,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vente Moi',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              Text(
+                'Le Don des Affaires',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: CustomTheme.lightScheme().primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Espacement flexible
+        const Spacer(),
+
+        // Section droite : Bonjour + Nom, Image, Points
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Bonjour + Nom
+            if (showUserInfo && showGreeting)
+              StreamBuilder<String>(
+                stream: _getUserNameStream(),
+                builder: (context, snapshot) {
+                  return CustomAnimation(
+                    duration: UniquesControllers().data.baseAnimationDuration,
+                    delay:
+                        UniquesControllers().data.baseAnimationDuration * 1.5,
+                    curve: Curves.easeOutQuart,
+                    xStartPosition: 20,
+                    isOpacity: true,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Bonjour,',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        Text(
+                          snapshot.data ?? 'Utilisateur',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+            const SizedBox(width: 12),
+
+            // Avatar utilisateur
+            if (showUserInfo)
+              StreamBuilder<String>(
+                stream: _getUserImageStream(),
+                builder: (context, snapshot) {
+                  return CustomAnimation(
+                    duration: UniquesControllers().data.baseAnimationDuration,
+                    delay:
+                        UniquesControllers().data.baseAnimationDuration * 1.7,
+                    curve: Curves.easeOutQuart,
+                    xStartPosition: 20,
+                    isOpacity: true,
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: CustomTheme.lightScheme().primary,
+                      backgroundImage:
+                          snapshot.hasData && snapshot.data!.isNotEmpty
+                              ? NetworkImage(snapshot.data!)
+                              : null,
+                      child: !snapshot.hasData || snapshot.data!.isEmpty
+                          ? const Icon(Icons.person,
+                              color: Colors.white, size: 20)
+                          : null,
+                    ),
+                  );
+                },
+              ),
+
+            const SizedBox(width: 12),
+
+            // Points
+            if (showPoints)
+              Obx(() => CustomAnimation(
+                    duration: UniquesControllers().data.baseAnimationDuration,
+                    delay: UniquesControllers().data.baseAnimationDuration * 2,
+                    curve: Curves.easeOutQuart,
+                    xStartPosition: 20,
+                    isOpacity: true,
+                    child: _buildPointsWidget(cc),
+                  )),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildModernPointsWidget(CustomAppBarActionsController cc) {
+  Widget _buildPointsWidget(CustomAppBarActionsController cc) {
     final realPoints = cc.realPoints.value;
     final pendingPoints = cc.pendingPoints.value;
     final isBoutique = cc.isBoutique.value;
@@ -268,207 +253,132 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Row(
       children: [
-        // Infos boutique (moderne)
+        // Infos boutique
         if (isBoutique) ...[
-          _buildModernInfoBadge(
-            value: coupons,
-            label: 'Bons',
-            pending: couponsPending,
-            icon: Icons.confirmation_number,
-            color: Colors.blue,
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: UniquesControllers().data.baseSpace * 1.5,
+              vertical: UniquesControllers().data.baseSpace * 0.8,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.confirmation_number,
+                      color: CustomTheme.lightScheme().primary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$coupons',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Bons',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+                if (couponsPending > 0)
+                  Text(
+                    '$couponsPending en attente',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.black45,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(width: 8),
         ],
 
         // Points (sauf admin)
         if (!isAdmin)
-          _buildModernInfoBadge(
-            value: realPoints,
-            label: 'pts',
-            pending: pendingPoints,
-            icon: Icons.stars_rounded,
-            color: CustomTheme.lightScheme().primary,
-          ),
-      ],
-    );
-  }
-
-  Widget _buildModernInfoBadge({
-    required int value,
-    required String label,
-    required int pending,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: UniquesControllers().data.baseSpace * 2,
-        vertical: UniquesControllers().data.baseSpace,
-      ),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color,
-            color.withOpacity(0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 20,
-          ),
-          const SizedBox(width: 6),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Text(
-              '$value',
-              key: ValueKey(value),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: UniquesControllers().data.baseSpace * 1.5,
+              vertical: UniquesControllers().data.baseSpace * 0.8,
             ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClassicContent(
-      CustomAppBarActionsController cc, BuildContext context) {
-    // Ancien style pour la compatibilité
-    return Row(
-      children: [
-        // Leading
-        if (leading != null)
-          CustomAnimation(
-            duration: UniquesControllers().data.baseAnimationDuration,
-            delay: UniquesControllers().data.baseAnimationDuration,
-            curve: Curves.easeOutQuart,
-            xStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
-            isOpacity: true,
-            child: leading!,
-          ),
-
-        // Title
-        if (title != null)
-          Expanded(
-            child: CustomAnimation(
-              duration: UniquesControllers().data.baseAnimationDuration,
-              delay: UniquesControllers().data.baseAnimationDuration,
-              curve: Curves.easeOutQuart,
-              yStartPosition: -UniquesControllers().data.baseAppBarHeight / 2,
-              isOpacity: true,
-              child: title!,
-            ),
-          ),
-
-        // Actions classiques
-        if (actions != null)
-          ...actions!
-        else ...[
-          // Points widget classique
-          if (showPoints) Obx(() => _buildClassicPointsWidget(cc)),
-
-          const SizedBox(width: 12),
-
-          // Menu button classique
-          if (showDrawerButton)
-            IconButton(
-              icon: Icon(
-                Icons.menu,
-                color: CustomTheme.lightScheme().primary,
-              ),
-              onPressed: () {
-                if (scaffoldKey != null) {
-                  scaffoldKey!.currentState?.openDrawer();
-                } else {
-                  Scaffold.of(context).openDrawer();
-                }
-              },
-            ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildClassicPointsWidget(CustomAppBarActionsController cc) {
-    final real = cc.realPoints.value;
-    final pending = cc.pendingPoints.value;
-    final isBoutique = cc.isBoutique.value;
-    final coupons = cc.couponsRestants.value;
-    final couponsPending = cc.couponsPending.value;
-    final isAdmin = cc.isAdmin.value;
-
-    return Row(
-      children: [
-        if (isBoutique)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$coupons Bons',
-                style: TextStyle(
-                  fontSize: UniquesControllers().data.baseSpace * 2,
-                  fontWeight: FontWeight.bold,
+            decoration: BoxDecoration(
+              color: CustomTheme.lightScheme().primary,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
-              ),
-              if (couponsPending > 0)
-                Text(
-                  '$couponsPending en attente',
-                  style: TextStyle(
-                    fontSize: UniquesControllers().data.baseSpace * 1.5,
-                    fontStyle: FontStyle.italic,
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.stars_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 4),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        '$realPoints',
+                        key: ValueKey(realPoints),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'pts',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                if (pendingPoints > 0)
+                  Text(
+                    '$pendingPoints en attente',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.white70,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
-                ),
-            ],
-          ),
-        if (isBoutique) const SizedBox(width: 16),
-        if (!isAdmin)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$real Points',
-                style: TextStyle(
-                  fontSize: UniquesControllers().data.baseSpace * 2,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (pending > 0)
-                Text(
-                  '$pending en attente',
-                  style: TextStyle(
-                    fontSize: UniquesControllers().data.baseSpace * 1.5,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
       ],
     );

@@ -83,18 +83,6 @@ class PasswordScreen extends StatelessWidget {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // Cercles pulsants
-                            ...List.generate(2, (index) {
-                              return PulsingBorder(
-                                baseWidth: isTablet ? 500 : 400,
-                                baseHeight: 420,
-                                expandScale: 1.15,
-                                delay: index * 1.0,
-                                opacity: 0.1, // Opacité constante
-                                strokeWidth: 1.0, // Épaisseur constante
-                              );
-                            }),
-
                             // Container glassmorphique
                             Container(
                               constraints: BoxConstraints(
@@ -262,115 +250,6 @@ class PasswordScreen extends StatelessWidget {
 
         const SizedBox(height: 24),
       ],
-    );
-  }
-}
-
-// Widget réutilisé de LoginScreen pour les bordures pulsantes
-class PulsingBorder extends StatefulWidget {
-  final double baseWidth;
-  final double baseHeight;
-  final double expandScale;
-  final double delay;
-  final double opacity;
-  final double strokeWidth;
-
-  const PulsingBorder({
-    super.key,
-    required this.baseWidth,
-    required this.baseHeight,
-    required this.expandScale,
-    required this.delay,
-    required this.opacity,
-    this.strokeWidth = 2.0,
-  });
-
-  @override
-  State<PulsingBorder> createState() => _PulsingBorderState();
-}
-
-class _PulsingBorderState extends State<PulsingBorder>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    );
-
-    _animation = Tween(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.linear,
-    ));
-
-    Future.delayed(Duration(milliseconds: (widget.delay * 1000).toInt()), () {
-      if (mounted) {
-        _controller.repeat();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        final progress = _animation.value;
-        final scale = 0.98 + (widget.expandScale - 0.98) * progress;
-
-        double opacity;
-        if (progress < 0.1) {
-          opacity = widget.opacity * (progress / 0.1);
-        } else if (progress > 0.7) {
-          opacity = widget.opacity * ((1.0 - progress) / 0.3);
-        } else {
-          opacity = widget.opacity;
-        }
-
-        return Transform.scale(
-          scale: scale,
-          child: Container(
-            width: widget.baseWidth,
-            height: widget.baseHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: CustomTheme.lightScheme().primary.withOpacity(opacity),
-                width: widget.strokeWidth,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: CustomTheme.lightScheme()
-                      .primary
-                      .withOpacity(opacity * 0.5),
-                  blurRadius: 30 * progress,
-                  spreadRadius: 10 * progress,
-                ),
-                BoxShadow(
-                  color: CustomTheme.lightScheme()
-                      .primary
-                      .withOpacity(opacity * 0.3),
-                  blurRadius: 60 * progress,
-                  spreadRadius: 20 * progress,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

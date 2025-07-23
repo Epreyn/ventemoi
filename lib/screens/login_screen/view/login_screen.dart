@@ -12,7 +12,6 @@ import '../../../features/custom_logo/view/custom_logo.dart';
 import '../../../features/custom_fab_button/view/custom_fab_button.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 import '../../../features/custom_divider/view/custom_divider.dart';
-import '../../../features/custom_text_form_field/view/custom_text_form_field_v2.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/login_screen_controller.dart';
 
@@ -56,21 +55,6 @@ class LoginScreen extends StatelessWidget {
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // Cercles pulsants autour du container - EFFET INFINI
-                            ...List.generate(3, (index) {
-                              return PulsingBorder(
-                                baseWidth: isTablet ? 500 : 400,
-                                baseHeight:
-                                    580, // Hauteur réduite pour correspondre à la nouvelle carte
-                                expandScale:
-                                    1.15, // Toujours la même expansion finale
-                                delay: index *
-                                    1.0, // Espacement temporel entre les cercles
-                                opacity: 0.1, // Opacité constante
-                                strokeWidth: 1.0, // Épaisseur constante
-                              );
-                            }),
-
                             // Container glassmorphique principal - BLUR RÉDUIT
                             Container(
                               constraints: BoxConstraints(
@@ -177,7 +161,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      'v 1.7.7',
+                      'v 1.8.0',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -200,6 +184,7 @@ class LoginScreen extends StatelessWidget {
   Widget _buildLoginForm(LoginScreenController cc, BuildContext context) {
     return Column(
       children: [
+        const SizedBox(height: 32),
         // Logo et titre intégrés
         CustomCardAnimation(
           index: 1,
@@ -210,14 +195,31 @@ class LoginScreen extends StatelessWidget {
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  // Logo en arrière-plan avec opacité
+                  // Logo en arrière-plan avec dégradé d'opacité
                   Positioned(
-                    top: -20,
-                    child: Opacity(
-                      opacity: 0.15,
+                    top: -30,
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) {
+                        return LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(1),
+                            Colors.white.withOpacity(0.05),
+                            Colors.white.withOpacity(0.05),
+                            Colors.white.withOpacity(1),
+                          ],
+                          stops: const [
+                            0.0,
+                            0.3,
+                            0.7,
+                            1.0
+                          ], // Positions du dégradé
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
                       child: SizedBox(
                         width: 140,
-                        height: 140,
                         child: const CustomLogo(),
                       ),
                     ),
@@ -233,20 +235,33 @@ class LoginScreen extends StatelessWidget {
                         'VENTE MOI',
                         style: TextStyle(
                           fontSize: 36,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -1,
+                          fontWeight: FontWeight.bold,
                           color: Colors.black87,
+                          height: 1.1,
                         ),
                       ),
 
-                      // Sous-titre
-                      const SizedBox(height: 8),
-                      Text(
-                        'Connectez-vous pour continuer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Color(0xffebe1ce),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: CustomTheme.lightScheme().primary),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          'Le Don des Affaires',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: CustomTheme.lightScheme().primary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -257,12 +272,12 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 48),
+        const SizedBox(height: 78),
 
         // Champ Email
         CustomCardAnimation(
           index: 2,
-          child: CustomTextFormFieldV2(
+          child: CustomTextFormField(
             tag: cc.emailTag,
             controller: cc.emailController,
             labelText: cc.emailLabel,
@@ -279,7 +294,7 @@ class LoginScreen extends StatelessWidget {
         // Champ Mot de passe
         CustomCardAnimation(
           index: 3,
-          child: CustomTextFormFieldV2(
+          child: CustomTextFormField(
             tag: cc.passwordTag,
             controller: cc.passwordController,
             labelText: cc.passwordLabel,
@@ -297,7 +312,7 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
 
         // Mot de passe oublié
         CustomCardAnimation(
@@ -333,7 +348,7 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
         // Divider
         CustomCardAnimation(
@@ -348,7 +363,7 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
 
         // Bouton d'inscription
         CustomCardAnimation(
@@ -364,122 +379,6 @@ class LoginScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// Widget pour les bordures pulsantes autour du container - AMÉLIORÉ
-class PulsingBorder extends StatefulWidget {
-  final double baseWidth;
-  final double baseHeight;
-  final double expandScale;
-  final double delay;
-  final double opacity;
-  final double strokeWidth;
-
-  const PulsingBorder({
-    super.key,
-    required this.baseWidth,
-    required this.baseHeight,
-    required this.expandScale,
-    required this.delay,
-    required this.opacity,
-    this.strokeWidth = 2.0,
-  });
-
-  @override
-  State<PulsingBorder> createState() => _PulsingBorderState();
-}
-
-class _PulsingBorderState extends State<PulsingBorder>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 3),
-      vsync: this,
-    );
-
-    // Animation qui va de 0 à 1
-    _animation = Tween(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
-
-    // Démarrer après le délai spécifié
-    Future.delayed(Duration(milliseconds: (widget.delay * 1000).toInt()), () {
-      if (mounted) {
-        _controller.repeat();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        final progress = _animation.value;
-
-        // Calculer le scale en fonction de la progression
-        final scale = 0.98 + (widget.expandScale - 0.98) * progress;
-
-        // Calculer l'opacité pour créer un effet de fondu
-        double opacity;
-        if (progress < 0.1) {
-          // Apparition progressive (0% à 10%)
-          opacity = widget.opacity * (progress / 0.1);
-        } else if (progress > 0.7) {
-          // Disparition progressive (70% à 100%)
-          opacity = widget.opacity * ((1.0 - progress) / 0.3);
-        } else {
-          // Pleine opacité (10% à 70%)
-          opacity = widget.opacity;
-        }
-
-        return Transform.scale(
-          scale: scale,
-          child: Container(
-            width: widget.baseWidth,
-            height: widget.baseHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: CustomTheme.lightScheme().primary.withOpacity(opacity),
-                width: widget.strokeWidth,
-              ),
-              boxShadow: [
-                // Ombre principale
-                BoxShadow(
-                  color: CustomTheme.lightScheme().primary.withOpacity(
-                        opacity * 0.5,
-                      ),
-                  blurRadius: 30 * progress,
-                  spreadRadius: 10 * progress,
-                ),
-                // Ombre secondaire plus diffuse
-                BoxShadow(
-                  color: CustomTheme.lightScheme().primary.withOpacity(
-                        opacity * 0.3,
-                      ),
-                  blurRadius: 60 * progress,
-                  spreadRadius: 20 * progress,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
