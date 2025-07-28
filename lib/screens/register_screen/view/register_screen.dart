@@ -38,35 +38,6 @@ class RegisterScreen extends StatelessWidget {
       noFAB: true,
       body: Stack(
         children: [
-          // Bouton retour
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            child: CustomCardAnimation(
-              index: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_rounded,
-                    color: CustomTheme.lightScheme().primary,
-                  ),
-                  onPressed: () => Get.offNamed(Routes.login),
-                ),
-              ),
-            ),
-          ),
-
           // Contenu principal
           SafeArea(
             child: Center(
@@ -148,6 +119,44 @@ class RegisterScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 40),
                     ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Bouton retour avec zone cliquable améliorée
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 16,
+            child: CustomCardAnimation(
+              index: 0,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Get.offNamed(Routes.login),
+                  borderRadius: BorderRadius.circular(28),
+                  child: Container(
+                    width: 56, // Taille fixe pour une meilleure zone de clic
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.arrow_back_rounded,
+                        color: CustomTheme.lightScheme().primary,
+                        size: 24,
+                      ),
+                    ),
                   ),
                 ),
               ),

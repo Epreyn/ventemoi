@@ -11,7 +11,30 @@ import '../../custom_navigation_menu/view/custom_navigation_menu.dart';
 import '../../custom_profile_leading/view/custom_profile_leading.dart';
 import '../controllers/screen_layout_controller.dart';
 
-class ScreenLayout extends StatelessWidget {
+// Widget statique pour le gradient background
+class _GradientBackground extends StatelessWidget {
+  const _GradientBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            CustomTheme.lightScheme().primary.withOpacity(0.08),
+            CustomTheme.lightScheme().primary.withOpacity(0.05),
+            CustomTheme.lightScheme().primary.withOpacity(0.03),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
+class ScreenLayout extends StatefulWidget {
   final bool? noAppBar;
   final PreferredSizeWidget? appBar;
   final Widget? bottomNavigationBar;
@@ -42,36 +65,36 @@ class ScreenLayout extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
-    final controller = ScreenLayoutController.instance;
+  State<ScreenLayout> createState() => _ScreenLayoutState();
+}
 
-    return Stack(
-      children: [
-        // Background avec dégradé moderne basé sur la couleur primaire
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                // Alternative 4 : Basé directement sur primary avec opacité
-                CustomTheme.lightScheme().primary.withOpacity(0.08),
-                CustomTheme.lightScheme().primary.withOpacity(0.05),
-                CustomTheme.lightScheme().primary.withOpacity(0.03),
-              ],
-              stops: [0.0, 0.5, 1.0],
-            ),
+class _ScreenLayoutState extends State<ScreenLayout> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: Colors.transparent,
+      // SOLUTION : Utiliser Container + Padding au lieu de Stack
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              CustomTheme.lightScheme().primary.withOpacity(0.08),
+              CustomTheme.lightScheme().primary.withOpacity(0.05),
+              CustomTheme.lightScheme().primary.withOpacity(0.03),
+            ],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
-
-        // Scaffold principal
-        Scaffold(
-          key: scaffoldKey,
+        child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: (noAppBar == true)
+          appBar: (widget.noAppBar == true)
               ? null
-              : appBar ??
+              : widget.appBar ??
                   CustomAppBar(
                     leadingWidgetNumber: UniquesControllers().data.baseSpace,
                     leading: CustomProfileLeading(
@@ -82,39 +105,39 @@ class ScreenLayout extends StatelessWidget {
                           .uid,
                     ),
                     title: const SizedBox.shrink(),
-                    actions: [CustomAppBarActions(scaffoldKey: scaffoldKey)],
+                    actions: [CustomAppBarActions(scaffoldKey: _scaffoldKey)],
                   ),
-          floatingActionButton: noFAB == true
+          floatingActionButton: widget.noFAB == true
               ? null
-              : floatingActionButton ??
+              : widget.floatingActionButton ??
                   CustomCardAnimation(
                     index: 0,
                     child: FloatingActionButton.extended(
-                      heroTag: UniqueKey().toString(),
-                      icon: fabIcon,
-                      label: fabText ?? Text(''),
-                      onPressed: fabOnPressed,
+                      heroTag: "fab_hero",
+                      icon: widget.fabIcon,
+                      label: widget.fabText ?? const Text(''),
+                      onPressed: widget.fabOnPressed,
                     ),
                   ),
-          floatingActionButtonLocation: floatingActionButtonLocation ??
+          floatingActionButtonLocation: widget.floatingActionButtonLocation ??
               FloatingActionButtonLocation.endFloat,
-          drawer: drawer ?? CustomNavigationMenu(),
-          body: body,
+          drawer: widget.drawer ?? CustomNavigationMenu(),
+          body: Stack(
+            children: [
+              widget.body,
+              Obx(() {
+                if (UniquesControllers().data.isInAsyncCall.value) {
+                  return Container(
+                    color: CustomTheme.lightScheme().primary.withOpacity(0.75),
+                    child: const CustomLoader(),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+            ],
+          ),
         ),
-
-        // Loader overlay
-        Obx(() {
-          if (UniquesControllers().data.isInAsyncCall.value) {
-            return Positioned.fill(
-              child: Container(
-                color: CustomTheme.lightScheme().primary.withOpacity(0.75),
-                child: const CustomLoader(),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        }),
-      ],
+      ),
     );
   }
 }

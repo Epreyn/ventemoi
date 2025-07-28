@@ -23,6 +23,7 @@ dependencies:
   firebase_auth:
   cloud_firestore:
   firebase_storage:
+  cloud_functions:
 
   shimmer:
   fl_chart:

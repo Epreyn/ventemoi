@@ -135,7 +135,7 @@ class ProfileScreen extends StatelessWidget {
                                               BoxShadow(
                                                 color: CustomTheme.lightScheme()
                                                     .primary
-                                                    .withOpacity(0.05),
+                                                    .withOpacity(0.2),
                                                 blurRadius: 10,
                                                 offset: const Offset(0, 4),
                                               ),
@@ -200,7 +200,7 @@ class ProfileScreen extends StatelessWidget {
                                               BoxShadow(
                                                 color: CustomTheme.lightScheme()
                                                     .primary
-                                                    .withOpacity(0.05),
+                                                    .withOpacity(0.2),
                                                 blurRadius: 10,
                                                 offset: const Offset(0, 4),
                                               ),
@@ -342,7 +342,7 @@ class ProfileScreen extends StatelessWidget {
                                                   color:
                                                       CustomTheme.lightScheme()
                                                           .primary
-                                                          .withOpacity(0.05),
+                                                          .withOpacity(0.2),
                                                   blurRadius: 10,
                                                   offset: const Offset(0, 4),
                                                 ),
@@ -436,7 +436,7 @@ class ProfileScreen extends StatelessWidget {
                                                                     .lightScheme()
                                                                 .primary
                                                                 .withOpacity(
-                                                                    0.05),
+                                                                    0.2),
                                                             blurRadius: 8,
                                                             offset:
                                                                 const Offset(
@@ -582,7 +582,7 @@ class ProfileScreen extends StatelessWidget {
                                                   color:
                                                       CustomTheme.lightScheme()
                                                           .primary
-                                                          .withOpacity(0.05),
+                                                          .withOpacity(0.2),
                                                   blurRadius: 10,
                                                   offset: const Offset(0, 4),
                                                 ),
