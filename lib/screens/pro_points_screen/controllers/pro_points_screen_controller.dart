@@ -19,6 +19,9 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Points'.toUpperCase();
   String customBottomAppBarTag = 'pro-points-bottom-app-bar';
 
+  // Montant minimum requis
+  static const double MONTANT_MINIMUM = 2500.0;
+
   // ---- LISTE DES POINTS ----
   RxList<PointAttribution> pointsList = <PointAttribution>[].obs;
   StreamSubscription<List<PointAttribution>>? _subscriptionPoints;
@@ -34,6 +37,7 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   // Le pourcentage points (manuel, 1.6% par ex.)
   final RxDouble manualPercentage = 1.6.obs;
   final RxInt potentialPoints = 0.obs;
+  final RxBool montantValide = false.obs;
 
   // BottomSheet
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -210,6 +214,7 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
     searchResults.clear();
     selectedEmail.value = '';
     potentialPoints.value = 0;
+    montantValide.value = false;
   }
 
   // --------------------------------------------------------
@@ -217,12 +222,15 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
   // --------------------------------------------------------
   Future<void> updatePotentialPoints(String val) async {
     final m = double.tryParse(val.trim()) ?? 0.0;
-    if (m <= 0) {
+
+    // Vérification du montant minimum
+    if (m < MONTANT_MINIMUM) {
       potentialPoints.value = 0;
+      montantValide.value = false;
       return;
     }
-    // On ne change pas manualPercentage (1.6) dans cet exemple
-    // On calcule juste potentialPoints
+
+    montantValide.value = true;
     potentialPoints.value = (m * (manualPercentage.value / 100.0)).floor();
   }
 
@@ -284,11 +292,20 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
           .trim()
           .toLowerCase();
       final montant = double.tryParse(montantCtrl.text.trim()) ?? 0.0;
-      if (email.isEmpty || montant <= 0) {
+
+      // Vérification du montant minimum
+      if (montant < MONTANT_MINIMUM) {
         UniquesControllers().data.isInAsyncCall.value = false;
-        UniquesControllers()
-            .data
-            .snackbar('Erreur', 'Email ou montant invalide', true);
+        UniquesControllers().data.snackbar(
+            'Erreur',
+            'Le montant minimum requis est de ${MONTANT_MINIMUM.toStringAsFixed(0)}€',
+            true);
+        return;
+      }
+
+      if (email.isEmpty) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        UniquesControllers().data.snackbar('Erreur', 'Email invalide', true);
         return;
       }
       final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
@@ -527,6 +544,35 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
               style: TextStyle(fontStyle: FontStyle.italic),
             ),
             const CustomSpace(heightMultiplier: 2),
+
+            // Information sur le montant minimum
+            Container(
+              width: UniquesControllers().data.baseMaxWidth,
+              padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius:
+                    BorderRadius.circular(UniquesControllers().data.baseSpace),
+                border: Border.all(color: Colors.amber.shade700),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade700),
+                  const CustomSpace(widthMultiplier: 1),
+                  Expanded(
+                    child: Text(
+                      'Montant minimum requis : ${MONTANT_MINIMUM.toStringAsFixed(0)}€',
+                      style: TextStyle(
+                        color: Colors.amber.shade900,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const CustomSpace(heightMultiplier: 2),
+
             // => Champ recherche d'email
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,14 +613,24 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
               ],
             ),
             const CustomSpace(heightMultiplier: 2),
-            // => Champ montant
+            // => Champ montant avec validation du minimum
             CustomTextFormField(
               tag: 'montant-to-convert',
               controller: montantCtrl,
               keyboardType: TextInputType.number,
-              labelText: 'Montant en €',
-              validatorPattern: r'^[0-9]+(\.[0-9]+)?$',
-              errorText: 'Entrez un nombre valide (ex: 10.5)',
+              labelText:
+                  'Montant en € (min. ${MONTANT_MINIMUM.toStringAsFixed(0)}€)',
+              validator: (value) {
+                final pattern = r'^[0-9]+(\.[0-9]+)?$';
+                if (!RegExp(pattern).hasMatch(value ?? '')) {
+                  return 'Entrez un nombre valide (ex: 2500)';
+                }
+                final montant = double.tryParse(value ?? '') ?? 0;
+                if (montant < MONTANT_MINIMUM) {
+                  return 'Le montant minimum est de ${MONTANT_MINIMUM.toStringAsFixed(0)}€';
+                }
+                return null;
+              },
               onChanged: (value) async {
                 await updatePotentialPoints(value);
               },
@@ -583,11 +639,34 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
 
             // => Affichage du nb de points potentiel
             Obx(() {
-              return Text(
-                'Ce montant équivaut à ${potentialPoints.value} points',
-                style: TextStyle(
-                  fontSize: UniquesControllers().data.baseSpace * 2,
-                ),
+              if (!montantValide.value) {
+                return Text(
+                  'Entrez un montant d\'au moins ${MONTANT_MINIMUM.toStringAsFixed(0)}€ pour voir les points',
+                  style: TextStyle(
+                    fontSize: UniquesControllers().data.baseSpace * 1.75,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: UniquesControllers().data.baseSpace * 3,
+                  ),
+                  const CustomSpace(heightMultiplier: 1),
+                  Text(
+                    'Ce montant équivaut à ${potentialPoints.value} points',
+                    style: TextStyle(
+                      fontSize: UniquesControllers().data.baseSpace * 2,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
               );
             }),
             const CustomSpace(heightMultiplier: 2),

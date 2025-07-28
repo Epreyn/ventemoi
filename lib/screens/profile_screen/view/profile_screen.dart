@@ -102,50 +102,45 @@ class ProfileScreen extends StatelessWidget {
                                 Center(
                                   child: CustomCardAnimation(
                                     index: 0,
-                                    child: Container(
-                                      width: UniquesControllers()
-                                              .data
-                                              .baseMaxWidth +
-                                          (UniquesControllers().data.baseSpace *
-                                              5),
-                                      padding: EdgeInsets.all(
-                                        UniquesControllers().data.baseSpace * 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            Colors.white.withOpacity(0.35),
-                                            Colors.white.withOpacity(0.25),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(30),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.5),
-                                          width: 2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: CustomTheme.lightScheme()
-                                                .primary
-                                                .withOpacity(0.15),
-                                            blurRadius: 30,
-                                            spreadRadius: 5,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(30),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                            sigmaX: 10, sigmaY: 10),
+                                        child: Container(
+                                          width: UniquesControllers()
+                                                  .data
+                                                  .baseMaxWidth +
+                                              (UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  5),
+                                          padding: EdgeInsets.all(
+                                            UniquesControllers()
+                                                    .data
+                                                    .baseSpace *
+                                                3,
                                           ),
-                                          BoxShadow(
+                                          decoration: BoxDecoration(
                                             color:
-                                                Colors.black.withOpacity(0.08),
-                                            blurRadius: 15,
-                                            offset: const Offset(0, 8),
+                                                Colors.white.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                            border: Border.all(
+                                              color:
+                                                  Colors.white.withOpacity(0.2),
+                                              width: 1,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: CustomTheme.lightScheme()
+                                                    .primary
+                                                    .withOpacity(0.05),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
-                                      child: ClipRRect(
-                                        //borderRadius: BorderRadius.circular(28),
-                                        child: BackdropFilter(
-                                          filter: ImageFilter.blur(
-                                              sigmaX: 8, sigmaY: 8),
                                           child: Column(
                                             children: [
                                               CustomProfileImagePicker(
@@ -178,191 +173,46 @@ class ProfileScreen extends StatelessWidget {
                                 Center(
                                   child: CustomCardAnimation(
                                     index: 1,
-                                    child: Container(
-                                      width: UniquesControllers()
-                                              .data
-                                              .baseMaxWidth +
-                                          (UniquesControllers().data.baseSpace *
-                                              5),
-                                      padding: EdgeInsets.all(
-                                        UniquesControllers().data.baseSpace *
-                                            2.5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            Colors.white.withOpacity(0.35),
-                                            Colors.white.withOpacity(0.25),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(30),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.5),
-                                          width: 2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: CustomTheme.lightScheme()
-                                                .primary
-                                                .withOpacity(0.15),
-                                            blurRadius: 30,
-                                            spreadRadius: 5,
-                                          ),
-                                          BoxShadow(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(30),
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(
+                                            sigmaX: 10, sigmaY: 10),
+                                        child: Container(
+                                          width: UniquesControllers()
+                                                  .data
+                                                  .baseMaxWidth +
+                                              (UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  5),
+                                          decoration: BoxDecoration(
                                             color:
-                                                Colors.black.withOpacity(0.08),
-                                            blurRadius: 15,
-                                            offset: const Offset(0, 8),
-                                          ),
-                                        ],
-                                      ),
-                                      child: ClipRRect(
-                                        //borderRadius: BorderRadius.circular(28),
-                                        child: BackdropFilter(
-                                          filter: ImageFilter.blur(
-                                              sigmaX: 8, sigmaY: 8),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            12),
-                                                    decoration: BoxDecoration(
-                                                      color: CustomTheme
-                                                              .lightScheme()
-                                                          .primary
-                                                          .withOpacity(0.1),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              12),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons
-                                                          .person_outline_rounded,
-                                                      color: CustomTheme
-                                                              .lightScheme()
-                                                          .primary,
-                                                      size: 24,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  Text(
-                                                    'Informations personnelles',
-                                                    style: TextStyle(
-                                                      fontSize:
-                                                          UniquesControllers()
-                                                                  .data
-                                                                  .baseSpace *
-                                                              2,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Colors.grey[800],
-                                                    ),
-                                                  ),
-                                                ],
+                                                Colors.white.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                            border: Border.all(
+                                              color:
+                                                  Colors.white.withOpacity(0.2),
+                                              width: 1,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: CustomTheme.lightScheme()
+                                                    .primary
+                                                    .withOpacity(0.05),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
                                               ),
-                                              const CustomSpace(
-                                                  heightMultiplier: 3),
-                                              CustomTextFormField(
-                                                tag: 'name-text-form-field',
-                                                controller: cc.nameController,
-                                                labelText: 'Nom',
-                                                iconData: Icons.badge_outlined,
-                                              ),
-                                              const CustomSpace(
-                                                  heightMultiplier: 2),
-                                              CustomTextFormField(
-                                                tag: 'email-text-form-field',
-                                                enabled: false,
-                                                controller: cc.emailController,
-                                                labelText: 'Email',
-                                                iconData: Icons.email_outlined,
-                                              ),
-                                              if (userType ==
-                                                  'Particulier') ...[
-                                                const CustomSpace(
-                                                    heightMultiplier: 2),
-                                                CustomPlacesAutocomplete(
-                                                  controller: cc
-                                                      .personalAddressController,
-                                                  apiKey: DefaultFirebaseOptions
-                                                      .googleKeyAPI,
-                                                  labelText:
-                                                      'Adresse personnelle',
-                                                  iconData: Icons.home_outlined,
-                                                  countries: ['fr'],
-                                                ),
-                                              ],
                                             ],
                                           ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                if (userType == 'Boutique') ...[
-                                  const CustomSpace(heightMultiplier: 3),
-                                  // Section Bons d'achat
-                                  Center(
-                                    child: CustomCardAnimation(
-                                      index: 2,
-                                      child: Container(
-                                        width: UniquesControllers()
-                                                .data
-                                                .baseMaxWidth +
-                                            (UniquesControllers()
-                                                    .data
-                                                    .baseSpace *
-                                                5),
-                                        padding: EdgeInsets.all(
-                                          UniquesControllers().data.baseSpace *
-                                              2.5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [
-                                              Colors.white.withOpacity(0.35),
-                                              Colors.white.withOpacity(0.25),
-                                            ],
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(30),
-                                          border: Border.all(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            width: 2,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: CustomTheme.lightScheme()
-                                                  .primary
-                                                  .withOpacity(0.15),
-                                              blurRadius: 30,
-                                              spreadRadius: 5,
+                                          child: Padding(
+                                            padding: EdgeInsets.all(
+                                              UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  2.5,
                                             ),
-                                            BoxShadow(
-                                              color: Colors.black
-                                                  .withOpacity(0.08),
-                                              blurRadius: 15,
-                                              offset: const Offset(0, 8),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(28),
-                                          child: BackdropFilter(
-                                            filter: ImageFilter.blur(
-                                                sigmaX: 8, sigmaY: 8),
                                             child: Column(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
@@ -374,17 +224,20 @@ class ProfileScreen extends StatelessWidget {
                                                           const EdgeInsets.all(
                                                               12),
                                                       decoration: BoxDecoration(
-                                                        color: CustomTheme
-                                                                .lightScheme()
-                                                            .primary
+                                                        color: Colors.white
                                                             .withOpacity(0.1),
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(12),
+                                                        border: Border.all(
+                                                          color: Colors.white
+                                                              .withOpacity(0.2),
+                                                          width: 1,
+                                                        ),
                                                       ),
                                                       child: Icon(
                                                         Icons
-                                                            .confirmation_number_outlined,
+                                                            .person_outline_rounded,
                                                         color: CustomTheme
                                                                 .lightScheme()
                                                             .primary,
@@ -393,7 +246,7 @@ class ProfileScreen extends StatelessWidget {
                                                     ),
                                                     const SizedBox(width: 12),
                                                     Text(
-                                                      'Bons d\'achat',
+                                                      'Informations personnelles',
                                                       style: TextStyle(
                                                         fontSize:
                                                             UniquesControllers()
@@ -410,108 +263,282 @@ class ProfileScreen extends StatelessWidget {
                                                 const CustomSpace(
                                                     heightMultiplier: 3),
                                                 CustomTextFormField(
-                                                  tag:
-                                                      'coupons-text-form-field',
-                                                  controller:
-                                                      cc.couponsController,
-                                                  labelText:
-                                                      'Nombre de bons (Valeur: ${(int.tryParse(cc.couponsController.text) ?? 0) * 50}€)',
-                                                  keyboardType:
-                                                      TextInputType.number,
-                                                  enabled: false,
-                                                  iconData: Icons
-                                                      .receipt_long_outlined,
+                                                  tag: 'name-text-form-field',
+                                                  controller: cc.nameController,
+                                                  labelText: 'Nom',
+                                                  iconData:
+                                                      Icons.badge_outlined,
                                                 ),
                                                 const CustomSpace(
                                                     heightMultiplier: 2),
-                                                Align(
-                                                  alignment:
-                                                      Alignment.centerRight,
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        colors: [
-                                                          CustomTheme
-                                                                  .lightScheme()
-                                                              .primary,
-                                                          CustomTheme
-                                                                  .lightScheme()
-                                                              .primary
-                                                              .withOpacity(0.8),
-                                                        ],
-                                                      ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              20),
-                                                      boxShadow: [
-                                                        BoxShadow(
+                                                CustomTextFormField(
+                                                  tag: 'email-text-form-field',
+                                                  enabled: false,
+                                                  controller:
+                                                      cc.emailController,
+                                                  labelText: 'Email',
+                                                  iconData:
+                                                      Icons.email_outlined,
+                                                ),
+                                                if (userType ==
+                                                    'Particulier') ...[
+                                                  const CustomSpace(
+                                                      heightMultiplier: 2),
+                                                  CustomPlacesAutocomplete(
+                                                    controller: cc
+                                                        .personalAddressController,
+                                                    apiKey:
+                                                        DefaultFirebaseOptions
+                                                            .googleKeyAPI,
+                                                    labelText:
+                                                        'Adresse personnelle',
+                                                    iconData:
+                                                        Icons.home_outlined,
+                                                    countries: ['fr'],
+                                                  ),
+                                                ],
+                                                const CustomSpace(
+                                                    heightMultiplier: 1),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                if (userType == 'Boutique') ...[
+                                  const CustomSpace(heightMultiplier: 3),
+                                  // Section Bons d'achat
+                                  Center(
+                                    child: CustomCardAnimation(
+                                      index: 2,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(30),
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                              sigmaX: 10, sigmaY: 10),
+                                          child: Container(
+                                            width: UniquesControllers()
+                                                    .data
+                                                    .baseMaxWidth +
+                                                (UniquesControllers()
+                                                        .data
+                                                        .baseSpace *
+                                                    5),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.white.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(30),
+                                              border: Border.all(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                width: 1,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color:
+                                                      CustomTheme.lightScheme()
+                                                          .primary
+                                                          .withOpacity(0.05),
+                                                  blurRadius: 10,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Padding(
+                                              padding: EdgeInsets.all(
+                                                UniquesControllers()
+                                                        .data
+                                                        .baseSpace *
+                                                    2.5,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(12),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white
+                                                              .withOpacity(0.1),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                          border: Border.all(
+                                                            color: Colors.white
+                                                                .withOpacity(
+                                                                    0.2),
+                                                            width: 1,
+                                                          ),
+                                                        ),
+                                                        child: Icon(
+                                                          Icons
+                                                              .confirmation_number_outlined,
                                                           color: CustomTheme
                                                                   .lightScheme()
-                                                              .primary
-                                                              .withOpacity(0.3),
-                                                          blurRadius: 15,
-                                                          offset: const Offset(
-                                                              0, 5),
+                                                              .primary,
+                                                          size: 24,
                                                         ),
-                                                      ],
-                                                    ),
-                                                    child: Material(
-                                                      color: Colors.transparent,
-                                                      child: InkWell(
-                                                        onTap: cc.buyCoupons,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Text(
+                                                        'Bons d\'achat',
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              UniquesControllers()
+                                                                      .data
+                                                                      .baseSpace *
+                                                                  2,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color:
+                                                              Colors.grey[800],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const CustomSpace(
+                                                      heightMultiplier: 3),
+                                                  CustomTextFormField(
+                                                    tag:
+                                                        'coupons-text-form-field',
+                                                    controller:
+                                                        cc.couponsController,
+                                                    labelText:
+                                                        'Nombre de bons (Valeur: ${(int.tryParse(cc.couponsController.text) ?? 0) * 50}€)',
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    enabled: false,
+                                                    iconData: Icons
+                                                        .receipt_long_outlined,
+                                                  ),
+                                                  const CustomSpace(
+                                                      heightMultiplier: 2),
+                                                  Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(20),
-                                                        child: Padding(
-                                                          padding: EdgeInsets
-                                                              .symmetric(
-                                                            horizontal:
-                                                                UniquesControllers()
-                                                                        .data
-                                                                        .baseSpace *
-                                                                    3,
-                                                            vertical:
-                                                                UniquesControllers()
-                                                                        .data
-                                                                        .baseSpace *
-                                                                    1.5,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: CustomTheme
+                                                                    .lightScheme()
+                                                                .primary
+                                                                .withOpacity(
+                                                                    0.05),
+                                                            blurRadius: 8,
+                                                            offset:
+                                                                const Offset(
+                                                                    0, 2),
                                                           ),
-                                                          child: Row(
-                                                            mainAxisSize:
-                                                                MainAxisSize
-                                                                    .min,
-                                                            children: [
-                                                              const Icon(
-                                                                Icons
-                                                                    .add_shopping_cart_rounded,
+                                                        ],
+                                                      ),
+                                                      child: ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(20),
+                                                        child: BackdropFilter(
+                                                          filter:
+                                                              ImageFilter.blur(
+                                                                  sigmaX: 10,
+                                                                  sigmaY: 10),
+                                                          child: Container(
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withOpacity(
+                                                                      0.15),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20),
+                                                              border:
+                                                                  Border.all(
                                                                 color: Colors
-                                                                    .white,
-                                                                size: 20,
+                                                                    .white
+                                                                    .withOpacity(
+                                                                        0.2),
+                                                                width: 1,
                                                               ),
-                                                              const SizedBox(
-                                                                  width: 8),
-                                                              Text(
-                                                                'ACHETER DES BONS',
-                                                                style:
-                                                                    TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                  fontSize: 14,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  letterSpacing:
-                                                                      1,
+                                                            ),
+                                                            child: Material(
+                                                              color: Colors
+                                                                  .transparent,
+                                                              child: InkWell(
+                                                                onTap: cc
+                                                                    .buyCoupons,
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            20),
+                                                                child: Padding(
+                                                                  padding:
+                                                                      EdgeInsets
+                                                                          .symmetric(
+                                                                    horizontal:
+                                                                        UniquesControllers().data.baseSpace *
+                                                                            3,
+                                                                    vertical: UniquesControllers()
+                                                                            .data
+                                                                            .baseSpace *
+                                                                        1.5,
+                                                                  ),
+                                                                  child: Row(
+                                                                    mainAxisSize:
+                                                                        MainAxisSize
+                                                                            .min,
+                                                                    children: [
+                                                                      Icon(
+                                                                        Icons
+                                                                            .add_shopping_cart_rounded,
+                                                                        color: CustomTheme.lightScheme()
+                                                                            .primary,
+                                                                        size:
+                                                                            20,
+                                                                      ),
+                                                                      const SizedBox(
+                                                                          width:
+                                                                              8),
+                                                                      Text(
+                                                                        'ACHETER DES BONS',
+                                                                        style:
+                                                                            TextStyle(
+                                                                          color:
+                                                                              CustomTheme.lightScheme().primary,
+                                                                          fontSize:
+                                                                              14,
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                          letterSpacing:
+                                                                              1,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
                                                                 ),
                                                               ),
-                                                            ],
+                                                            ),
                                                           ),
                                                         ),
                                                       ),
                                                     ),
                                                   ),
-                                                ),
-                                              ],
+                                                  const CustomSpace(
+                                                      heightMultiplier: 1),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -527,130 +554,133 @@ class ProfileScreen extends StatelessWidget {
                                   Center(
                                     child: CustomCardAnimation(
                                       index: 3,
-                                      child: Container(
-                                        width: UniquesControllers()
-                                                .data
-                                                .baseMaxWidth +
-                                            (UniquesControllers()
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(30),
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                              sigmaX: 10, sigmaY: 10),
+                                          child: Container(
+                                            width: UniquesControllers()
                                                     .data
-                                                    .baseSpace *
-                                                5),
-                                        padding: EdgeInsets.all(
-                                          UniquesControllers().data.baseSpace *
-                                              2.5,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [
-                                              Colors.white.withOpacity(0.35),
-                                              Colors.white.withOpacity(0.25),
-                                            ],
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(30),
-                                          border: Border.all(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            width: 2,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: CustomTheme.lightScheme()
-                                                  .primary
-                                                  .withOpacity(0.15),
-                                              blurRadius: 30,
-                                              spreadRadius: 5,
-                                            ),
-                                            BoxShadow(
-                                              color: Colors.black
-                                                  .withOpacity(0.08),
-                                              blurRadius: 15,
-                                              offset: const Offset(0, 8),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(28),
-                                          child: BackdropFilter(
-                                            filter: ImageFilter.blur(
-                                                sigmaX: 8, sigmaY: 8),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              12),
-                                                      decoration: BoxDecoration(
-                                                        color: CustomTheme
-                                                                .lightScheme()
-                                                            .primary
-                                                            .withOpacity(0.1),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                      child: Icon(
-                                                        Icons
-                                                            .account_balance_outlined,
-                                                        color: CustomTheme
-                                                                .lightScheme()
-                                                            .primary,
-                                                        size: 24,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Text(
-                                                      'Informations bancaires',
-                                                      style: TextStyle(
-                                                        fontSize:
-                                                            UniquesControllers()
-                                                                    .data
-                                                                    .baseSpace *
-                                                                2,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        color: Colors.grey[800],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const CustomSpace(
-                                                    heightMultiplier: 3),
-                                                CustomTextFormField(
-                                                  tag: 'holder-text-form-field',
-                                                  controller:
-                                                      cc.holderController,
-                                                  labelText:
-                                                      'Titulaire du compte',
-                                                  iconData:
-                                                      Icons.person_outline,
-                                                ),
-                                                const CustomSpace(
-                                                    heightMultiplier: 2),
-                                                CustomTextFormField(
-                                                  tag: 'iban-text-form-field',
-                                                  controller: cc.ibanController,
-                                                  labelText: 'IBAN',
-                                                  iconData: Icons
-                                                      .credit_card_outlined,
-                                                ),
-                                                const CustomSpace(
-                                                    heightMultiplier: 2),
-                                                CustomTextFormField(
-                                                  tag: 'bic-text-form-field',
-                                                  controller: cc.bicController,
-                                                  labelText: 'BIC',
-                                                  iconData:
-                                                      Icons.business_outlined,
+                                                    .baseMaxWidth +
+                                                (UniquesControllers()
+                                                        .data
+                                                        .baseSpace *
+                                                    5),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.white.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(30),
+                                              border: Border.all(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                width: 1,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color:
+                                                      CustomTheme.lightScheme()
+                                                          .primary
+                                                          .withOpacity(0.05),
+                                                  blurRadius: 10,
+                                                  offset: const Offset(0, 4),
                                                 ),
                                               ],
+                                            ),
+                                            child: Padding(
+                                              padding: EdgeInsets.all(
+                                                UniquesControllers()
+                                                        .data
+                                                        .baseSpace *
+                                                    2.5,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(12),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white
+                                                              .withOpacity(0.1),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                          border: Border.all(
+                                                            color: Colors.white
+                                                                .withOpacity(
+                                                                    0.2),
+                                                            width: 1,
+                                                          ),
+                                                        ),
+                                                        child: Icon(
+                                                          Icons
+                                                              .account_balance_outlined,
+                                                          color: CustomTheme
+                                                                  .lightScheme()
+                                                              .primary,
+                                                          size: 24,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Text(
+                                                        'Informations bancaires',
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              UniquesControllers()
+                                                                      .data
+                                                                      .baseSpace *
+                                                                  2,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color:
+                                                              Colors.grey[800],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const CustomSpace(
+                                                      heightMultiplier: 3),
+                                                  CustomTextFormField(
+                                                    tag:
+                                                        'holder-text-form-field',
+                                                    controller:
+                                                        cc.holderController,
+                                                    labelText:
+                                                        'Titulaire du compte',
+                                                    iconData:
+                                                        Icons.person_outline,
+                                                  ),
+                                                  const CustomSpace(
+                                                      heightMultiplier: 2),
+                                                  CustomTextFormField(
+                                                    tag: 'iban-text-form-field',
+                                                    controller:
+                                                        cc.ibanController,
+                                                    labelText: 'IBAN',
+                                                    iconData: Icons
+                                                        .credit_card_outlined,
+                                                  ),
+                                                  const CustomSpace(
+                                                      heightMultiplier: 2),
+                                                  CustomTextFormField(
+                                                    tag: 'bic-text-form-field',
+                                                    controller:
+                                                        cc.bicController,
+                                                    labelText: 'BIC',
+                                                    iconData:
+                                                        Icons.business_outlined,
+                                                  ),
+                                                  const CustomSpace(
+                                                      heightMultiplier: 1),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),

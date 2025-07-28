@@ -48,6 +48,7 @@ class App extends StatelessWidget {
       initialRoute: AppScreens.initial,
       getPages: AppScreens.routes,
       defaultTransition: Transition.noTransition,
+      transitionDuration: const Duration(milliseconds: 0),
       unknownRoute: GetPage(
         name: '/404',
         page: () => const NotFoundScreen(),

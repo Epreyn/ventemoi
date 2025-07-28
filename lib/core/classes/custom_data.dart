@@ -248,6 +248,12 @@ class CustomData extends GetxController {
     //   onPressed: () => Get.offNamed(Routes.adminMigration),
     // ),
     CustomBottomAppBarIconButtonModel(
+      tag: Routes.profile,
+      iconData: Icons.person_outline,
+      text: 'Profil',
+      onPressed: () => Get.offNamed(Routes.profile),
+    ),
+    CustomBottomAppBarIconButtonModel(
       tag: Routes.sponsorship,
       iconData: Icons.bolt_outlined,
       text: 'Parrainnage',

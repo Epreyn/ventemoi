@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ventemoi/core/routes/app_routes.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
@@ -152,7 +153,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Bonjour + Nom
+            // Bonjour + Nom (cliquable)
             if (showUserInfo && showGreeting)
               StreamBuilder<String>(
                 stream: _getUserNameStream(),
@@ -164,28 +165,35 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     curve: Curves.easeOutQuart,
                     xStartPosition: 20,
                     isOpacity: true,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Bonjour,',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
+                    child: InkWell(
+                      onTap: () => Get.toNamed('/profile'),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Bonjour,',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            Text(
+                              snapshot.data ?? 'Utilisateur',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        Text(
-                          snapshot.data ?? 'Utilisateur',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 },
@@ -193,7 +201,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
             const SizedBox(width: 12),
 
-            // Avatar utilisateur
+            // Avatar utilisateur (cliquable)
             if (showUserInfo)
               StreamBuilder<String>(
                 stream: _getUserImageStream(),
@@ -205,17 +213,21 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     curve: Curves.easeOutQuart,
                     xStartPosition: 20,
                     isOpacity: true,
-                    child: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: CustomTheme.lightScheme().primary,
-                      backgroundImage:
-                          snapshot.hasData && snapshot.data!.isNotEmpty
-                              ? NetworkImage(snapshot.data!)
-                              : null,
-                      child: !snapshot.hasData || snapshot.data!.isEmpty
-                          ? const Icon(Icons.person,
-                              color: Colors.white, size: 20)
-                          : null,
+                    child: InkWell(
+                      onTap: () => Get.toNamed(Routes.profile),
+                      customBorder: const CircleBorder(),
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: CustomTheme.lightScheme().primary,
+                        backgroundImage:
+                            snapshot.hasData && snapshot.data!.isNotEmpty
+                                ? NetworkImage(snapshot.data!)
+                                : null,
+                        child: !snapshot.hasData || snapshot.data!.isEmpty
+                            ? const Icon(Icons.person,
+                                color: Colors.white, size: 20)
+                            : null,
+                      ),
                     ),
                   );
                 },
@@ -258,7 +270,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: UniquesControllers().data.baseSpace * 1.5,
-              vertical: UniquesControllers().data.baseSpace * 0.8,
+              vertical: UniquesControllers().data.baseSpace *
+                  0.5, // Réduit pour minimiser la hauteur
             ),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.9),
@@ -273,6 +286,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize:
+                  MainAxisSize.min, // Important pour minimiser la hauteur
               children: [
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -280,14 +295,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Icon(
                       Icons.confirmation_number,
                       color: CustomTheme.lightScheme().primary,
-                      size: 18,
+                      size: 16, // Réduit la taille de l'icône
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '$coupons',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 14, // Réduit la taille de la police
                         color: Colors.black,
                       ),
                     ),
@@ -295,7 +310,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Text(
                       'Bons',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11, // Réduit la taille de la police
                         color: Colors.black54,
                       ),
                     ),
@@ -305,7 +320,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   Text(
                     '$couponsPending en attente',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9, // Réduit la taille de la police
                       color: Colors.black45,
                       fontStyle: FontStyle.italic,
                     ),
@@ -316,68 +331,75 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: 8),
         ],
 
-        // Points (sauf admin)
+        // Points (sauf admin) - cliquable
         if (!isAdmin)
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: UniquesControllers().data.baseSpace * 1.5,
-              vertical: UniquesControllers().data.baseSpace * 0.8,
-            ),
-            decoration: BoxDecoration(
-              color: CustomTheme.lightScheme().primary,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.stars_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: Text(
-                        '$realPoints',
-                        key: ValueKey(realPoints),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+          InkWell(
+            onTap: () => Get.toNamed(Routes.clientHistory),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: UniquesControllers().data.baseSpace * 1.5,
+                vertical: UniquesControllers().data.baseSpace *
+                    0.5, // Réduit pour minimiser la hauteur
+              ),
+              decoration: BoxDecoration(
+                color: CustomTheme.lightScheme().primary,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize:
+                    MainAxisSize.min, // Important pour minimiser la hauteur
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.stars_rounded,
+                        color: Colors.white,
+                        size: 16, // Réduit la taille de l'icône
+                      ),
+                      const SizedBox(width: 4),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: Text(
+                          '$realPoints',
+                          key: ValueKey(realPoints),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14, // Réduit la taille de la police
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'pts',
-                      style: TextStyle(
+                      const SizedBox(width: 4),
+                      const Text(
+                        'pts',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11, // Réduit la taille de la police
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (pendingPoints > 0)
+                    Text(
+                      '$pendingPoints en attente',
+                      style: const TextStyle(
+                        fontSize: 9, // Réduit la taille de la police
                         color: Colors.white70,
-                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
-                  ],
-                ),
-                if (pendingPoints > 0)
-                  Text(
-                    '$pendingPoints en attente',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white70,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
       ],
