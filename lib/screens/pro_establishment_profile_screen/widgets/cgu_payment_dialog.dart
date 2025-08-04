@@ -470,8 +470,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                               _buildIncludedItem(
                                   '✅ Visibilité immédiate dans le shop'),
                               _buildIncludedItem(
-                                  '✅ Publication d\'offres illimitées'),
-                              _buildIncludedItem(
                                   '✅ Mise en avant 2 fois par an minimum'),
                               if (widget.userType == 'Commerçant' ||
                                   widget.userType == 'Boutique')

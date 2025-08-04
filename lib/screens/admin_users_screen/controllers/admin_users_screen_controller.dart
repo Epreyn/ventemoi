@@ -497,7 +497,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
         </p>
 
         <p style="text-align: center; margin: 20px 0;">
-          📧 <a href="mailto:support@ventemoi.com" style="color: #ff7a00;">support@ventemoi.com</a>
+          📧 <a href="mailto:contact@ventemoi.com" style="color: #ff7a00;">contact@ventemoi.com</a>
         </p>
 
         <p style="font-size: 14px; color: #888;">

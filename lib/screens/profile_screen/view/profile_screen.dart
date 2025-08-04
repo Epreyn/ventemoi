@@ -512,7 +512,7 @@ class ProfileScreen extends StatelessWidget {
                                                                           width:
                                                                               8),
                                                                       Text(
-                                                                        'ACHETER DES BONS',
+                                                                        'RENOUVELER VOS BONS',
                                                                         style:
                                                                             TextStyle(
                                                                           color:

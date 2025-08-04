@@ -742,7 +742,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
       <p style="font-size: 14px; color: #888;">
         💡 <strong>Des questions ?</strong><br>
         Notre équipe est à votre disposition au
-        <a href="mailto:frederic.trabeco@gmail.com">frederic.trabeco@gmail.com</a>
+        <a href="mailto:contact@ventemoi.com">contact@ventemoi.com</a>
         pour vous accompagner dans votre inscription.
       </p>
     ''';

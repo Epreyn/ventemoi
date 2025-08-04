@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/establishement.dart';
@@ -32,6 +31,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
         children: [
           _buildSearchBar(cc),
           _buildModernTabs(cc),
+          _buildTabDescription(cc), // Nouvelle ligne pour les descriptions
           Expanded(
             child: _buildContent(cc),
           ),
@@ -79,9 +79,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
             ),
           ),
           Obx(() {
-            final filterCount = cc.selectedTabIndex.value == 2
-                ? cc.selectedEnterpriseCatIds.length
-                : cc.selectedCatIds.length;
+            final filterCount =
+                cc.selectedTabIndex.value == 0 // Entreprises devenu Partenaires
+                    ? cc.selectedEnterpriseCatIds.length
+                    : cc.selectedCatIds.length;
 
             return Stack(
               children: [
@@ -138,10 +139,9 @@ class ShopEstablishmentScreen extends StatelessWidget {
           Obx(() => AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeOutExpo,
-                // Division par 4 maintenant au lieu de 3
                 left: cc.selectedTabIndex.value * (Get.width - 32) / 4,
                 child: Container(
-                  width: (Get.width - 32) / 4, // Division par 4
+                  width: (Get.width - 32) / 4,
                   height: 48,
                   padding: const EdgeInsets.all(4),
                   child: Container(
@@ -161,8 +161,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
               )),
           Row(
             children: [
-              _buildTabButton(cc, 0, 'Entreprises', Icons.business),
-              _buildTabButton(cc, 1, 'Boutiques', Icons.store),
+              _buildTabButton(cc, 0, 'Partenaires',
+                  Icons.business), // Renommé Entreprises -> Partenaires
+              _buildTabButton(cc, 1, 'Commerces',
+                  Icons.redeem), // Renommé Boutiques -> Commerces
               _buildTabButton(cc, 2, 'Associations', Icons.volunteer_activism),
               _buildTabButton(cc, 3, 'Sponsors', Icons.handshake),
             ],
@@ -191,7 +193,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  size: 18,
+                  size: 24,
                   color: isSelected
                       ? CustomTheme.lightScheme().primary
                       : Colors.grey[600],
@@ -214,6 +216,70 @@ class ShopEstablishmentScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Nouvelle méthode pour afficher les descriptions
+  Widget _buildTabDescription(ShopEstablishmentScreenController cc) {
+    return Obx(() {
+      String description = '';
+      switch (cc.selectedTabIndex.value) {
+        case 0: // Partenaires (anciennement Entreprises)
+          description =
+              'Cumulez des points en vous fournissant via les entreprises partenaires de VenteMoi';
+          break;
+        case 1: // Commerces (anciennement Boutiques)
+          description =
+              'Utilisez vos points pour acheter des bons dans les commerces locaux participants';
+          break;
+        case 2: // Associations
+          description =
+              'Soutenez les associations locales en faisant des dons avec vos points';
+          break;
+        case 3: // Sponsors
+          description =
+              'Découvrez nos sponsors qui soutiennent l\'économie circulaire et solidaire';
+          break;
+      }
+
+      return Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: UniquesControllers().data.baseSpace * 2,
+          vertical: UniquesControllers().data.baseSpace,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: UniquesControllers().data.baseSpace * 2,
+          vertical: UniquesControllers().data.baseSpace,
+        ),
+        decoration: BoxDecoration(
+          color: CustomTheme.lightScheme().primary.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 18,
+              color: CustomTheme.lightScheme().primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                description,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[700],
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   void _showFilterBottomSheet(ShopEstablishmentScreenController cc) {
@@ -259,10 +325,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
             child: Obx(() {
               int filterCount = 0;
               switch (cc.selectedTabIndex.value) {
-                case 0: // Entreprises
+                case 0: // Partenaires
                   filterCount = cc.selectedEnterpriseCatIds.length;
                   break;
-                case 1: // Boutiques
+                case 1: // Commerces
                 case 2: // Associations
                   filterCount = cc.selectedCatIds.length;
                   break;
@@ -290,10 +356,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
 
   Widget _buildContent(ShopEstablishmentScreenController cc) {
     return Obx(() {
-      if (cc.allEstablishments.isEmpty) {
-        return _buildSkeletonLoader();
-      }
-
       final establishments = cc.displayedEstablishments;
 
       if (establishments.isEmpty) {
@@ -424,32 +486,5 @@ class ShopEstablishmentScreen extends StatelessWidget {
         ),
       );
     }).toList();
-  }
-
-  Widget _buildSkeletonLoader() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 400,
-          childAspectRatio: 0.75,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(
-                UniquesControllers().data.baseSpace * 2,
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 }

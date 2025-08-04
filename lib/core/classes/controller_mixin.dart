@@ -860,117 +860,51 @@ mixin ControllerMixin on GetxController {
         .add(mailDoc);
   }
 
-  String _buildMailHtml(String content) {
-    return '''
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Vente Moi – Notification</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0; padding: 0;
-        background-color: #fafafa;
-        color: #333;
-      }
-      .header {
-        background-color: #f8b02a;
-        padding: 16px;
-        text-align: center;
-      }
-      .header img {
-        max-height: 50px;
-      }
-      .content {
-        margin: 16px;
-      }
-      h1 { color: #f8b02a; }
-      p { line-height: 1.5; }
-      .footer {
-        margin: 16px;
-        font-size: 12px;
-        color: #666;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="header">
-      <img src="https://firebasestorage.googleapis.com/v0/b/vente-moi.appspot.com/o/logo.png?alt=media"
-           alt="Logo Vente Moi" />
-    </div>
-    <div class="content">
-      $content
-    </div>
-    <div class="footer">
-      Cet e-mail vous a été envoyé automatiquement par Vente Moi.<br>
-      Pour toute question, contactez
-      <a href="mailto:support@ventemoi.com">support@ventemoi.com</a>.
-    </div>
-  </body>
-</html>
-''';
-  }
-
+  // Email de bienvenue utilisant le template moderne
   Future<void> sendWelcomeEmail(String toEmail, String userName) async {
-    final content = '''
-      <h1>Bonjour $userName,</h1>
-      <p>
-        Merci de vous être inscrit sur <strong>Vente Moi</strong> !
-        Nous sommes ravis de vous accueillir parmi nous.
-      </p>
-      <p>
-        Vous pouvez dès à présent vous connecter à votre compte et profiter
-        de toutes les fonctionnalités de la plateforme.
-      </p>
-      <p>
-        À très bientôt,<br>
-        L'équipe de Vente Moi
-      </p>
-    ''';
-
-    final fullHtml = _buildMailHtml(content);
-
-    await sendMailSimple(
-      toEmail: toEmail,
-      subject: 'Bienvenue sur Vente Moi',
-      htmlBody: fullHtml,
-    );
+    await sendModernWelcomeEmail(toEmail, userName);
   }
 
+  // Email de bienvenue pour utilisateur créé
   Future<void> sendWelcomeEmailForCreatedUser({
     required String toEmail,
     required String whoDidCreate,
   }) async {
     if (toEmail.trim().isEmpty) return;
 
-    // Contenu HTML spécifique
     final content = '''
-    <h1>Bienvenue sur Vente Moi</h1>
-    <p>
-      Votre compte a été créé par <strong>$whoDidCreate</strong> sur la plateforme Vente Moi.
-    </p>
-    <p>
-      Vous allez recevoir un autre e-mail pour définir votre mot de passe.
-      Une fois votre mot de passe créé, vous pourrez vous connecter et profiter de nos services.
-    </p>
-    <p>
-      À très bientôt,<br>
-      L'équipe Vente Moi
-    </p>
-  ''';
+      <h2>Bienvenue sur Vente Moi ! 🎉</h2>
+      <p>
+        Votre compte a été créé avec succès par <strong>$whoDidCreate</strong>.
+      </p>
 
-    // On génère le HTML complet avec header/footer commun
-    final fullHtml = _buildMailHtml(content);
+      <div class="highlight-box">
+        <h3>Prochaines étapes</h3>
+        <p style="text-align: left; margin: 10px 0;">
+          1. Vous allez recevoir un email pour définir votre mot de passe<br>
+          2. Une fois votre mot de passe créé, connectez-vous à votre compte<br>
+          3. Explorez nos services et commencez à gagner des points !
+        </p>
+      </div>
 
-    // On appelle la fonction déjà existante qui insère dans Firestore
+      <p>
+        Nous sommes ravis de vous compter parmi nous. N'hésitez pas à nous contacter
+        si vous avez des questions.
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://app.ventemoi.fr" class="button">Découvrir Vente Moi</a>
+      </div>
+    ''';
+
     await sendMailSimple(
       toEmail: toEmail,
-      subject: 'Votre compte Vente Moi',
-      htmlBody: fullHtml,
+      subject: 'Votre compte Vente Moi a été créé',
+      htmlBody: buildModernMailHtml(content),
     );
   }
 
+  // Email de confirmation d'achat au buyer
   Future<void> sendPurchaseEmailToBuyer({
     required String buyerEmail,
     required String buyerName,
@@ -979,54 +913,18 @@ mixin ControllerMixin on GetxController {
     required int couponsCountOrPoints,
     required String? reclamationPassword,
   }) async {
-    if (buyerEmail.trim().isEmpty) return;
-
-    // Construisons le message spécifique
-    late String subject;
-    late String content;
-
-    if (isDonation) {
-      // Don
-      subject = 'Confirmation de Don - Vente Moi';
-      content = '''
-      <h1>Confirmation de Don</h1>
-      <p>Bonjour $buyerName,</p>
-      <p>
-        Vous venez de faire un don de <strong>$couponsCountOrPoints point(s)</strong>
-        à l'association <strong>$sellerName</strong>.<br>
-        Merci pour votre générosité !
-      </p>
-      <p>À bientôt,<br>L'équipe Vente Moi</p>
-    ''';
-    } else {
-      // Achat de bons
-      final codeSection = (reclamationPassword?.isNotEmpty == true)
-          ? '<p>Votre code de réclamation est : <strong>$reclamationPassword</strong></p>'
-          : '<p>(Aucun code généré)</p>';
-
-      subject = 'Confirmation d\'Achat de Bons - Vente Moi';
-      content = '''
-      <h1>Confirmation d'Achat</h1>
-      <p>Bonjour $buyerName,</p>
-      <p>
-        Vous avez acheté <strong>$couponsCountOrPoints bon(s)</strong>
-        auprès de <strong>$sellerName</strong>.<br>
-      </p>
-      $codeSection
-      <p>Conservez bien ce code pour récupérer vos bons.</p>
-      <p>À bientôt,<br>L'équipe Vente Moi</p>
-    ''';
-    }
-
-    final fullHtml = _buildMailHtml(content);
-    await sendMailSimple(
-      toEmail: buyerEmail,
-      subject: subject,
-      htmlBody: fullHtml,
+    await sendModernPurchaseEmailToBuyer(
+      buyerEmail: buyerEmail,
+      buyerName: buyerName,
+      sellerName: sellerName,
+      isDonation: isDonation,
+      couponsCountOrPoints: couponsCountOrPoints,
+      reclamationPassword: reclamationPassword,
+      purchaseDate: DateTime.now(),
     );
   }
 
-  /// Envoie un mail de notification de don/achat au Seller (association ou boutique).
+  // Email de notification au seller
   Future<void> sendPurchaseEmailToSeller({
     required String sellerEmail,
     required String sellerName,
@@ -1040,39 +938,77 @@ mixin ControllerMixin on GetxController {
     late String content;
 
     if (isDonation) {
-      // Le buyer a fait un DON à l'association
-      subject = 'Notification de Don - Vente Moi';
+      subject = '❤️ Nouveau don reçu - Vente Moi';
       content = '''
-      <h1>Notification de Don</h1>
-      <p>Bonjour $sellerName,</p>
-      <p>
-        Vous venez de recevoir un don de <strong>$couponsCountOrPoints point(s)</strong>
-        de la part de <strong>$buyerName</strong>.<br>
-      </p>
-      <p>Félicitations et merci de votre engagement,<br>L'équipe Vente Moi</p>
-    ''';
+        <h2>Félicitations $sellerName ! 🎉</h2>
+        <p>
+          Vous venez de recevoir un don généreux de la part de <strong>$buyerName</strong>.
+        </p>
+
+        <div class="highlight-box">
+          <h3>Détails du don</h3>
+          <div class="info-value" style="font-size: 48px; color: #f8b02a; margin: 20px 0;">
+            $couponsCountOrPoints
+          </div>
+          <p style="margin: 10px 0; color: #666;">
+            points reçus
+          </p>
+        </div>
+
+        <p>
+          Ce don témoigne de la confiance et du soutien de vos bienfaiteurs.
+          Merci pour votre engagement solidaire !
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="https://app.ventemoi.fr/#/mes-dons-recus" class="button">
+            Voir mes dons reçus
+          </a>
+        </div>
+      ''';
     } else {
-      // Achat de bons
-      subject = 'Notification d\'Achat - Vente Moi';
+      subject = '🛍️ Nouvel achat de bons - Vente Moi';
       content = '''
-      <h1>Notification d'Achat de Bons</h1>
-      <p>Bonjour $sellerName,</p>
-      <p>
-        <strong>$buyerName</strong> vient d'acheter <strong>$couponsCountOrPoints bon(s)</strong>
-        auprès de votre boutique.<br>
-      </p>
-      <p>Merci de préparer ces bons,<br>L'équipe Vente Moi</p>
-    ''';
+        <h2>Nouvelle vente réalisée ! 💰</h2>
+        <p>
+          <strong>$buyerName</strong> vient d'effectuer un achat dans votre boutique.
+        </p>
+
+        <div class="highlight-box">
+          <h3>Détails de la commande</h3>
+          <div class="info-grid" style="max-width: 400px; margin: 0 auto;">
+            <div class="info-item">
+              <div class="info-label">Nombre de bons</div>
+              <div class="info-value" style="color: #f8b02a;">$couponsCountOrPoints</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Valeur totale</div>
+              <div class="info-value" style="color: #f8b02a;">${couponsCountOrPoints * 50} €</div>
+            </div>
+          </div>
+        </div>
+
+        <p>
+          Merci de préparer cette commande. Le client présentera son code
+          pour récupérer ses bons.
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="https://app.ventemoi.fr/#/mes-ventes" class="button">
+            Voir mes ventes
+          </a>
+        </div>
+      ''';
     }
 
-    final fullHtml = _buildMailHtml(content);
     await sendMailSimple(
       toEmail: sellerEmail,
       subject: subject,
-      htmlBody: fullHtml,
+      htmlBody: buildModernMailHtml(content),
     );
   }
 
+  // Email d'alerte stock faible
   Future<void> sendLowCouponsEmailToSeller({
     required String sellerEmail,
     required String sellerName,
@@ -1080,27 +1016,45 @@ mixin ControllerMixin on GetxController {
   }) async {
     if (sellerEmail.trim().isEmpty) return;
 
-    final subject = 'Alerte: Stock de bons faible';
     final content = '''
-    <h1>Stock de bons en baisse</h1>
-    <p>Bonjour $sellerName,</p>
-    <p>
-      Il ne vous reste plus que <strong>$couponsRemaining bon(s)</strong>
-      disponible(s) sur votre compte Vente Moi.<br>
-      Pensez à en reprendre si nécessaire, via votre profil boutique.
-    </p>
-    <p>À très bientôt,<br>L'équipe Vente Moi</p>
-  ''';
+      <h2>⚠️ Stock de bons faible</h2>
+      <p>
+        Bonjour $sellerName,
+      </p>
+      <p>
+        Nous vous informons que votre stock de bons est en baisse.
+      </p>
 
-    final fullHtml = _buildMailHtml(content);
+      <div class="highlight-box" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%); border-color: #ff4444;">
+        <h3 style="color: #ff4444;">Stock actuel</h3>
+        <div class="info-value" style="font-size: 48px; color: #ff4444; margin: 20px 0;">
+          $couponsRemaining
+        </div>
+        <p style="margin: 10px 0; color: #666;">
+          bon(s) restant(s)
+        </p>
+      </div>
+
+      <p>
+        Pour éviter toute rupture de stock, nous vous recommandons de
+        renouveler vos bons dès maintenant.
+      </p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://app.ventemoi.fr/#/mon-profil" class="button">
+          Commander des bons
+        </a>
+      </div>
+    ''';
 
     await sendMailSimple(
       toEmail: sellerEmail,
-      subject: subject,
-      htmlBody: fullHtml,
+      subject: '⚠️ Alerte: Stock de bons faible',
+      htmlBody: buildModernMailHtml(content),
     );
   }
 
+  // Email de notification aux admins pour attribution de points
   Future<void> sendProAttributionMailToAdmins({
     required String proEmail,
     required double montant,
@@ -1108,75 +1062,115 @@ mixin ControllerMixin on GetxController {
     required double commissionPercent,
     required int commissionCost,
   }) async {
-    // 1) Fetch all admins
     final adminDocs = await getAllAdmins();
     if (adminDocs.isEmpty) return;
 
-    // 2) Build the subject + HTML content
-    final subject = 'Nouvelle Attribution de Points (Entreprise)';
     final content = '''
-    <h1>Nouvelle attribution de points</h1>
-    <p>
-      Bonjour Admin,<br><br>
-      L'entreprise <strong>$proEmail</strong> vient d'attribuer <strong>$points points</strong>
-      à un utilisateur (montant: <strong>$montant €</strong>).<br><br>
-      Commission appliquée : <strong>$commissionPercent&nbsp;%</strong><br>
-      Montant de la commission : <strong>$commissionCost €</strong> (approx.)<br><br>
-      Merci de vérifier si nécessaire dans le back-office.<br>
-      <em>Message automatique de Vente Moi.</em>
-    </p>
-  ''';
+      <h2>📊 Nouvelle attribution de points</h2>
+      <p>
+        Une entreprise vient d'effectuer une attribution de points à un utilisateur.
+      </p>
 
-    final fullHtml = _buildMailHtml(content);
+      <div class="highlight-box">
+        <h3>Détails de l'opération</h3>
+        <div class="info-grid" style="max-width: 500px; margin: 0 auto;">
+          <div class="info-item">
+            <div class="info-label">Entreprise</div>
+            <div class="info-value">$proEmail</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Points attribués</div>
+            <div class="info-value" style="color: #f8b02a;">$points</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Montant</div>
+            <div class="info-value">$montant €</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Commission</div>
+            <div class="info-value">$commissionPercent %</div>
+          </div>
+        </div>
+        <p style="margin-top: 15px; text-align: center; color: #666;">
+          Montant de la commission : <strong style="color: #f8b02a;">$commissionCost €</strong>
+        </p>
+      </div>
 
-    // 3) Send to each admin
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://app.ventemoi.fr/#/admin/attributions" class="button">
+          Voir dans le back-office
+        </a>
+      </div>
+    ''';
+
     for (final doc in adminDocs) {
       final adminData = doc.data();
       final adminEmail = (adminData['email'] ?? '').toString().trim();
       if (adminEmail.isNotEmpty) {
         await sendMailSimple(
           toEmail: adminEmail,
-          subject: subject,
-          htmlBody: fullHtml,
+          subject: '📊 Nouvelle attribution de points (Entreprise)',
+          htmlBody: buildModernMailHtml(content),
         );
       }
     }
   }
 
+  // Email de demande d'achat de bons aux admins
   Future<void> sendEnterpriseBuyCouponsRequestEmailToAdmins({
     required String enterpriseEmail,
     required String enterpriseName,
     required int couponsCount,
   }) async {
     try {
-      // 1) Fetch all admins
-      final adminDocs = await getAllAdmins(); // existing in your Mixin
+      final adminDocs = await getAllAdmins();
       if (adminDocs.isEmpty) return;
 
-      // 2) Prepare subject & HTML
-      final subject = 'Demande d\'Achat de Bons – Vente Moi';
       final content = '''
-        <h1>Nouvelle demande d'achat de bons</h1>
+        <h2>📋 Nouvelle demande d'achat de bons</h2>
         <p>
-          L'entreprise <strong>$enterpriseName</strong> ($enterpriseEmail)
-          vient de demander <strong>$couponsCount</strong> bon(s).<br/><br/>
-          Merci de vérifier cette demande dans l'interface d'administration.
+          Une entreprise vient de soumettre une demande d'achat de bons.
         </p>
-        <p>– Message automatique de Vente Moi</p>
+
+        <div class="highlight-box">
+          <h3>Détails de la demande</h3>
+          <div class="info-grid" style="max-width: 500px; margin: 0 auto;">
+            <div class="info-item">
+              <div class="info-label">Entreprise</div>
+              <div class="info-value">$enterpriseName</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Email</div>
+              <div class="info-value" style="font-size: 14px;">$enterpriseEmail</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 20px;">
+            <div class="info-label">Nombre de bons demandés</div>
+            <div class="info-value" style="font-size: 48px; color: #f8b02a; margin-top: 10px;">
+              $couponsCount
+            </div>
+          </div>
+        </div>
+
+        <p>
+          Cette demande nécessite votre validation dans l'interface d'administration.
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="https://app.ventemoi.fr/#/admin/demandes" class="button">
+            Traiter la demande
+          </a>
+        </div>
       ''';
 
-      final fullHtml =
-          _buildMailHtml(content); // uses your existing HTML wrapper
-
-      // 3) Send mail to each admin
       for (final doc in adminDocs) {
         final adminData = doc.data();
         final adminEmail = (adminData['email'] ?? '').toString().trim();
         if (adminEmail.isNotEmpty) {
           await sendMailSimple(
             toEmail: adminEmail,
-            subject: subject,
-            htmlBody: fullHtml,
+            subject: '📋 Demande d\'achat de bons - $enterpriseName',
+            htmlBody: buildModernMailHtml(content),
           );
         }
       }
@@ -1185,81 +1179,87 @@ mixin ControllerMixin on GetxController {
     }
   }
 
+  // Email de parrainage entreprise
   Future<void> sendSponsorshipMailAboutEnterprise({
     required String sponsorName,
     required String sponsorEmail,
     required String userEmail,
   }) async {
     try {
-      final subject = 'Parrainage : +50 points';
       final content = '''
-        <h1>Félicitations $sponsorName !</h1>
+        <h2>🎉 Félicitations $sponsorName !</h2>
         <p>
-          Vous venez de gagner <strong>50 points</strong>
-          grâce au parrainage de <strong>$userEmail</strong>.<br>
-          Merci d'utiliser Vente Moi !
+          Votre parrainage porte ses fruits ! <strong>$userEmail</strong> vient de
+          s'inscrire sur Vente Moi grâce à vous.
         </p>
-        <p>À très bientôt,<br>L'équipe Vente Moi</p>
+
+        <div class="highlight-box">
+          <h3>Votre récompense</h3>
+          <div class="info-value" style="font-size: 48px; color: #f8b02a; margin: 20px 0;">
+            +50
+          </div>
+          <p style="margin: 10px 0; color: #666;">
+            points bonus
+          </p>
+        </div>
+
+        <p>
+          Continuez à parrainer vos contacts et accumulez encore plus de points !
+          Chaque parrainage réussi vous rapproche de nouvelles récompenses.
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="https://app.ventemoi.fr/#/parrainage" class="button">
+            Parrainer d'autres contacts
+          </a>
+        </div>
       ''';
-      final html = _buildMailHtml(content);
 
       await sendMailSimple(
         toEmail: sponsorEmail,
-        subject: subject,
-        htmlBody: html,
+        subject: '🎊 +50 points grâce à votre parrainage !',
+        htmlBody: buildModernMailHtml(content),
       );
     } catch (err) {
-      debugPrint('Error notifying admins about coupon request: $err');
+      debugPrint('Error sending sponsorship email: $err');
     }
   }
 
+  // Email de parrainage pour attribution
   Future<void> sendSponsorshipMailForAttribution({
     required String sponsorName,
     required String sponsorEmail,
     required String filleulEmail,
     required int pointsWon,
   }) async {
-    final subject = 'Parrainage : +$pointsWon points';
-    final content = '''
-    <h1>Félicitations $sponsorName !</h1>
-    <p>
-      Vous venez de gagner <strong>$pointsWon points</strong>
-      grâce au parrainage de <strong>$filleulEmail</strong>.<br>
-      Merci d'utiliser Vente Moi !
-    </p>
-    <p>À très bientôt,<br>L'équipe Vente Moi</p>
-  ''';
-
-    final html = _buildMailHtml(content);
-    await sendMailSimple(
-      toEmail: sponsorEmail,
-      subject: subject,
-      htmlBody: html,
+    await sendSponsorshipNotificationEmail(
+      sponsorEmail: sponsorEmail,
+      sponsorName: sponsorName,
+      newUserEmail: filleulEmail,
+      pointsEarned: pointsWon,
     );
   }
 
-  /// NOUVEAU : Envoie un email d'invitation avec des points en attente
+  /// Email d'invitation avec points en attente
   Future<void> sendPointsInvitationEmail({
     required String recipientEmail,
     required int points,
     required String invitationToken,
   }) async {
     try {
-      // URL de votre application avec le token d'invitation
       final appUrl =
           'https://app.ventemoi.fr/register?token=$invitationToken&email=${Uri.encodeComponent(recipientEmail)}';
 
-      // Construire le contenu de l'email avec le template moderne de email_templates.dart
       final content = '''
         <h2>🎉 Vous avez reçu des points !</h2>
         <p>
-          Bonne nouvelle ! Vous avez reçu <strong style="color: #ff7a00; font-size: 24px;">$points points</strong>
+          Bonne nouvelle ! Vous avez reçu <strong style="color: #f8b02a; font-size: 24px;">$points points</strong>
           sur notre plateforme VenteMoi.
         </p>
 
         <div class="highlight-box">
           <h3>Vos points vous attendent</h3>
-          <div class="info-value" style="font-size: 48px; color: #ff7a00; margin: 20px 0;">
+          <div class="info-value" style="font-size: 48px; color: #f8b02a; margin: 20px 0;">
             $points
           </div>
           <p style="margin: 10px 0; color: #666;">
@@ -1277,7 +1277,7 @@ mixin ControllerMixin on GetxController {
           </a>
         </div>
 
-        <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
           <p style="font-size: 14px; color: #555; margin: 0;">
             <strong>Comment ça marche ?</strong><br>
             1. Cliquez sur le bouton ci-dessus<br>
@@ -1302,17 +1302,14 @@ mixin ControllerMixin on GetxController {
 
         <p style="font-size: 13px; color: #999; margin-top: 30px; text-align: center;">
           Si vous ne pouvez pas cliquer sur le bouton, copiez et collez ce lien dans votre navigateur :<br>
-          <a href="$appUrl" style="color: #ff7a00; word-break: break-all;">$appUrl</a>
+          <a href="$appUrl" style="color: #f8b02a; word-break: break-all;">$appUrl</a>
         </p>
       ''';
-
-      // Utiliser buildModernMailHtml de email_templates.dart pour avoir le template moderne
-      final fullHtml = buildModernMailHtml(content);
 
       await sendMailSimple(
         toEmail: recipientEmail,
         subject: '🎉 Vous avez reçu $points points sur VenteMoi !',
-        htmlBody: fullHtml,
+        htmlBody: buildModernMailHtml(content),
       );
     } catch (e) {
       print('Erreur envoi email invitation: $e');

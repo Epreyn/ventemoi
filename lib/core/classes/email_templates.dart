@@ -53,7 +53,7 @@ extension EmailTemplates on ControllerMixin {
         }
 
         .header {
-            background: linear-gradient(135deg, #ff9500 0%, #ff7a00 100%);
+            background: linear-gradient(135deg, #f8b02a 0%, #e5a025 100%);
             padding: 40px 30px;
             text-align: center;
             position: relative;
@@ -99,7 +99,7 @@ extension EmailTemplates on ControllerMixin {
         }
 
         .content h2 {
-            color: #ff7a00;
+            color: #f8b02a;
             font-size: 22px;
             font-weight: 700;
             margin-bottom: 20px;
@@ -114,8 +114,8 @@ extension EmailTemplates on ControllerMixin {
         }
 
         .highlight-box {
-            background: linear-gradient(135deg, #fff8f0 0%, #fff5e6 100%);
-            border: 2px solid #ff9500;
+            background: linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%);
+            border: 2px solid #f8b02a;
             border-radius: 12px;
             padding: 20px;
             margin: 25px 0;
@@ -123,13 +123,13 @@ extension EmailTemplates on ControllerMixin {
         }
 
         .highlight-box h3 {
-            color: #ff7a00;
+            color: #f8b02a;
             font-size: 18px;
             margin-bottom: 10px;
         }
 
         .code-box {
-            background: #ff7a00;
+            background: #f8b02a;
             color: #ffffff;
             font-size: 28px;
             font-weight: 700;
@@ -143,7 +143,7 @@ extension EmailTemplates on ControllerMixin {
 
         .button {
             display: inline-block;
-            background: linear-gradient(135deg, #ff9500 0%, #ff7a00 100%);
+            background: linear-gradient(135deg, #f8b02a 0%, #e5a025 100%);
             color: #ffffff;
             text-decoration: none;
             padding: 14px 32px;
@@ -151,13 +151,13 @@ extension EmailTemplates on ControllerMixin {
             font-weight: 600;
             font-size: 16px;
             margin: 20px 0;
-            box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(248, 176, 42, 0.3);
             transition: all 0.3s ease;
         }
 
         .button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(255, 122, 0, 0.4);
+            box-shadow: 0 6px 20px rgba(248, 176, 42, 0.4);
         }
 
         .info-grid {
@@ -228,7 +228,7 @@ extension EmailTemplates on ControllerMixin {
         }
 
         .footer-links a {
-            color: #ff7a00;
+            color: #f8b02a;
             text-decoration: none;
             margin: 0 10px;
             font-size: 14px;
@@ -291,7 +291,7 @@ extension EmailTemplates on ControllerMixin {
 
                 <div class="footer-links">
                     <a href="https://app.ventemoi.fr">Site web</a>
-                    <a href="mailto:frederic.trabeco@gmail.com">Support</a>
+                    <a href="mailto:contact@ventemoi.com">Support</a>
                 </div>
             </div>
         </div>
@@ -317,7 +317,7 @@ extension EmailTemplates on ControllerMixin {
 
       <div class="highlight-box">
         <h3>Votre bon cadeau</h3>
-        <div class="info-value" style="font-size: 32px; color: #ff7a00; margin: 10px 0;">$amount €</div>
+        <div class="info-value" style="font-size: 32px; color: #f8b02a; margin: 10px 0;">$amount €</div>
         <p style="margin: 15px 0 5px 0; color: #666;">Code de récupération :</p>
         <div class="code-box">$reclamationCode</div>
       </div>
@@ -373,7 +373,7 @@ extension EmailTemplates on ControllerMixin {
           <div class="info-grid" style="max-width: 400px; margin: 0 auto;">
             <div class="info-item">
               <div class="info-label">Montant du don</div>
-              <div class="info-value" style="color: #ff7a00;">$couponsCountOrPoints points</div>
+              <div class="info-value" style="color: #f8b02a;">$couponsCountOrPoints points</div>
             </div>
             <div class="info-item">
               <div class="info-label">Bénéficiaire</div>
@@ -417,11 +417,11 @@ extension EmailTemplates on ControllerMixin {
           <div class="info-grid" style="max-width: 400px; margin: 0 auto;">
             <div class="info-item">
               <div class="info-label">Nombre de bons</div>
-              <div class="info-value" style="color: #ff7a00;">$couponsCountOrPoints</div>
+              <div class="info-value" style="color: #f8b02a;">$couponsCountOrPoints</div>
             </div>
             <div class="info-item">
               <div class="info-label">Valeur totale</div>
-              <div class="info-value" style="color: #ff7a00;">${couponsCountOrPoints * 50} €</div>
+              <div class="info-value" style="color: #f8b02a;">${couponsCountOrPoints * 50} €</div>
             </div>
           </div>
           $codeSection
@@ -487,7 +487,7 @@ extension EmailTemplates on ControllerMixin {
 
       <p style="margin-top: 30px;">
         Des questions ? Notre équipe support est là pour vous aider à
-        <a href="mailto:frederic.trabeco@gmail.com" style="color: #ff7a00;">frederic.trabeco@gmail.com</a>
+        <a href="mailto:contact@ventemoi.com" style="color: #f8b02a;">contact@ventemoi.com</a>
       </p>
     ''';
 
@@ -513,7 +513,7 @@ extension EmailTemplates on ControllerMixin {
 
       <div class="highlight-box">
         <h3>Votre récompense</h3>
-        <div class="info-value" style="font-size: 32px; color: #ff7a00; margin: 10px 0;">
+        <div class="info-value" style="font-size: 32px; color: #f8b02a; margin: 10px 0;">
           +$pointsEarned points
         </div>
         <p style="margin: 10px 0; color: #666;">

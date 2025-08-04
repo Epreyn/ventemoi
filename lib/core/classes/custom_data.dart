@@ -81,8 +81,8 @@ class CustomData extends GetxController {
       <CustomBottomAppBarIconButtonModel>[
     CustomBottomAppBarIconButtonModel(
       tag: Routes.shopEstablishment,
-      iconData: Icons.shopping_cart_outlined,
-      text: 'Boutique',
+      iconData: Icons.explore_outlined,
+      text: 'Explorer',
       onPressed: () => Get.offNamed(Routes.shopEstablishment),
     ),
     CustomBottomAppBarIconButtonModel(
@@ -121,8 +121,8 @@ class CustomData extends GetxController {
       <CustomBottomAppBarIconButtonModel>[
     CustomBottomAppBarIconButtonModel(
       tag: Routes.shopEstablishment,
-      iconData: Icons.shopping_cart_outlined,
-      text: 'Boutique',
+      iconData: Icons.explore_outlined,
+      text: 'Explorer',
       onPressed: () => Get.offNamed(Routes.shopEstablishment),
     ),
     CustomBottomAppBarIconButtonModel(
@@ -161,8 +161,8 @@ class CustomData extends GetxController {
       <CustomBottomAppBarIconButtonModel>[
     CustomBottomAppBarIconButtonModel(
       tag: Routes.shopEstablishment,
-      iconData: Icons.shopping_cart_outlined,
-      text: 'Boutique',
+      iconData: Icons.explore_outlined,
+      text: 'Explorer',
       onPressed: () => Get.offNamed(Routes.shopEstablishment),
     ),
     CustomBottomAppBarIconButtonModel(

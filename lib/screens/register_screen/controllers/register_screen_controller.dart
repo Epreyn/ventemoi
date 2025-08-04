@@ -402,7 +402,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     <div class="footer">
       Cet e-mail vous a été envoyé par un utilisateur de VenteMoi.<br>
       Pour toute question, contactez
-      <a href="mailto:frederic.trabeco@gmail.com">frederic.trabeco@gmail.com</a>.
+      <a href="mailto:contact@ventemoi.com">contact@ventemoi.com</a>.
     </div>
   </body>
 </html>
