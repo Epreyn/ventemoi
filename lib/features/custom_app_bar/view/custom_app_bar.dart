@@ -52,7 +52,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFf2d8a1), // Couleur spécifiée
+        color: const Color(0xFFf2d8a1),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -79,82 +79,95 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildNewLayoutContent(
       CustomAppBarActionsController cc, BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmallScreen = screenWidth < 350;
+    final isSmallScreen = screenWidth < 500;
+
     return Row(
       children: [
-        // Bouton Menu tout à gauche
-        if (showDrawerButton)
-          CustomAnimation(
-            duration: UniquesControllers().data.baseAnimationDuration,
-            delay: UniquesControllers().data.baseAnimationDuration,
-            curve: Curves.easeOutQuart,
-            xStartPosition: -20,
-            isOpacity: true,
-            child: Builder(
-              builder: (context) => IconButton(
-                icon: Container(
-                  padding: EdgeInsets.all(UniquesControllers().data.baseSpace),
-                  decoration: BoxDecoration(
-                    color: CustomTheme.lightScheme().primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.menu,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                onPressed: () {
-                  if (scaffoldKey != null) {
-                    scaffoldKey!.currentState?.openDrawer();
-                  } else {
-                    Scaffold.of(context).openDrawer();
-                  }
-                },
-              ),
-            ),
-          ),
-
-        const SizedBox(width: 12),
-
-        // Titre et sous-titre à droite du bouton menu
-        CustomAnimation(
-          duration: UniquesControllers().data.baseAnimationDuration,
-          delay: UniquesControllers().data.baseAnimationDuration * 1.2,
-          curve: Curves.easeOutQuart,
-          yStartPosition: -10,
-          isOpacity: true,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Vente Moi',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                'Le Don des Affaires',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: CustomTheme.lightScheme().primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Espacement flexible
-        const Spacer(),
-
-        // Section droite : Bonjour + Nom, Image, Points
+        // Partie gauche : Bouton Menu + Titre
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Bonjour + Nom (cliquable)
-            if (showUserInfo && showGreeting)
+            // Bouton Menu tout à gauche
+            if (showDrawerButton)
+              CustomAnimation(
+                duration: UniquesControllers().data.baseAnimationDuration,
+                delay: UniquesControllers().data.baseAnimationDuration,
+                curve: Curves.easeOutQuart,
+                xStartPosition: -20,
+                isOpacity: true,
+                child: Builder(
+                  builder: (context) => IconButton(
+                    icon: Container(
+                      padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                      decoration: BoxDecoration(
+                        color: CustomTheme.lightScheme().primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.menu,
+                        color: Colors.white,
+                        size: isSmallScreen ? 20 : 24,
+                      ),
+                    ),
+                    onPressed: () {
+                      if (scaffoldKey != null) {
+                        scaffoldKey!.currentState?.openDrawer();
+                      } else {
+                        Scaffold.of(context).openDrawer();
+                      }
+                    },
+                  ),
+                ),
+              ),
+
+            const SizedBox(width: 12),
+
+            // Titre et sous-titre
+            CustomAnimation(
+              duration: UniquesControllers().data.baseAnimationDuration,
+              delay: UniquesControllers().data.baseAnimationDuration * 1.2,
+              curve: Curves.easeOutQuart,
+              yStartPosition: -10,
+              isOpacity: true,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Vente Moi',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 16 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (!isVerySmallScreen)
+                    Text(
+                      'Le Don des Affaires',
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 12 : 14,
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        // Espacement flexible qui pousse tout à droite
+        const Spacer(),
+
+        // Partie droite : Bonjour + Nom, Image, Points
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Bonjour + Nom (caché sur très petits écrans)
+            if (showUserInfo && showGreeting && !isVerySmallScreen)
               StreamBuilder<String>(
                 stream: _getUserNameStream(),
                 builder: (context, snapshot) {
@@ -166,7 +179,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     xStartPosition: 20,
                     isOpacity: true,
                     child: InkWell(
-                      onTap: () => Get.toNamed('/profile'),
+                      onTap: () => Get.toNamed(Routes.profile),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
                         padding: const EdgeInsets.all(4.0),
@@ -174,17 +187,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              'Bonjour,',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black54,
+                            if (!isSmallScreen)
+                              Text(
+                                'Bonjour,',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black54,
+                                ),
                               ),
-                            ),
                             Text(
                               snapshot.data ?? 'Utilisateur',
-                              style: const TextStyle(
-                                fontSize: 16,
+                              style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black,
                               ),
@@ -201,7 +215,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
             const SizedBox(width: 12),
 
-            // Avatar utilisateur (cliquable)
+            // Avatar utilisateur
             if (showUserInfo)
               StreamBuilder<String>(
                 stream: _getUserImageStream(),
@@ -217,15 +231,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       onTap: () => Get.toNamed(Routes.profile),
                       customBorder: const CircleBorder(),
                       child: CircleAvatar(
-                        radius: 22,
+                        radius: isSmallScreen ? 18 : 22,
                         backgroundColor: CustomTheme.lightScheme().primary,
                         backgroundImage:
                             snapshot.hasData && snapshot.data!.isNotEmpty
                                 ? NetworkImage(snapshot.data!)
                                 : null,
                         child: !snapshot.hasData || snapshot.data!.isEmpty
-                            ? const Icon(Icons.person,
-                                color: Colors.white, size: 20)
+                            ? Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: isSmallScreen ? 16 : 20,
+                              )
                             : null,
                       ),
                     ),
@@ -237,31 +254,37 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
             // Points
             if (showPoints)
-              Obx(() => CustomAnimation(
-                    duration: UniquesControllers().data.baseAnimationDuration,
-                    delay: UniquesControllers().data.baseAnimationDuration * 2,
-                    curve: Curves.easeOutQuart,
-                    xStartPosition: 20,
-                    isOpacity: true,
-                    child: _buildPointsWidget(cc),
-                  )),
+              Obx(() {
+                final isAdmin = cc.isAdmin.value;
+                final isBoutique = cc.isBoutique.value;
+
+                // Si admin sans boutique, ne pas afficher les points
+                if (isAdmin && !isBoutique) {
+                  return const SizedBox.shrink();
+                }
+
+                return CustomAnimation(
+                  duration: UniquesControllers().data.baseAnimationDuration,
+                  delay: UniquesControllers().data.baseAnimationDuration * 2,
+                  curve: Curves.easeOutQuart,
+                  xStartPosition: 20,
+                  isOpacity: true,
+                  child: _buildPointsWidget(cc, isSmallScreen),
+                );
+              }),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildPointsWidget(CustomAppBarActionsController cc) {
+  Widget _buildPointsWidget(
+      CustomAppBarActionsController cc, bool isSmallScreen) {
     final realPoints = cc.realPoints.value;
     final pendingPoints = cc.pendingPoints.value;
     final isBoutique = cc.isBoutique.value;
     final coupons = cc.couponsRestants.value;
     final couponsPending = cc.couponsPending.value;
-    final isAdmin = cc.isAdmin.value;
-
-    if (isAdmin && !isBoutique) {
-      return const SizedBox.shrink();
-    }
 
     return Row(
       children: [
@@ -269,9 +292,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         if (isBoutique) ...[
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: UniquesControllers().data.baseSpace * 1.5,
-              vertical: UniquesControllers().data.baseSpace *
-                  0.5, // Réduit pour minimiser la hauteur
+              horizontal: isSmallScreen ? 8 : 12,
+              vertical: 4,
             ),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.9),
@@ -286,8 +308,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize:
-                  MainAxisSize.min, // Important pour minimiser la hauteur
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -295,34 +316,28 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Icon(
                       Icons.confirmation_number,
                       color: CustomTheme.lightScheme().primary,
-                      size: 16, // Réduit la taille de l'icône
+                      size: isSmallScreen ? 14 : 16,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '$coupons',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14, // Réduit la taille de la police
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Bons',
                       style: TextStyle(
-                        fontSize: 11, // Réduit la taille de la police
-                        color: Colors.black54,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isSmallScreen ? 12 : 14,
+                        color: Colors.black,
                       ),
                     ),
                   ],
                 ),
                 if (couponsPending > 0)
                   Text(
-                    '$couponsPending en attente',
+                    isSmallScreen
+                        ? '$couponsPending attente'
+                        : '$couponsPending bons en attente',
                     style: TextStyle(
-                      fontSize: 9, // Réduit la taille de la police
-                      color: Colors.black45,
+                      fontSize: isSmallScreen ? 10 : 12,
                       fontStyle: FontStyle.italic,
+                      color: Colors.black54,
                     ),
                   ),
               ],
@@ -331,97 +346,72 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: 8),
         ],
 
-        // Points (sauf admin) - cliquable
-        if (!isAdmin)
-          InkWell(
-            onTap: () => Get.toNamed(Routes.clientHistory),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: UniquesControllers().data.baseSpace * 1.5,
-                vertical: UniquesControllers().data.baseSpace *
-                    0.5, // Réduit pour minimiser la hauteur
-              ),
-              decoration: BoxDecoration(
-                color: CustomTheme.lightScheme().primary,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize:
-                    MainAxisSize.min, // Important pour minimiser la hauteur
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.stars_rounded,
-                        color: Colors.white,
-                        size: 16, // Réduit la taille de l'icône
-                      ),
-                      const SizedBox(width: 4),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: Text(
-                          '$realPoints',
-                          key: ValueKey(realPoints),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14, // Réduit la taille de la police
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'pts',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11, // Réduit la taille de la police
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (pendingPoints > 0)
+        // Points
+        InkWell(
+          onTap: () => Get.toNamed(Routes.clientHistory),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmallScreen ? 8 : 12,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: CustomTheme.lightScheme().primary,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.stars_rounded,
+                      color: Colors.white,
+                      size: isSmallScreen ? 14 : 16,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      '$pendingPoints en attente',
-                      style: const TextStyle(
-                        fontSize: 9, // Réduit la taille de la police
-                        color: Colors.white70,
-                        fontStyle: FontStyle.italic,
+                      '$realPoints',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isSmallScreen ? 12 : 14,
                       ),
                     ),
-                ],
-              ),
+                  ],
+                ),
+                if (pendingPoints > 0)
+                  Text(
+                    isSmallScreen
+                        ? '$pendingPoints attente'
+                        : '$pendingPoints points en attente',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 10 : 12,
+                      color: Colors.white70,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }
 
-  Stream<String> _getUserImageStream() {
-    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
-
-    return UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((snap) => snap.data()?['image_url'] ?? '');
-  }
-
+  // Méthodes pour récupérer les données utilisateur
   Stream<String> _getUserNameStream() {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return const Stream.empty();
+    if (uid == null) return Stream.value('Utilisateur');
 
     return UniquesControllers()
         .data
@@ -429,6 +419,31 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         .collection('users')
         .doc(uid)
         .snapshots()
-        .map((snap) => snap.data()?['name'] ?? 'Utilisateur');
+        .map((doc) {
+      if (!doc.exists) return 'Utilisateur';
+      final data = doc.data()!;
+      final firstName = data['firstName'] ?? '';
+      final lastName = data['lastName'] ?? '';
+      return '$firstName $lastName'.trim().isNotEmpty
+          ? '$firstName $lastName'.trim()
+          : 'Utilisateur';
+    });
+  }
+
+  Stream<String> _getUserImageStream() {
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) return Stream.value('');
+
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return '';
+      final data = doc.data()!;
+      return data['profileImageUrl'] ?? '';
+    });
   }
 }

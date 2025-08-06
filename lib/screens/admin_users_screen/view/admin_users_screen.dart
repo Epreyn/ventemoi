@@ -922,121 +922,342 @@ class AdminUsersScreen extends StatelessWidget {
                           Colors.blue,
                         )),
                     SizedBox(height: 16),
-                    FutureBuilder<Map<String, dynamic>?>(
-                      future: cc.getAssociationEstablishmentInfo(user.id),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData || snapshot.data == null) {
-                          return SizedBox.shrink();
-                        }
 
-                        final info = snapshot.data!;
-                        final establishmentId = info['id'];
-                        final affiliatesCount = info['affiliatesCount'] ?? 0;
-                        final isOverride = info['isVisibleOverride'] ?? false;
+                    // Remplacez le FutureBuilder par un simple Obx :
 
-                        return Column(
-                          children: [
-                            SizedBox(height: 24),
+                    // Afficher les infos d'affiliation SEULEMENT pour les associations
+                    Obx(() {
+                      final userTypeName =
+                          cc.getUserTypeName(user.userTypeID).toLowerCase();
 
-                            // Titre section
-                            Container(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'GESTION ASSOCIATION',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.grey[600],
-                                  letterSpacing: 1,
+                      // Si c'est une association, afficher les infos d'affiliation
+                      if (userTypeName == 'association') {
+                        return FutureBuilder<Map<String, dynamic>?>(
+                          future: cc.getAssociationEstablishmentInfo(user.id),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData || snapshot.data == null) {
+                              return SizedBox.shrink();
+                            }
+
+                            final info = snapshot.data!;
+                            final sponsorCount = info['sponsorCount'] as int;
+                            final isVisible = info['isVisible'] as bool;
+                            final forceVisible =
+                                info['forceVisibleOverride'] as bool;
+                            final establishmentId =
+                                info['establishmentId'] as String;
+
+                            return Column(
+                              children: [
+                                Divider(height: 32),
+                                // Section Association
+                                Row(
+                                  children: [
+                                    Icon(Icons.group, color: Colors.green[700]),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Informations Association',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ),
+                                SizedBox(height: 16),
 
-                            SizedBox(height: 16),
-
-                            // Compteur d'affiliés
-                            Container(
-                              padding: EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: affiliatesCount >= 15
-                                    ? Colors.green[50]
-                                    : Colors.orange[50],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: affiliatesCount >= 15
+                                // Nombre d'affiliés
+                                cc.buildInfoRow(
+                                  'Affiliés',
+                                  '$sponsorCount / 15',
+                                  icon: Icons.people,
+                                  color: sponsorCount >= 15
                                       ? Colors.green
                                       : Colors.orange,
-                                  width: 2,
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.group,
-                                    color: affiliatesCount >= 15
-                                        ? Colors.green[700]
-                                        : Colors.orange[700],
-                                    size: 32,
+
+                                // Statut de visibilité
+                                if (sponsorCount < 15)
+                                  Column(
+                                    children: [
+                                      SizedBox(height: 12),
+                                      Container(
+                                        padding: EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: forceVisible
+                                              ? Colors.purple[50]
+                                              : Colors.orange[50],
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              forceVisible
+                                                  ? Icons.visibility
+                                                  : Icons.visibility_off,
+                                              color: forceVisible
+                                                  ? Colors.purple[700]
+                                                  : Colors.orange[700],
+                                            ),
+                                            SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                forceVisible
+                                                    ? 'Visibilité forcée activée'
+                                                    : 'Non visible (moins de 15 affiliés)',
+                                                style: TextStyle(
+                                                  color: forceVisible
+                                                      ? Colors.purple[700]
+                                                      : Colors.orange[700],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(height: 12),
+                                      _buildSwitchRow(
+                                        'Forcer la visibilité',
+                                        'Rendre visible même avec moins de 15 affiliés',
+                                        forceVisible,
+                                        (val) => cc
+                                            .toggleAssociationVisibilityOverride(
+                                                establishmentId, val),
+                                        Colors.purple,
+                                      ),
+                                    ],
                                   ),
-                                  SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '$affiliatesCount membres affiliés',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            color: affiliatesCount >= 15
-                                                ? Colors.green[800]
-                                                : Colors.orange[800],
-                                          ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          affiliatesCount >= 15
-                                              ? 'Seuil de visibilité atteint ✓'
-                                              : 'Minimum requis : 15 membres',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: affiliatesCount >= 15
-                                                ? Colors.green[600]
-                                                : Colors.orange[600],
-                                          ),
-                                        ),
-                                      ],
+                              ],
+                            );
+                          },
+                        );
+                      }
+
+                      // Pour les autres types, ne rien afficher
+                      return SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              ),
+
+              // Section Abonnement / Accès gratuit
+              FutureBuilder<Map<String, dynamic>>(
+                future: cc.getUserPaymentInfo(user.id),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  final paymentInfo = snapshot.data!;
+                  final hasFreeAccess = paymentInfo['has_free_access'] ?? false;
+                  final subscriptionType =
+                      paymentInfo['free_subscription_type'] ?? 'standard';
+                  final hasActiveSubscription =
+                      paymentInfo['has_active_subscription'] ?? false;
+
+                  return Column(
+                    children: [
+                      Divider(height: 32),
+                      Row(
+                        children: [
+                          Icon(
+                            hasFreeAccess
+                                ? Icons.card_giftcard
+                                : Icons.credit_card,
+                            color: hasFreeAccess
+                                ? Colors.purple[700]
+                                : Colors.blue[700],
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Abonnement',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+
+                      // Statut actuel
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: hasFreeAccess
+                              ? Colors.purple[50]
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: hasFreeAccess
+                                ? Colors.purple[200]!
+                                : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              hasFreeAccess ? Icons.verified : Icons.payment,
+                              color: hasFreeAccess
+                                  ? Colors.purple[700]
+                                  : Colors.grey[600],
+                              size: 20,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    hasFreeAccess
+                                        ? 'Accès gratuit activé'
+                                        : hasActiveSubscription
+                                            ? 'Abonnement payant actif'
+                                            : 'Aucun abonnement actif',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: hasFreeAccess
+                                          ? Colors.purple[700]
+                                          : Colors.grey[700],
                                     ),
                                   ),
+                                  if (hasFreeAccess &&
+                                      paymentInfo['free_access_granted_by'] !=
+                                          null)
+                                    Text(
+                                      'Accordé par: ${paymentInfo['free_access_granted_by']}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  if (subscriptionType != null)
+                                    Text(
+                                      'Type: ${subscriptionType.toUpperCase()}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                      ),
 
-                            SizedBox(height: 16),
+                      SizedBox(height: 16),
 
-                            // Switch override
-                            Container(
-                              padding: EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.purple[50],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: _buildSwitchRow(
-                                'Forcer la visibilité',
-                                'Rendre visible même avec moins de 15 affiliés',
-                                isOverride,
-                                (val) => cc.toggleAssociationVisibilityOverride(
-                                    establishmentId, val),
+                      // Toggle accès gratuit
+                      StatefulBuilder(
+                        builder: (context, setState) {
+                          bool localFreeAccess = hasFreeAccess;
+                          String localSubscriptionType = subscriptionType;
+
+                          return Column(
+                            children: [
+                              _buildSwitchRow(
+                                'Accès gratuit',
+                                'Activer toutes les fonctionnalités premium gratuitement',
+                                localFreeAccess,
+                                (val) {
+                                  setState(() {
+                                    localFreeAccess = val;
+                                  });
+
+                                  if (val) {
+                                    // Afficher un dialog pour choisir le type
+                                    Get.dialog(
+                                      AlertDialog(
+                                        title: Text(
+                                            'Choisir le type d\'abonnement'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            RadioListTile<String>(
+                                              title:
+                                                  Text('Basic (2 catégories)'),
+                                              value: 'basic',
+                                              groupValue: localSubscriptionType,
+                                              onChanged: (value) {
+                                                Get.back();
+                                                cc.toggleFreeAccess(
+                                                    user.id, true, value!);
+                                              },
+                                            ),
+                                            RadioListTile<String>(
+                                              title: Text(
+                                                  'Standard (3 catégories)'),
+                                              value: 'standard',
+                                              groupValue: localSubscriptionType,
+                                              onChanged: (value) {
+                                                Get.back();
+                                                cc.toggleFreeAccess(
+                                                    user.id, true, value!);
+                                              },
+                                            ),
+                                            RadioListTile<String>(
+                                              title: Text(
+                                                  'Premium (5 catégories)'),
+                                              value: 'premium',
+                                              groupValue: localSubscriptionType,
+                                              onChanged: (value) {
+                                                Get.back();
+                                                cc.toggleFreeAccess(
+                                                    user.id, true, value!);
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Get.back(),
+                                            child: Text('Annuler'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  } else {
+                                    // Confirmer la désactivation
+                                    Get.dialog(
+                                      AlertDialog(
+                                        title:
+                                            Text('Désactiver l\'accès gratuit'),
+                                        content: Text(
+                                          'Êtes-vous sûr de vouloir désactiver l\'accès gratuit ?\n\n'
+                                          'L\'utilisateur devra payer pour continuer à utiliser les fonctionnalités premium.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Get.back(),
+                                            child: Text('Annuler'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Get.back();
+                                              cc.toggleFreeAccess(
+                                                  user.id, false, '');
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                            ),
+                                            child: Text('Désactiver'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                },
                                 Colors.purple,
                               ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

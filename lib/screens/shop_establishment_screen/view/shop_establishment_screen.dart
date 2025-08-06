@@ -125,60 +125,78 @@ class ShopEstablishmentScreen extends StatelessWidget {
   }
 
   Widget _buildModernTabs(ShopEstablishmentScreenController cc) {
-    return Container(
-      height: 48,
-      margin: EdgeInsets.symmetric(
-        horizontal: UniquesControllers().data.baseSpace * 2,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Stack(
-        children: [
-          Obx(() => AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutExpo,
-                left: cc.selectedTabIndex.value * (Get.width - 32) / 4,
-                child: Container(
-                  width: (Get.width - 32) / 4,
-                  height: 48,
-                  padding: const EdgeInsets.all(4),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )),
-          Row(
-            children: [
-              _buildTabButton(cc, 0, 'Partenaires',
-                  Icons.business), // Renommé Entreprises -> Partenaires
-              _buildTabButton(cc, 1, 'Commerces',
-                  Icons.redeem), // Renommé Boutiques -> Commerces
-              _buildTabButton(cc, 2, 'Associations', Icons.volunteer_activism),
-              _buildTabButton(cc, 3, 'Sponsors', Icons.handshake),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Déterminer si on est sur un petit écran
+        final isSmallScreen = constraints.maxWidth < 600;
+
+        return Container(
+          height: 48,
+          margin: EdgeInsets.symmetric(
+            horizontal: UniquesControllers().data.baseSpace * 2,
           ),
-        ],
-      ),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Utiliser la largeur réelle du container au lieu de Get.width
+              final containerWidth = constraints.maxWidth;
+              final tabWidth = containerWidth / 4;
+
+              return Stack(
+                children: [
+                  Obx(() => AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutExpo,
+                        left: cc.selectedTabIndex.value * tabWidth,
+                        child: Container(
+                          width: tabWidth,
+                          height: 48,
+                          padding: const EdgeInsets.all(4),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )),
+                  Row(
+                    children: [
+                      _buildResponsiveTabButton(
+                          cc, 0, 'Partenaires', Icons.business, isSmallScreen),
+                      _buildResponsiveTabButton(
+                          cc, 1, 'Commerces', Icons.store, isSmallScreen),
+                      _buildResponsiveTabButton(cc, 2, 'Associations',
+                          Icons.volunteer_activism, isSmallScreen),
+                      _buildResponsiveTabButton(
+                          cc, 3, 'Sponsors', Icons.handshake, isSmallScreen),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildTabButton(
+  Widget _buildResponsiveTabButton(
     ShopEstablishmentScreenController cc,
     int index,
     String label,
     IconData icon,
+    bool isSmallScreen,
   ) {
     return Expanded(
       child: GestureDetector(
@@ -188,28 +206,38 @@ class ShopEstablishmentScreen extends StatelessWidget {
           color: Colors.transparent,
           child: Obx(() {
             final isSelected = cc.selectedTabIndex.value == index;
+
+            // Sur petits écrans, afficher le texte seulement pour l'onglet sélectionné
+            final showText = !isSmallScreen || isSelected;
+
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   icon,
-                  size: 24,
+                  size: isSmallScreen ? 20 : 24,
                   color: isSelected
                       ? CustomTheme.lightScheme().primary
                       : Colors.grey[600],
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected
-                        ? CustomTheme.lightScheme().primary
-                        : Colors.grey[600],
+                if (showText) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: isSmallScreen ? 12 : 14,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? CustomTheme.lightScheme().primary
+                            : Colors.grey[600],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
-                ),
+                ],
               ],
             );
           }),
