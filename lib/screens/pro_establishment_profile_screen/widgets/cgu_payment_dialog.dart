@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/stripe_service.dart';
 import '../../../core/services/automatic_gift_voucher_service.dart';
+import '../../../core/services/initial_coupons_service.dart';
+import '../../../core/services/payment_validation_hook.dart';
 import '../../../core/services/stripe_payment_manager.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
@@ -111,7 +113,9 @@ Article 3 : Services proposés
 - Bénéficier de prestations vidéo à tarifs préférentiels
 - Être mis en avant minimum deux fois par an
 
-3.2 Pour les commerçants : mise à disposition de 16 bons cadeaux de 50€ TTC chacun
+3.2 Pour les commerçants : attribution de 16 bons cadeaux de 50€ TTC chacun
+    - 12 bons disponibles dans votre wallet pour la vente
+    - 4 bons offerts automatiquement à des membres de la communauté pour faire découvrir votre établissement
 
 Article 4 : Commissions sur ventes
 4.1 Une commission est prélevée sur chaque vente réalisée via VenteMoi
@@ -1348,6 +1352,33 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
 
       print('👤 UID utilisateur: $uid');
 
+      // Récupérer les infos utilisateur
+      final userDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      final userData = userDoc.data() ?? {};
+      final userEmail = userData['email'] ?? '';
+      final userName = userData['name'] ?? '';
+
+      // Déclencher l'attribution des 16 bons (12 wallet + 4 distribués)
+      await InitialCouponsService.attributeInitialCoupons(
+        userId: uid,
+        userEmail: userEmail,
+        userType: widget.userType,
+        userName: userName,
+      );
+
+      // Déclencher le hook de validation pour le parrainage
+      await PaymentValidationHook.onPaymentAndCGUValidated(
+        userId: uid,
+        userEmail: userEmail,
+        userType: widget.userType,
+      );
+
       // Trouver l'établissement
       final estabQuery = await UniquesControllers()
           .data
@@ -1383,6 +1414,12 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
               Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
           'payment_option': paymentOption,
           'last_payment_update': FieldValue.serverTimestamp(),
+          // Supprimer les flags d'accès gratuit et de paiement requis
+          'is_free_access': false,
+          'requires_payment': FieldValue.delete(),
+          'free_access_granted_by': FieldValue.delete(),
+          'free_access_granted_at': FieldValue.delete(),
+          'free_access_removed_at': FieldValue.delete(),
         };
 
         print('📝 Mise à jour avec: $updateData');

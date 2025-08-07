@@ -525,7 +525,61 @@ class ProEstablishmentProfileScreenController extends GetxController
             userType.name == 'Boutique' ||
             userType.name == 'Commerçant');
 
-    if (needsSubscription && !hasAcceptedContract.value) {
+    // Vérifier si l'utilisateur a besoin de payer
+    // Cas 1 : N'a jamais accepté les CGU
+    // Cas 2 : A accepté les CGU mais n'a pas d'abonnement actif (après retrait accès gratuit)
+    // Cas 3 : A le flag requires_payment
+    bool needsPayment = false;
+    bool requiresPaymentFlag = false;
+
+    if (needsSubscription) {
+      if (establishmentDocId != null) {
+        // Récupérer les données actuelles de l'établissement
+        final estabDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(establishmentDocId)
+            .get();
+
+        if (estabDoc.exists) {
+          final data = estabDoc.data()!;
+          requiresPaymentFlag = data['requires_payment'] ?? false;
+          final hasAccepted = data['has_accepted_contract'] ?? false;
+          final hasActiveSubscription =
+              data['has_active_subscription'] ?? false;
+          final isFreeAccess = data['is_free_access'] ?? false;
+
+          // L'utilisateur doit payer si :
+          // 1. Il n'a jamais accepté les CGU
+          // 2. Il a accepté mais n'a pas d'abonnement actif et n'est pas en accès gratuit
+          // 3. Il a le flag requires_payment (après retrait d'accès gratuit)
+          needsPayment = !hasAccepted ||
+              (!hasActiveSubscription && !isFreeAccess) ||
+              requiresPaymentFlag;
+        } else {
+          // Nouvel établissement
+          needsPayment = true;
+        }
+      } else {
+        // Nouvel établissement
+        needsPayment = true;
+      }
+    }
+
+    if (needsSubscription && needsPayment) {
+      // Retirer le flag requires_payment si présent
+      if (requiresPaymentFlag && establishmentDocId != null) {
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(establishmentDocId)
+            .update({
+          'requires_payment': FieldValue.delete(),
+        });
+      }
+
       // Ouvrir la dialog CGU et paiement
       Get.dialog(
         CGUPaymentDialog(
@@ -534,7 +588,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         barrierDismissible: false,
       );
     } else {
-      // Sauvegarder directement si pas besoin de subscription
+      // Sauvegarder directement si pas besoin de subscription ou déjà payé
       await _performSaveEstablishmentProfile();
     }
   }

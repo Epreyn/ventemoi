@@ -1,26 +1,42 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../classes/unique_controllers.dart';
+import 'initial_coupons_service.dart';
 import 'sponsorship_service.dart';
 
 class PaymentValidationHook {
   static final FirebaseFirestore _firestore =
       UniquesControllers().data.firebaseFirestore;
 
-  /// Appelé lorsqu'un utilisateur non-particulier valide son paiement et accepte les CGU
   static Future<void> onPaymentAndCGUValidated({
     required String userId,
     required String userEmail,
     required String userType,
   }) async {
     try {
-      // Vérifier si c'est bien un non-particulier
+      // Récupérer les infos complètes de l'utilisateur pour le nom
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final userName = userDoc.data()?['name'] ?? 'Boutique';
+
+      // NOUVEAU : Attribuer les 16 bons initiaux pour les boutiques/entreprises
+      // 12 dans le wallet + 4 distribués automatiquement
+      if (userType == 'Boutique' || userType == 'Entreprise') {
+        await InitialCouponsService.attributeInitialCoupons(
+          userId: userId,
+          userEmail: userEmail,
+          userType: userType,
+          userName: userName,
+        );
+        print('✅ 16 bons attribués (12 wallet + 4 distribués) pour $userEmail');
+      }
+
+      // Vérifier si c'est bien un non-particulier pour le parrainage
       if (userType == 'Particulier') {
         print(
             'PaymentValidationHook: Utilisateur est un particulier, pas de bonus de parrainage');
         return;
       }
 
-      // Vérifier si l'utilisateur a un parrain
+      // Le reste du code pour le parrainage...
       final sponsorInfo = await SponsorshipService.checkForSponsor(userEmail);
       if (sponsorInfo == null) {
         print('PaymentValidationHook: Pas de parrain trouvé pour $userEmail');
@@ -39,7 +55,7 @@ class PaymentValidationHook {
       print(
           'PaymentValidationHook: 50 points attribués au parrain pour $userEmail');
 
-      // Optionnel : Marquer dans le profil utilisateur qu'il a validé le paiement/CGU
+      // Marquer dans le profil utilisateur qu'il a validé le paiement/CGU
       await _firestore.collection('users').doc(userId).update({
         'has_validated_payment': true,
         'has_accepted_cgu': true,

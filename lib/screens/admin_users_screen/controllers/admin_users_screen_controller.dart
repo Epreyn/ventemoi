@@ -435,7 +435,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
                 false,
               );
         } else {
-          // Désactiver l'accès gratuit
+          // Désactiver l'accès gratuit - IMPORTANT : réinitialiser complètement
           await UniquesControllers()
               .data
               .firebaseFirestore
@@ -449,11 +449,16 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
             'subscription_status': null,
             'subscription_end_date': null,
             'force_visible_override': false,
+            // IMPORTANT : NE PAS réinitialiser has_accepted_contract ici
+            // On le garde pour savoir que l'utilisateur a déjà accepté les CGU
+            // Mais on ajoute un flag pour indiquer qu'il doit repayer
+            'requires_payment': true,
+            'free_access_removed_at': FieldValue.serverTimestamp(),
           });
 
           UniquesControllers().data.snackbar(
                 'Succès',
-                'Accès gratuit désactivé',
+                'Accès gratuit désactivé - L\'utilisateur devra souscrire un abonnement pour être visible',
                 false,
               );
         }

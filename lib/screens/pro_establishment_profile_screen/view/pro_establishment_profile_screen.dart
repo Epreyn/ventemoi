@@ -20,6 +20,8 @@ import '../../../widgets/enterprise_category_cascade_selector.dart';
 import '../controllers/pro_establishment_profile_screen_controller.dart';
 import 'package:ventemoi/firebase_options.dart';
 
+import '../widgets/cgu_payment_dialog.dart';
+
 class ProEstablishmentProfileScreen extends StatelessWidget {
   const ProEstablishmentProfileScreen({super.key});
 
@@ -962,6 +964,131 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                         Obx(() {
                           final isVisible = ec.hasAcceptedContract.value &&
                               ec.hasActiveSubscription.value;
+
+                          // Vérifier si l'utilisateur a besoin de repayer
+                          bool requiresPayment = false;
+                          if (data != null) {
+                            requiresPayment = data['requires_payment'] ?? false;
+                          }
+
+                          // Si requires_payment est true, afficher un message spécial
+                          if (requiresPayment) {
+                            return CustomCardAnimation(
+                              index: 5,
+                              child: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(
+                                  UniquesControllers().data.baseSpace * 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.red.shade50,
+                                      Colors.red.shade100.withOpacity(0.8),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: Colors.red.shade300,
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.red.shade200.withOpacity(0.5),
+                                      blurRadius: 20,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Icon(
+                                            Icons.warning_rounded,
+                                            color: Colors.red.shade700,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Abonnement requis',
+                                                style: TextStyle(
+                                                  fontSize: UniquesControllers()
+                                                          .data
+                                                          .baseSpace *
+                                                      1.8,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.red.shade800,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Votre accès gratuit a été retiré. Souscrivez un abonnement pour être visible.',
+                                                style: TextStyle(
+                                                  fontSize: UniquesControllers()
+                                                          .data
+                                                          .baseSpace *
+                                                      1.4,
+                                                  color: Colors.red.shade600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        // Forcer l'ouverture du dialog de paiement
+                                        Get.dialog(
+                                          CGUPaymentDialog(
+                                            userType: ec.currentUserType.value
+                                                    ?.name ??
+                                                'Boutique',
+                                          ),
+                                          barrierDismissible: false,
+                                        );
+                                      },
+                                      icon: Icon(Icons.credit_card,
+                                          color: Colors.white),
+                                      label: Text(
+                                        'SOUSCRIRE UN ABONNEMENT',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
                           return CustomCardAnimation(
                             index: 5,
                             child: Container(

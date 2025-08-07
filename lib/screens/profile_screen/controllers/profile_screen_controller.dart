@@ -320,13 +320,13 @@ class ProfileScreenController extends GetxController with ControllerMixin {
   // Achat de bons => slider 1..12 => doc points_requests
   // ---------------------------
   void buyCoupons() {
-    sliderValue.value = 1;
+    sliderValue.value = 3; // Commencer à 3 au lieu de 1
     openBottomSheet(
-      'Acheter des bons',
-      subtitle: 'Sélectionnez le nombre de bons à acheter',
+      'Créditer des bons', // Changé de "Acheter" à "Créditer"
+      subtitle: 'Sélectionnez le nombre de bons à créditer',
       hasAction: true,
-      actionName: 'Acheter',
-      actionIcon: Icons.shopping_cart,
+      actionName: 'Créditer', // Changé de "Acheter" à "Créditer"
+      actionIcon: Icons.add_circle,
       primaryColor: CustomTheme.lightScheme().primary,
       headerWidget: Container(
         padding: const EdgeInsets.all(16),
@@ -339,20 +339,56 @@ class ProfileScreenController extends GetxController with ControllerMixin {
           ),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Icon(
-              Icons.info_outline,
-              color: CustomTheme.lightScheme().primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '1 bon = 50€ de valeur',
-                style: TextStyle(
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
                   color: CustomTheme.lightScheme().primary,
-                  fontWeight: FontWeight.w500,
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '1 bon = 50€ de valeur',
+                    style: TextStyle(
+                      color: CustomTheme.lightScheme().primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // NOUVEAU : Avertissement communication
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.orange.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.campaign,
+                    color: Colors.orange[700],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Attention : la communication sur nos réseaux commence à partir de 6 bons.',
+                      style: TextStyle(
+                        color: Colors.orange[700],
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -364,7 +400,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
 
   @override
   void variablesToResetToBottomSheet() {
-    sliderValue.value = 1;
+    sliderValue.value = 3; // Commencer à 3
   }
 
   @override
@@ -461,59 +497,85 @@ class ProfileScreenController extends GetxController with ControllerMixin {
 
             const SizedBox(height: 24),
 
-            // Slider personnalisé
-            Obx(() => SliderTheme(
-                  data: SliderTheme.of(Get.context!).copyWith(
-                    activeTrackColor: CustomTheme.lightScheme().primary,
-                    inactiveTrackColor:
-                        CustomTheme.lightScheme().primary.withOpacity(0.2),
-                    thumbColor: CustomTheme.lightScheme().primary,
-                    overlayColor:
-                        CustomTheme.lightScheme().primary.withOpacity(0.1),
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 12,
-                      elevation: 5,
-                    ),
-                    trackHeight: 8,
-                    tickMarkShape: const RoundSliderTickMarkShape(),
-                    activeTickMarkColor: Colors.white,
-                    inactiveTickMarkColor:
-                        CustomTheme.lightScheme().primary.withOpacity(0.5),
-                  ),
-                  child: Slider(
-                    value: sliderValue.value.toDouble(),
-                    min: 1,
-                    max: 12,
-                    divisions: 11,
-                    onChanged: (val) {
-                      sliderValue.value = val.round();
-                      // Haptic feedback
-                      HapticFeedback.lightImpact();
-                    },
-                  ),
-                )),
-
-            const SizedBox(height: 16),
-
-            // Labels min/max
+            // Boutons de sélection rapide (3, 6, 12)
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '1 bon',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                Text(
-                  '12 bons',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [3, 6, 12].map((qty) {
+                return Obx(() => Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          sliderValue.value = qty;
+                          HapticFeedback.lightImpact();
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: 80,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 20,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: sliderValue.value == qty
+                                ? LinearGradient(
+                                    colors: [
+                                      CustomTheme.lightScheme().primary,
+                                      CustomTheme.lightScheme()
+                                          .primary
+                                          .withOpacity(0.8),
+                                    ],
+                                  )
+                                : null,
+                            color: sliderValue.value == qty
+                                ? null
+                                : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: sliderValue.value == qty
+                                  ? CustomTheme.lightScheme().primary
+                                  : Colors.grey[300]!,
+                              width: 2,
+                            ),
+                            boxShadow: sliderValue.value == qty
+                                ? [
+                                    BoxShadow(
+                                      color: CustomTheme.lightScheme()
+                                          .primary
+                                          .withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '$qty',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: sliderValue.value == qty
+                                      ? Colors.white
+                                      : Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'bons',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: sliderValue.value == qty
+                                      ? Colors.white.withOpacity(0.9)
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ));
+              }).toList(),
             ),
           ],
         ),
@@ -595,77 +657,47 @@ class ProfileScreenController extends GetxController with ControllerMixin {
 
       const SizedBox(height: 20),
 
-      // Suggestions rapides
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Sélection rapide',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
+      // Indicateur de communication
+      Obx(() {
+        if (sliderValue.value >= 6) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.green.withOpacity(0.1),
+                  Colors.green.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.green.withOpacity(0.3),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [1, 3, 6, 12].map((qty) {
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    sliderValue.value = qty;
-                    HapticFeedback.lightImpact();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: sliderValue.value == qty
-                          ? CustomTheme.lightScheme().primary
-                          : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: sliderValue.value == qty
-                            ? CustomTheme.lightScheme().primary
-                            : Colors.grey[300]!,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '$qty',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: sliderValue.value == qty
-                                ? Colors.white
-                                : Colors.grey[800],
-                          ),
-                        ),
-                        Text(
-                          qty > 1 ? 'bons' : 'bon',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: sliderValue.value == qty
-                                ? Colors.white.withOpacity(0.8)
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ],
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Communication sur nos réseaux incluse !',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+              ],
+            ),
+          );
+        } else {
+          return const SizedBox.shrink();
+        }
+      }),
     ];
   }
 
@@ -749,7 +781,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
 
       UniquesControllers().data.snackbar(
             'Demande envoyée',
-            'Votre demande d\'achat de $nb bon(s) a bien été créée.',
+            'Votre demande de crédit de ${sliderValue.value} bon(s) a bien été créée.',
             false,
           );
     } catch (e) {
