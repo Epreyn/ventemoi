@@ -41,7 +41,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   TextInputType emailInputType = TextInputType.emailAddress;
   IconData emailIconData = Icons.email_outlined;
   String emailValidatorPattern =
-      r'^.+@[a-zA-Z]+\.{1}[a-zA-Z]+(\.{0,1}[a-zA-Z]+)$';
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
   TextEditingController emailController = TextEditingController();
 
   String passwordTag = 'register-password';
