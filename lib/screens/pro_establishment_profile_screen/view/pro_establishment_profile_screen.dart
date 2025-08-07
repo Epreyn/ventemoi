@@ -93,7 +93,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Section Logo
+                        // Section Logo Améliorée
                         CustomCardAnimation(
                           index: 0,
                           child: Container(
@@ -150,22 +150,115 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
-                                      'Logo de l\'établissement',
-                                      style: TextStyle(
-                                        fontSize: UniquesControllers()
-                                                .data
-                                                .baseSpace *
-                                            2,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.grey[800],
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Logo de l\'établissement',
+                                            style: TextStyle(
+                                              fontSize: UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  2,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: CustomTheme.lightScheme()
+                                                  .primary
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.aspect_ratio_rounded,
+                                                  size: 14,
+                                                  color:
+                                                      CustomTheme.lightScheme()
+                                                          .primary,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Taille recommandée : 400 x 400 px',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: CustomTheme
+                                                            .lightScheme()
+                                                        .primary,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                                 const CustomSpace(heightMultiplier: 3),
+
+                                // Zone de prévisualisation du logo sans bordure
                                 Obx(() => ec.buildLogoWidget()),
+
                                 const CustomSpace(heightMultiplier: 2),
+
+                                // Informations sur les formats
+                                Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.lightbulb_outline_rounded,
+                                            size: 16,
+                                            color: Colors.amber.shade600,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Conseils pour un logo optimal',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildInfoRow(
+                                          'Format carré recommandé (1:1)'),
+                                      _buildInfoRow(
+                                          'Formats acceptés : JPG, PNG, WebP'),
+                                      _buildInfoRow('Taille max : 5 MB'),
+                                      _buildInfoRow(
+                                          'Fond transparent pour PNG'),
+                                    ],
+                                  ),
+                                ),
+
+                                const CustomSpace(heightMultiplier: 2),
+
                                 Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
@@ -233,7 +326,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                         ),
                         const CustomSpace(heightMultiplier: 3),
 
-                        // Section Bannière
+                        // Section Bannière Améliorée
                         CustomCardAnimation(
                           index: 1,
                           child: Container(
@@ -290,22 +383,117 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
-                                      'Bannière',
-                                      style: TextStyle(
-                                        fontSize: UniquesControllers()
-                                                .data
-                                                .baseSpace *
-                                            2,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.grey[800],
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Bannière',
+                                            style: TextStyle(
+                                              fontSize: UniquesControllers()
+                                                      .data
+                                                      .baseSpace *
+                                                  2,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: CustomTheme.lightScheme()
+                                                  .primary
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.aspect_ratio_rounded,
+                                                  size: 14,
+                                                  color:
+                                                      CustomTheme.lightScheme()
+                                                          .primary,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Taille recommandée : 1200 x 400 px (3:1)',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: CustomTheme
+                                                            .lightScheme()
+                                                        .primary,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                                 const CustomSpace(heightMultiplier: 3),
+
+                                // Zone de prévisualisation de la bannière sans bordure
                                 Obx(() => ec.buildBannerWidget()),
+
                                 const CustomSpace(heightMultiplier: 2),
+
+                                // Informations sur les formats pour bannière
+                                Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.lightbulb_outline_rounded,
+                                            size: 16,
+                                            color: Colors.amber.shade600,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Conseils pour une bannière attrayante',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildInfoRow(
+                                          'Format panoramique (3:1 ou 16:9)'),
+                                      _buildInfoRow(
+                                          'Résolution minimale : 1200 x 400 px'),
+                                      _buildInfoRow(
+                                          'Évitez le texte important sur les bords'),
+                                      _buildInfoRow(
+                                          'Image de haute qualité recommandée'),
+                                      _buildInfoRow('Taille max : 10 MB'),
+                                    ],
+                                  ),
+                                ),
+
+                                const CustomSpace(heightMultiplier: 2),
+
                                 Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
@@ -841,12 +1029,6 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        // ElevatedButton(
-                                        //   child: const Icon(Icons.check),
-                                        //   onPressed: () {
-                                        //     StripeService().testCloudFunction();
-                                        //   },
-                                        // ),
                                         Text(
                                           isVisible
                                               ? 'Établissement visible'
@@ -894,6 +1076,33 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.arrow_forward,
+            size: 14,
+            color: CustomTheme.lightScheme().primary,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

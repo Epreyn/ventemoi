@@ -327,11 +327,8 @@ class ShopEstablishmentScreenController extends GetxController
         UniquesControllers().data.firebaseAuth.currentUser?.uid;
 
     for (final e in raw) {
-      // Exclure l'établissement de l'utilisateur connecté
-      // SAUF pour les entreprises (tab 0)
-      if (e.userId == currentUserId && tab != 0) {
-        continue;
-      }
+      // MODIFICATION: On n'exclut plus jamais l'établissement de l'utilisateur connecté
+      // L'utilisateur peut voir son propre établissement mais ne pourra pas acheter
 
       // Récupérer typeName
       final tName = userTypeNameCache[e.userId] ?? 'INVISIBLE';
@@ -441,6 +438,13 @@ class ShopEstablishmentScreenController extends GetxController
         actionIcon: Icons.favorite,
       );
     }
+  }
+
+  // Méthode pour vérifier si c'est son propre établissement
+  bool isOwnEstablishment(String establishmentUserId) {
+    final currentUserId =
+        UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    return establishmentUserId == currentUserId;
   }
 
   // Variables locales pour les filtres temporaires

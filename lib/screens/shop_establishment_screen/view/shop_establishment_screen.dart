@@ -9,6 +9,7 @@ import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../controllers/shop_establishment_screen_controller.dart';
 import '../widgets/shop_establishment_card.dart';
 import '../widgets/enterprise_establishment_card.dart';
+import '../widgets/shop_establishment_mobile_card.dart';
 import '../widgets/empty_state_widget.dart';
 
 class ShopEstablishmentScreen extends StatelessWidget {
@@ -31,7 +32,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
         children: [
           _buildSearchBar(cc),
           _buildModernTabs(cc),
-          _buildTabDescription(cc), // Nouvelle ligne pour les descriptions
+          _buildTabDescription(cc),
           Expanded(
             child: _buildContent(cc),
           ),
@@ -79,10 +80,9 @@ class ShopEstablishmentScreen extends StatelessWidget {
             ),
           ),
           Obx(() {
-            final filterCount =
-                cc.selectedTabIndex.value == 0 // Entreprises devenu Partenaires
-                    ? cc.selectedEnterpriseCatIds.length
-                    : cc.selectedCatIds.length;
+            final filterCount = cc.selectedTabIndex.value == 0
+                ? cc.selectedEnterpriseCatIds.length
+                : cc.selectedCatIds.length;
 
             return Stack(
               children: [
@@ -127,8 +127,10 @@ class ShopEstablishmentScreen extends StatelessWidget {
   Widget _buildModernTabs(ShopEstablishmentScreenController cc) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Déterminer si on est sur un petit écran
-        final isSmallScreen = constraints.maxWidth < 600;
+        // Ajustement des breakpoints pour le responsive
+        final isSmallScreen = constraints.maxWidth < 450; // Réduit de 500 à 450
+        final isVerySmallScreen =
+            constraints.maxWidth < 380; // Pour les très petits écrans
 
         return Container(
           height: 48,
@@ -141,7 +143,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Utiliser la largeur réelle du container au lieu de Get.width
               final containerWidth = constraints.maxWidth;
               final tabWidth = containerWidth / 4;
 
@@ -172,14 +173,18 @@ class ShopEstablishmentScreen extends StatelessWidget {
                       )),
                   Row(
                     children: [
+                      _buildResponsiveTabButton(cc, 0, 'Partenaires',
+                          Icons.business, isVerySmallScreen || isSmallScreen),
+                      _buildResponsiveTabButton(cc, 1, 'Commerces', Icons.store,
+                          isVerySmallScreen || isSmallScreen),
                       _buildResponsiveTabButton(
-                          cc, 0, 'Partenaires', Icons.business, isSmallScreen),
-                      _buildResponsiveTabButton(
-                          cc, 1, 'Commerces', Icons.store, isSmallScreen),
-                      _buildResponsiveTabButton(cc, 2, 'Associations',
-                          Icons.volunteer_activism, isSmallScreen),
-                      _buildResponsiveTabButton(
-                          cc, 3, 'Sponsors', Icons.handshake, isSmallScreen),
+                          cc,
+                          2,
+                          'Associations',
+                          Icons.volunteer_activism,
+                          isVerySmallScreen || isSmallScreen),
+                      _buildResponsiveTabButton(cc, 3, 'Sponsors',
+                          Icons.handshake, isVerySmallScreen || isSmallScreen),
                     ],
                   ),
                 ],
@@ -207,38 +212,56 @@ class ShopEstablishmentScreen extends StatelessWidget {
           child: Obx(() {
             final isSelected = cc.selectedTabIndex.value == index;
 
-            // Sur petits écrans, afficher le texte seulement pour l'onglet sélectionné
-            final showText = !isSmallScreen || isSelected;
-
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
+            // Sur petits écrans, afficher icône seule si non sélectionné
+            // et icône + texte si sélectionné
+            if (isSmallScreen && !isSelected) {
+              return Center(
+                child: Icon(
                   icon,
-                  size: isSmallScreen ? 20 : 24,
-                  color: isSelected
-                      ? CustomTheme.lightScheme().primary
-                      : Colors.grey[600],
+                  size: 22,
+                  color: Colors.grey[600],
                 ),
-                if (showText) ...[
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 12 : 14,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected
-                            ? CustomTheme.lightScheme().primary
-                            : Colors.grey[600],
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
+              );
+            }
+
+            return Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8), // Ajout du padding horizontal
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: isSmallScreen ? 18 : 20,
+                    color: isSelected
+                        ? CustomTheme.lightScheme().primary
+                        : Colors.grey[600],
                   ),
+                  if (!isSmallScreen || isSelected) ...[
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: FittedBox(
+                        // Ajout de FittedBox pour ajuster le texte
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 11 : 13,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? CustomTheme.lightScheme().primary
+                                : Colors.grey[600],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             );
           }),
         ),
@@ -246,27 +269,153 @@ class ShopEstablishmentScreen extends StatelessWidget {
     );
   }
 
-  // Nouvelle méthode pour afficher les descriptions
   Widget _buildTabDescription(ShopEstablishmentScreenController cc) {
     return Obx(() {
       String description = '';
+      Widget richDescription;
+
       switch (cc.selectedTabIndex.value) {
-        case 0: // Partenaires (anciennement Entreprises)
-          description =
-              'Cumulez des points en vous fournissant via les entreprises partenaires de VenteMoi';
+        case 0: // Partenaires
+          richDescription = RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+              children: [
+                TextSpan(
+                  text: 'Cumulez des points',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: CustomTheme.lightScheme().primary,
+                  ),
+                ),
+                const TextSpan(
+                  text: ' en vous fournissant via les ',
+                ),
+                TextSpan(
+                  text: 'entreprises partenaires',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const TextSpan(
+                  text: ' de VenteMoi',
+                ),
+              ],
+            ),
+          );
           break;
-        case 1: // Commerces (anciennement Boutiques)
-          description =
-              'Utilisez vos points pour acheter des bons dans les commerces locaux participants';
+        case 1: // Commerces
+          richDescription = RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+              children: [
+                TextSpan(
+                  text: 'Utilisez vos points',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: CustomTheme.lightScheme().primary,
+                  ),
+                ),
+                const TextSpan(
+                  text: ' pour acheter des bons dans les ',
+                ),
+                TextSpan(
+                  text: 'commerces locaux',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const TextSpan(
+                  text: ' participants',
+                ),
+              ],
+            ),
+          );
           break;
         case 2: // Associations
-          description =
-              'Soutenez les associations locales en faisant des dons avec vos points';
+          richDescription = RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+              children: [
+                TextSpan(
+                  text: 'Soutenez',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: CustomTheme.lightScheme().primary,
+                  ),
+                ),
+                const TextSpan(
+                  text: ' les ',
+                ),
+                TextSpan(
+                  text: 'associations locales',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const TextSpan(
+                  text: ' en faisant des ',
+                ),
+                TextSpan(
+                  text: 'dons avec vos points',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: CustomTheme.lightScheme().primary,
+                  ),
+                ),
+              ],
+            ),
+          );
           break;
         case 3: // Sponsors
-          description =
-              'Découvrez nos sponsors qui soutiennent l\'économie circulaire et solidaire';
+          richDescription = RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+              children: [
+                const TextSpan(
+                  text: 'Découvrez nos ',
+                ),
+                TextSpan(
+                  text: 'sponsors',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: CustomTheme.lightScheme().primary,
+                  ),
+                ),
+                const TextSpan(
+                  text: ' qui soutiennent ',
+                ),
+                TextSpan(
+                  text: 'l\'économie circulaire et solidaire',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+          );
           break;
+        default:
+          richDescription = Text('');
       }
 
       return Container(
@@ -295,14 +444,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                description,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[700],
-                  height: 1.4,
-                ),
-              ),
+              child: richDescription,
             ),
           ],
         ),
@@ -311,7 +453,6 @@ class ShopEstablishmentScreen extends StatelessWidget {
   }
 
   void _showFilterBottomSheet(ShopEstablishmentScreenController cc) {
-    // Réinitialiser les sélections temporaires
     cc.localSelectedCatIds.value = Set.from(cc.selectedCatIds);
     cc.localSelectedEnterpriseCatIds.value =
         Set.from(cc.selectedEnterpriseCatIds);
@@ -401,48 +542,88 @@ class ShopEstablishmentScreen extends StatelessWidget {
       ShopEstablishmentScreenController cc) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const double maxCardWidth = 500.0;
-        const double minCardWidth = 400.0;
+        // Détection mobile vs desktop
+        final isMobile = constraints.maxWidth < 600;
 
-        int crossAxisCount = 1;
-        if (constraints.maxWidth > minCardWidth * 1.5) {
-          crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
-          final cardWidth = constraints.maxWidth / crossAxisCount;
-          if (cardWidth > maxCardWidth) {
-            crossAxisCount = (constraints.maxWidth / maxCardWidth).ceil();
-          }
-        }
+        if (isMobile) {
+          // Format liste horizontale condensée sur mobile
+          return ListView.builder(
+            padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+            itemCount: establishments.length,
+            itemBuilder: (context, index) {
+              final establishment = establishments[index];
+              final tName =
+                  cc.userTypeNameCache[establishment.userId] ?? 'INVISIBLE';
+              final isOwnEstablishment =
+                  cc.isOwnEstablishment(establishment.userId);
 
-        return GridView.builder(
-          padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
-            mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
-          ),
-          itemCount: establishments.length,
-          itemBuilder: (context, index) {
-            final establishment = establishments[index];
-            final tName =
-                cc.userTypeNameCache[establishment.userId] ?? 'INVISIBLE';
-
-            // Utiliser la bonne carte selon le type
-            if (tName == 'Entreprise') {
-              return EnterpriseEstablishmentCard(
-                establishment: establishment,
-                index: index,
-                enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: UniquesControllers().data.baseSpace * 2,
+                ),
+                child: ShopEstablishmentMobileCard(
+                  establishment: establishment,
+                  isEnterprise: tName == 'Entreprise',
+                  isOwnEstablishment: isOwnEstablishment,
+                  onBuy: isOwnEstablishment
+                      ? null
+                      : () => cc.buyEstablishment(establishment),
+                  index: index,
+                  enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+                ),
               );
-            } else {
-              return ShopEstablishmentCard(
-                establishment: establishment,
-                onBuy: () => cc.buyEstablishment(establishment),
-                index: index,
-              );
+            },
+          );
+        } else {
+          // Format grille sur desktop
+          const double maxCardWidth = 500.0;
+          const double minCardWidth = 400.0;
+
+          int crossAxisCount = 1;
+          if (constraints.maxWidth > minCardWidth * 1.5) {
+            crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
+            final cardWidth = constraints.maxWidth / crossAxisCount;
+            if (cardWidth > maxCardWidth) {
+              crossAxisCount = (constraints.maxWidth / maxCardWidth).ceil();
             }
-          },
-        );
+          }
+
+          return GridView.builder(
+            padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
+              mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
+            ),
+            itemCount: establishments.length,
+            itemBuilder: (context, index) {
+              final establishment = establishments[index];
+              final tName =
+                  cc.userTypeNameCache[establishment.userId] ?? 'INVISIBLE';
+              final isOwnEstablishment =
+                  cc.isOwnEstablishment(establishment.userId);
+
+              // Utiliser la bonne carte selon le type
+              if (tName == 'Entreprise') {
+                return EnterpriseEstablishmentCard(
+                  establishment: establishment,
+                  index: index,
+                  enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+                );
+              } else {
+                return ShopEstablishmentCard(
+                  establishment: establishment,
+                  onBuy: isOwnEstablishment
+                      ? null
+                      : () => cc.buyEstablishment(establishment),
+                  index: index,
+                  isOwnEstablishment: isOwnEstablishment,
+                );
+              }
+            },
+          );
+        }
       },
     );
   }

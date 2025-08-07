@@ -11,27 +11,36 @@ import '../../../features/custom_card_animation/view/custom_card_animation.dart'
 import '../../../features/custom_icon_button/view/custom_icon_button.dart';
 import '../controllers/shop_establishment_card_controller.dart';
 
-class ShopEstablishmentCard extends StatelessWidget {
+class ShopEstablishmentCard extends StatefulWidget {
   final Establishment establishment;
-  final VoidCallback onBuy;
+  final VoidCallback? onBuy;
   final int index;
+  final bool isOwnEstablishment;
 
   const ShopEstablishmentCard({
     super.key,
     required this.establishment,
-    required this.onBuy,
+    this.onBuy,
     required this.index,
+    this.isOwnEstablishment = false,
   });
+
+  @override
+  State<ShopEstablishmentCard> createState() => _ShopEstablishmentCardState();
+}
+
+class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
+  bool _showFullDescription = false;
 
   @override
   Widget build(BuildContext context) {
     final cc = Get.put(
       ShopEstablishmentCardController(),
-      tag: 'shop-establishment-card-controller-$index',
+      tag: 'shop-establishment-card-controller-${widget.index}',
     );
 
     return CustomCardAnimation(
-      index: index,
+      index: widget.index,
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final cardWidth = constraints.maxWidth;
@@ -44,6 +53,12 @@ class ShopEstablishmentCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(
                 UniquesControllers().data.baseSpace * 2,
               ),
+              side: widget.isOwnEstablishment
+                  ? BorderSide(
+                      color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                      width: 2,
+                    )
+                  : BorderSide.none,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -63,24 +78,99 @@ class ShopEstablishmentCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Nom
-                            Text(
-                              establishment.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18 * widthScale,
+                            // Nom avec badge "Vous" si c'est son propre établissement
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    widget.establishment.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18 * widthScale,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (widget.isOwnEstablishment)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: CustomTheme.lightScheme()
+                                          .primary
+                                          .withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Vous',
+                                      style: TextStyle(
+                                        fontSize: 11 * widthScale,
+                                        color:
+                                            CustomTheme.lightScheme().primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            // Description condensée sous le nom
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.establishment.description,
+                                    style: TextStyle(
+                                      fontSize: 13 * widthScale,
+                                      color: Colors.grey[600],
+                                      height: 1.4,
+                                    ),
+                                    maxLines: _showFullDescription ? null : 2,
+                                    overflow: _showFullDescription
+                                        ? TextOverflow.visible
+                                        : TextOverflow.ellipsis,
+                                  ),
+                                  if (widget.establishment.description.length >
+                                      100)
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _showFullDescription =
+                                              !_showFullDescription;
+                                        });
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          _showFullDescription
+                                              ? 'Voir moins'
+                                              : 'Voir plus',
+                                          style: TextStyle(
+                                            fontSize: 12 * widthScale,
+                                            color: CustomTheme.lightScheme()
+                                                .primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
                       // Bouton vidéo si disponible
-                      if (establishment.videoUrl.isNotEmpty)
+                      if (widget.establishment.videoUrl.isNotEmpty)
                         IconButton(
                           onPressed: () =>
-                              _launchVideoLink(establishment.videoUrl),
+                              _launchVideoLink(widget.establishment.videoUrl),
                           icon: Icon(
                             Icons.play_circle_filled,
                             color: CustomTheme.lightScheme().primary,
@@ -93,7 +183,8 @@ class ShopEstablishmentCard extends StatelessWidget {
 
                 // Catégorie
                 FutureBuilder<String>(
-                  future: cc.getCategoryNameById(establishment.categoryId),
+                  future:
+                      cc.getCategoryNameById(widget.establishment.categoryId),
                   builder: (context, snapshot) {
                     final categoryName = snapshot.data ?? 'Chargement...';
                     return Container(
@@ -124,7 +215,7 @@ class ShopEstablishmentCard extends StatelessWidget {
                 ),
                 SizedBox(height: UniquesControllers().data.baseSpace * 2),
 
-                // --- BANNIÈRE AVEC DESCRIPTION ---
+                // --- BANNIÈRE (sans description qui est maintenant en haut) ---
                 Expanded(
                   child: Container(
                     margin: EdgeInsets.symmetric(
@@ -134,57 +225,26 @@ class ShopEstablishmentCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(
                         UniquesControllers().data.baseSpace,
                       ),
-                      color: establishment.bannerUrl.isEmpty
+                      color: widget.establishment.bannerUrl.isEmpty
                           ? Colors.grey[100]
                           : null,
-                      image: establishment.bannerUrl.isNotEmpty
+                      image: widget.establishment.bannerUrl.isNotEmpty
                           ? DecorationImage(
-                              image: NetworkImage(establishment.bannerUrl),
+                              image:
+                                  NetworkImage(widget.establishment.bannerUrl),
                               fit: BoxFit.cover,
                             )
                           : null,
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          UniquesControllers().data.baseSpace,
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.2),
-                            Colors.black.withOpacity(0.7),
-                          ],
-                        ),
-                      ),
-                      padding: EdgeInsets.all(
-                          UniquesControllers().data.baseSpace * 2),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            establishment.description,
-                            style: TextStyle(
-                              fontSize: 14 * widthScale,
-                              color: Colors.white,
-                              height: 1.4,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(1, 1),
-                                  blurRadius: 3,
-                                  color: Colors.black.withOpacity(0.5),
-                                ),
-                              ],
+                    child: widget.establishment.bannerUrl.isEmpty
+                        ? Center(
+                            child: Icon(
+                              Icons.image,
+                              size: 48,
+                              color: Colors.grey[400],
                             ),
-                            textAlign: TextAlign.justify,
-                            maxLines: 5,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
+                          )
+                        : null,
                   ),
                 ),
 
@@ -209,25 +269,28 @@ class ShopEstablishmentCard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        if (establishment.telephone.isNotEmpty)
+                        if (widget.establishment.telephone.isNotEmpty)
                           _buildContactButton(
                             icon: Icons.phone,
                             label: 'Appeler',
-                            onTap: () => _launchTel(establishment.telephone),
+                            onTap: () =>
+                                _launchTel(widget.establishment.telephone),
                             scale: widthScale,
                           ),
-                        if (establishment.email.isNotEmpty)
+                        if (widget.establishment.email.isNotEmpty)
                           _buildContactButton(
                             icon: Icons.email,
                             label: 'Email',
-                            onTap: () => _launchEmail(establishment.email),
+                            onTap: () =>
+                                _launchEmail(widget.establishment.email),
                             scale: widthScale,
                           ),
-                        if (establishment.address.isNotEmpty)
+                        if (widget.establishment.address.isNotEmpty)
                           _buildContactButton(
                             icon: Icons.directions,
                             label: 'Itinéraire',
-                            onTap: () => _launchMaps(establishment.address),
+                            onTap: () =>
+                                _launchMaps(widget.establishment.address),
                             scale: widthScale,
                           ),
                       ],
@@ -250,7 +313,7 @@ class ShopEstablishmentCard extends StatelessWidget {
                     ),
                   ),
                   child: FutureBuilder<String>(
-                    future: _fetchUserTypeName(establishment.userId),
+                    future: _fetchUserTypeName(widget.establishment.userId),
                     builder: (context, snap) {
                       if (snap.connectionState == ConnectionState.waiting) {
                         return const Center(
@@ -265,7 +328,8 @@ class ShopEstablishmentCard extends StatelessWidget {
                             .data
                             .firebaseFirestore
                             .collection('wallets')
-                            .where('user_id', isEqualTo: establishment.userId)
+                            .where('user_id',
+                                isEqualTo: widget.establishment.userId)
                             .limit(1)
                             .snapshots(),
                         builder: (context, walletSnap) {
@@ -278,7 +342,8 @@ class ShopEstablishmentCard extends StatelessWidget {
                               as Map<String, dynamic>;
                           final coupons = data['coupons'] ?? 0;
                           final isAssociation = typeName == 'Association';
-                          final isDisabled = !isAssociation && coupons == 0;
+                          final isDisabled = widget.isOwnEstablishment ||
+                              (!isAssociation && coupons == 0);
 
                           return Row(
                             children: [
@@ -338,25 +403,35 @@ class ShopEstablishmentCard extends StatelessWidget {
                               if (isAssociation) Expanded(child: Container()),
                               // Bouton d'action
                               ElevatedButton.icon(
-                                onPressed: isDisabled ? null : onBuy,
+                                onPressed: isDisabled ? null : widget.onBuy,
                                 icon: Icon(
                                   isAssociation
                                       ? Icons.volunteer_activism
                                       : Icons.shopping_cart,
                                   size: 20 * widthScale,
-                                  color: CustomTheme.lightScheme().onPrimary,
+                                  color: widget.isOwnEstablishment
+                                      ? Colors.grey[600]
+                                      : CustomTheme.lightScheme().onPrimary,
                                 ),
                                 label: Text(
-                                  isAssociation ? 'Faire un don' : 'Acheter',
+                                  widget.isOwnEstablishment
+                                      ? 'Votre établissement'
+                                      : (isAssociation
+                                          ? 'Faire un don'
+                                          : 'Acheter'),
                                   style: TextStyle(
                                     fontSize: 14 * widthScale,
-                                    color: CustomTheme.lightScheme().onPrimary,
+                                    color: widget.isOwnEstablishment
+                                        ? Colors.grey[600]
+                                        : CustomTheme.lightScheme().onPrimary,
                                   ),
                                 ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isAssociation
-                                      ? Colors.green
-                                      : CustomTheme.lightScheme().primary,
+                                  backgroundColor: widget.isOwnEstablishment
+                                      ? Colors.grey[300]
+                                      : (isAssociation
+                                          ? Colors.green
+                                          : CustomTheme.lightScheme().primary),
                                   padding: EdgeInsets.symmetric(
                                     horizontal:
                                         UniquesControllers().data.baseSpace * 2,
@@ -389,7 +464,7 @@ class ShopEstablishmentCard extends StatelessWidget {
   /// Logo compact dans le header
   Widget _buildCompactLogo() {
     final size = UniquesControllers().data.baseSpace * 7;
-    if (establishment.logoUrl.isNotEmpty) {
+    if (widget.establishment.logoUrl.isNotEmpty) {
       return Container(
         width: size,
         height: size,
@@ -400,7 +475,7 @@ class ShopEstablishmentCard extends StatelessWidget {
             width: 2,
           ),
           image: DecorationImage(
-            image: NetworkImage(establishment.logoUrl),
+            image: NetworkImage(widget.establishment.logoUrl),
             fit: BoxFit.cover,
           ),
         ),
@@ -462,9 +537,9 @@ class ShopEstablishmentCard extends StatelessWidget {
 
   /// Vérifie si des infos de contact existent
   bool _hasContactInfo() {
-    return establishment.telephone.isNotEmpty ||
-        establishment.email.isNotEmpty ||
-        establishment.address.isNotEmpty;
+    return widget.establishment.telephone.isNotEmpty ||
+        widget.establishment.email.isNotEmpty ||
+        widget.establishment.address.isNotEmpty;
   }
 
   /// Récupération du user_type.name

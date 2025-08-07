@@ -14,10 +14,11 @@ class CustomTheme {
       // Généralement identique à la couleur primaire pour le Material You
       surfaceTint: Color(0xfff8b02a),
       // Texte sur la couleur primaire
-      onPrimary: Color(0xff000000),
-      // Version « container » de la couleur primaire (plus clair) -> blanc
+      onPrimary: Color(0xffffffff),
+      //onPrimary: Color(0xff000000),
       primaryContainer: Color(0xfff8b02a),
-      onPrimaryContainer: Color(0xff000000),
+      onPrimaryContainer: Color(0xffffffff),
+      //onPrimaryContainer: Color(0xff000000),
 
       // Secondaire : choisi comme noir pour trancher avec la primaire
       secondary: Color(0xff000000),
@@ -45,7 +46,8 @@ class CustomTheme {
       // Traits et ombres
       outline: Color(0xff000000),
       outlineVariant: Color(0xfff8b02a),
-      shadow: Color(0xff000000),
+      shadow: Color(0x40000000),
+      //shadow: Color(0xff000000),
       scrim: Color(0xff000000),
 
       // Inversion (pour surfaces sombres, etc.)

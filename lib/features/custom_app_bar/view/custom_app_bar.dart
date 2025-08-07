@@ -37,7 +37,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.showDrawerButton = true,
     this.scaffoldKey,
     this.backgroundColor,
-    this.height = 90,
+    this.height = 75, // Réduit de 90 à 75
     this.showGreeting = true,
     this.modernStyle = true,
   });
@@ -48,48 +48,374 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final cc = Get.put(CustomAppBarActionsController());
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmallScreen = screenWidth < 350;
+    final isSmallScreen = screenWidth < 550;
 
     return Container(
       height: height,
       decoration: BoxDecoration(
         color: const Color(0xFFf2d8a1),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+          bottomLeft: Radius.circular(20), // Réduit de 24 à 20
+          bottomRight: Radius.circular(20),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.08), // Ombre plus légère
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: UniquesControllers().data.baseSpace * 2,
-            vertical: UniquesControllers().data.baseSpace,
+            horizontal: isSmallScreen
+                ? UniquesControllers().data.baseSpace *
+                    1.5 // Moins de padding sur mobile
+                : UniquesControllers().data.baseSpace * 2,
+            vertical: UniquesControllers().data.baseSpace * 0.8,
           ),
-          child: _buildNewLayoutContent(cc, context),
+          child: isSmallScreen
+              ? _buildMobileLayout(cc, context)
+              : _buildDesktopLayout(cc, context),
         ),
       ),
     );
   }
 
-  Widget _buildNewLayoutContent(
+  // Layout simplifié pour mobile
+  Widget _buildMobileLayout(
       CustomAppBarActionsController cc, BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isVerySmallScreen = screenWidth < 350;
-    final isSmallScreen = screenWidth < 500;
-
     return Row(
       children: [
-        // Partie gauche : Bouton Menu + Titre
+        // Menu button
+        if (showDrawerButton)
+          CustomAnimation(
+            duration: UniquesControllers().data.baseAnimationDuration,
+            delay: UniquesControllers().data.baseAnimationDuration,
+            curve: Curves.easeOutQuart,
+            xStartPosition: -20,
+            isOpacity: true,
+            child: Builder(
+              builder: (context) => IconButton(
+                icon: Icon(
+                  Icons.menu,
+                  color: CustomTheme.lightScheme().primary,
+                  size: 26,
+                ),
+                onPressed: () {
+                  if (scaffoldKey != null) {
+                    scaffoldKey!.currentState?.openDrawer();
+                  } else {
+                    Scaffold.of(context).openDrawer();
+                  }
+                },
+              ),
+            ),
+          ),
+
+        // Logo/Titre centré
+        Expanded(
+          child: CustomAnimation(
+            duration: UniquesControllers().data.baseAnimationDuration,
+            delay: UniquesControllers().data.baseAnimationDuration * 1.2,
+            curve: Curves.easeOutQuart,
+            yStartPosition: -10,
+            isOpacity: true,
+            child: Center(
+              child: Text(
+                'Vente Moi',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Widget combiné points/user sur mobile
+        CustomAnimation(
+          duration: UniquesControllers().data.baseAnimationDuration,
+          delay: UniquesControllers().data.baseAnimationDuration * 1.5,
+          curve: Curves.easeOutQuart,
+          xStartPosition: 20,
+          isOpacity: true,
+          child: _buildMobileInfoWidget(cc, context),
+        ),
+      ],
+    );
+  }
+
+  // Widget combiné pour mobile avec PopupMenu
+  Widget _buildMobileInfoWidget(
+      CustomAppBarActionsController cc, BuildContext context) {
+    return Obx(() {
+      final realPoints = cc.realPoints.value;
+      final pendingPoints = cc.pendingPoints.value;
+      final isBoutique = cc.isBoutique.value;
+      final isAdmin = cc.isAdmin.value;
+      final coupons = cc.couponsRestants.value;
+
+      // Badge simple pour mobile
+      return PopupMenuButton<String>(
+        offset: const Offset(0, 40),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: CustomTheme.lightScheme().primary,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icône principale
+              Icon(
+                isBoutique
+                    ? Icons.store
+                    : isAdmin
+                        ? Icons.admin_panel_settings
+                        : Icons.stars_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              // Valeur principale
+              Text(
+                isBoutique
+                    ? '$coupons'
+                    : isAdmin
+                        ? 'Admin'
+                        : '$realPoints',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+        onSelected: (value) {
+          switch (value) {
+            case 'profile':
+              Get.toNamed(Routes.profile);
+              break;
+            case 'history':
+              Get.toNamed(Routes.clientHistory);
+              break;
+            case 'logout':
+              cc.logout();
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          // En-tête avec info utilisateur
+          PopupMenuItem<String>(
+            enabled: false,
+            child: StreamBuilder<Map<String, String>>(
+              stream: _getUserInfoStream(),
+              builder: (context, snapshot) {
+                final info =
+                    snapshot.data ?? {'name': 'Utilisateur', 'image': ''};
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.grey.withOpacity(0.2),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: CustomTheme.lightScheme().primary,
+                        child: ClipOval(
+                          child: info['image']!.isNotEmpty
+                              ? Image.network(
+                                  info['image']!,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 20,
+                                    );
+                                  },
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              info['name']!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (!isAdmin && !isBoutique)
+                              Text(
+                                '$realPoints points',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            if (isBoutique)
+                              Text(
+                                '$coupons bons disponibles',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Points en attente
+          if (pendingPoints > 0 && !isAdmin)
+            PopupMenuItem<String>(
+              enabled: false,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 16,
+                      color: Colors.orange[600],
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$pendingPoints points en attente',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Bons en attente (boutique)
+          if (isBoutique && cc.couponsPending.value > 0)
+            PopupMenuItem<String>(
+              enabled: false,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 16,
+                      color: Colors.orange[600],
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${cc.couponsPending.value} bons en attente',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          const PopupMenuDivider(),
+
+          // Actions
+          const PopupMenuItem<String>(
+            value: 'profile',
+            child: Row(
+              children: [
+                Icon(Icons.person_outline, size: 20),
+                SizedBox(width: 12),
+                Text('Mon profil'),
+              ],
+            ),
+          ),
+
+          if (!isAdmin)
+            const PopupMenuItem<String>(
+              value: 'history',
+              child: Row(
+                children: [
+                  Icon(Icons.history, size: 20),
+                  SizedBox(width: 12),
+                  Text('Historique'),
+                ],
+              ),
+            ),
+
+          const PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [
+                Icon(Icons.logout, size: 20, color: Colors.red),
+                SizedBox(width: 12),
+                Text('Déconnexion', style: TextStyle(color: Colors.red)),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  // Layout desktop (écrans larges)
+  Widget _buildDesktopLayout(
+      CustomAppBarActionsController cc, BuildContext context) {
+    return Row(
+      children: [
+        // Partie gauche : Menu + Titre
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Bouton Menu tout à gauche
             if (showDrawerButton)
               CustomAnimation(
                 duration: UniquesControllers().data.baseAnimationDuration,
@@ -100,15 +426,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 child: Builder(
                   builder: (context) => IconButton(
                     icon: Container(
-                      padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: CustomTheme.lightScheme().primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.menu,
                         color: Colors.white,
-                        size: isSmallScreen ? 20 : 24,
+                        size: 24,
                       ),
                     ),
                     onPressed: () {
@@ -122,7 +448,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
 
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
             // Titre et sous-titre
             CustomAnimation(
@@ -135,39 +461,35 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Vente Moi',
                     style: TextStyle(
-                      fontSize: isSmallScreen ? 16 : 20,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: Colors.black87,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (!isVerySmallScreen)
-                    Text(
-                      'Le Don des Affaires',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 12 : 14,
-                        color: CustomTheme.lightScheme().primary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    'Le Don des Affaires',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: CustomTheme.lightScheme().onPrimary,
                     ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
 
-        // Espacement flexible qui pousse tout à droite
         const Spacer(),
 
-        // Partie droite : Bonjour + Nom, Image, Points
+        // Partie droite : Infos utilisateur et points
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Bonjour + Nom (caché sur très petits écrans)
-            if (showUserInfo && showGreeting && !isVerySmallScreen)
+            // Nom utilisateur
+            if (showUserInfo && showGreeting)
               StreamBuilder<String>(
                 stream: _getUserNameStream(),
                 builder: (context, snapshot) {
@@ -187,20 +509,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            if (!isSmallScreen)
-                              Text(
-                                'Bonjour,',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.black54,
-                                ),
+                            const Text(
+                              'Bonjour,',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
                               ),
+                            ),
                             Text(
                               snapshot.data ?? 'Utilisateur',
-                              style: TextStyle(
-                                fontSize: isSmallScreen ? 14 : 16,
+                              style: const TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: Colors.black87,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -213,9 +534,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 },
               ),
 
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
-            // Avatar utilisateur
+            // Avatar
             if (showUserInfo)
               StreamBuilder<String>(
                 stream: _getUserImageStream(),
@@ -231,34 +552,43 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       onTap: () => Get.toNamed(Routes.profile),
                       customBorder: const CircleBorder(),
                       child: CircleAvatar(
-                        radius: isSmallScreen ? 18 : 22,
+                        radius: 22,
                         backgroundColor: CustomTheme.lightScheme().primary,
-                        backgroundImage:
-                            snapshot.hasData && snapshot.data!.isNotEmpty
-                                ? NetworkImage(snapshot.data!)
-                                : null,
-                        child: !snapshot.hasData || snapshot.data!.isEmpty
-                            ? Icon(
-                                Icons.person,
-                                color: Colors.white,
-                                size: isSmallScreen ? 16 : 20,
-                              )
-                            : null,
+                        child: ClipOval(
+                          child: snapshot.hasData && snapshot.data!.isNotEmpty
+                              ? Image.network(
+                                  snapshot.data!,
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 20,
+                                    );
+                                  },
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                        ),
                       ),
                     ),
                   );
                 },
               ),
 
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
-            // Points
+            // Points et coupons
             if (showPoints)
               Obx(() {
                 final isAdmin = cc.isAdmin.value;
                 final isBoutique = cc.isBoutique.value;
 
-                // Si admin sans boutique, ne pas afficher les points
                 if (isAdmin && !isBoutique) {
                   return const SizedBox.shrink();
                 }
@@ -269,7 +599,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   curve: Curves.easeOutQuart,
                   xStartPosition: 20,
                   isOpacity: true,
-                  child: _buildPointsWidget(cc, isSmallScreen),
+                  child: _buildDesktopPointsWidget(cc),
                 );
               }),
           ],
@@ -278,8 +608,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _buildPointsWidget(
-      CustomAppBarActionsController cc, bool isSmallScreen) {
+  Widget _buildDesktopPointsWidget(CustomAppBarActionsController cc) {
     final realPoints = cc.realPoints.value;
     final pendingPoints = cc.pendingPoints.value;
     final isBoutique = cc.isBoutique.value;
@@ -288,13 +617,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Row(
       children: [
-        // Infos boutique
+        // Boutique info
         if (isBoutique) ...[
           Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isSmallScreen ? 8 : 12,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.9),
               borderRadius: BorderRadius.circular(16),
@@ -316,26 +642,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Icon(
                       Icons.confirmation_number,
                       color: CustomTheme.lightScheme().primary,
-                      size: isSmallScreen ? 14 : 16,
+                      size: 16,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '$coupons',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: isSmallScreen ? 12 : 14,
-                        color: Colors.black,
+                        fontSize: 14,
+                        color: Colors.black87,
                       ),
                     ),
                   ],
                 ),
                 if (couponsPending > 0)
                   Text(
-                    isSmallScreen
-                        ? '$couponsPending attente'
-                        : '$couponsPending bons en attente',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 10 : 12,
+                    '$couponsPending en attente',
+                    style: const TextStyle(
+                      fontSize: 11,
                       fontStyle: FontStyle.italic,
                       color: Colors.black54,
                     ),
@@ -351,10 +675,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           onTap: () => Get.toNamed(Routes.clientHistory),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isSmallScreen ? 8 : 12,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: CustomTheme.lightScheme().primary,
               borderRadius: BorderRadius.circular(16),
@@ -373,29 +694,27 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.stars_rounded,
                       color: Colors.white,
-                      size: isSmallScreen ? 14 : 16,
+                      size: 16,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '$realPoints',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: isSmallScreen ? 12 : 14,
+                        fontSize: 14,
                       ),
                     ),
                   ],
                 ),
                 if (pendingPoints > 0)
                   Text(
-                    isSmallScreen
-                        ? '$pendingPoints attente'
-                        : '$pendingPoints points en attente',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 10 : 12,
+                    '$pendingPoints en attente',
+                    style: const TextStyle(
+                      fontSize: 11,
                       color: Colors.white70,
                       fontStyle: FontStyle.italic,
                     ),
@@ -408,7 +727,31 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  // Méthodes pour récupérer les données utilisateur
+  // Stream pour récupérer nom et image ensemble
+  Stream<Map<String, String>> _getUserInfoStream() {
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) return Stream.value({'name': 'Utilisateur', 'image': ''});
+
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return {'name': 'Utilisateur', 'image': ''};
+      final data = doc.data()!;
+      final firstName = data['firstName'] ?? '';
+      final lastName = data['lastName'] ?? '';
+      final name = '$firstName $lastName'.trim().isNotEmpty
+          ? '$firstName $lastName'.trim()
+          : 'Utilisateur';
+      final image =
+          data['image_url'] ?? ''; // Changé de profileImageUrl à image_url
+      return {'name': name, 'image': image};
+    });
+  }
+
   Stream<String> _getUserNameStream() {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid == null) return Stream.value('Utilisateur');
@@ -443,7 +786,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         .map((doc) {
       if (!doc.exists) return '';
       final data = doc.data()!;
-      return data['profileImageUrl'] ?? '';
+      return data['image_url'] ?? ''; // Changé de profileImageUrl à image_url
     });
   }
 }

@@ -334,6 +334,10 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         ),
         child: Container(
           padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -342,6 +346,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 24),
@@ -352,15 +357,16 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                   selectedParrainageType.value = 'proche';
                   openCreateUserBottomSheet();
                 },
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: EdgeInsets.all(
                     UniquesControllers().data.baseSpace * 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.blue.withOpacity(0.3),
+                      color: Colors.grey[300]!,
                     ),
                   ),
                   child: Row(
@@ -368,12 +374,12 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.2),
+                          color: Colors.grey[100],
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.person_rounded,
-                          color: Colors.blue.shade700,
+                          color: Colors.black87,
                           size: 24,
                         ),
                       ),
@@ -387,7 +393,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
+                                color: Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -395,7 +401,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                               'Gagnez 50 points sur tous ses achats',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.blue.shade600,
+                                color: Colors.grey[600],
                               ),
                             ),
                           ],
@@ -413,28 +419,26 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                   selectedParrainageType.value = 'entreprise';
                   openCreateUserBottomSheet();
                 },
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: EdgeInsets.all(
                     UniquesControllers().data.baseSpace * 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.black87,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.green.withOpacity(0.3),
-                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
+                          color: Colors.white.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.business_rounded,
-                          color: Colors.green.shade700,
+                          color: Colors.white,
                           size: 24,
                         ),
                       ),
@@ -448,7 +452,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green.shade700,
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -456,7 +460,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                               'Gagnez 100 points sur son adhésion',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.green.shade600,
+                                color: Colors.white70,
                               ),
                             ),
                           ],
@@ -808,7 +812,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
@@ -837,13 +841,13 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: selectedParrainageType.value == 'entreprise'
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.blue.withOpacity(0.1),
+                    ? Colors.black87
+                    : Colors.grey[100]!,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: selectedParrainageType.value == 'entreprise'
-                      ? Colors.green.withOpacity(0.3)
-                      : Colors.blue.withOpacity(0.3),
+                      ? Colors.black87
+                      : Colors.grey[300]!,
                 ),
               ),
               child: Column(
@@ -854,8 +858,8 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                       Icon(
                         Icons.info_outline_rounded,
                         color: selectedParrainageType.value == 'entreprise'
-                            ? Colors.green
-                            : Colors.blue,
+                            ? Colors.white
+                            : CustomTheme.lightScheme().primary,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -865,8 +869,8 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: selectedParrainageType.value == 'entreprise'
-                              ? Colors.green[700]
-                              : Colors.blue[700],
+                              ? Colors.white
+                              : Colors.black87,
                         ),
                       ),
                     ],
@@ -879,8 +883,8 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
                     style: TextStyle(
                       fontSize: 13,
                       color: selectedParrainageType.value == 'entreprise'
-                          ? Colors.green[700]
-                          : Colors.blue[700],
+                          ? Colors.white70
+                          : Colors.grey[700],
                     ),
                   ),
                 ],
