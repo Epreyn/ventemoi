@@ -8,7 +8,7 @@ class CustomTextFormFieldController extends GetxController {
 
   CustomTextFormFieldController({this.controller, this.maxCharacters});
 
-  double maxWith = 350.0;
+  double maxWidth = 350.0;
 
   double maxWidthPercentage = 0.9;
   RxBool isObscure = false.obs;

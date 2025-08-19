@@ -943,7 +943,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                           stream: ec.getCategoriesStream(),
                                           initialItem: ec.currentCategory,
                                           labelText: ec.categoryLabel,
-                                          maxWith: double.infinity,
+                                          maxWidth: double.infinity,
                                           maxHeight: ec.categoryMaxHeight,
                                           onChanged:
                                               (EstablishmentCategory? cat) {
@@ -1256,7 +1256,7 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                     ? ec.selectedEnterpriseCategories[index]
                                     : Rx<EnterpriseCategory?>(null),
                             labelText: 'Catégorie ${index + 1}',
-                            maxWith: double.infinity,
+                            maxWidth: double.infinity,
                             maxHeight: ec.categoryMaxHeight,
                             noInitialItem: true,
                             onChanged: (EnterpriseCategory? cat) {

@@ -12,7 +12,7 @@ class CustomDropdownStreamBuilder<T extends Nameable> extends StatelessWidget {
   final Rx<T?> initialItem;
   final String labelText;
   final ValueChanged<T?> onChanged;
-  final double? maxWith;
+  final double? maxWidth;
   final double? maxHeight;
   final Future<bool>? isEnabled;
   final bool? noInitialItem;
@@ -25,7 +25,7 @@ class CustomDropdownStreamBuilder<T extends Nameable> extends StatelessWidget {
     required this.initialItem,
     required this.labelText,
     required this.onChanged,
-    this.maxWith,
+    this.maxWidth,
     this.maxHeight,
     this.isEnabled,
     this.noInitialItem,
@@ -38,7 +38,7 @@ class CustomDropdownStreamBuilder<T extends Nameable> extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: maxWith ?? cc.maxWith,
+        maxWidth: maxWidth ?? cc.maxWidth,
       ),
       child: StreamBuilder<List<T>>(
         stream: stream,

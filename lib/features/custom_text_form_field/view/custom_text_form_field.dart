@@ -82,7 +82,7 @@ class CustomTextFormField extends StatelessWidget {
     if (isClickable == false) {
       return ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: maxWidth ?? cc.maxWith,
+          maxWidth: maxWidth ?? cc.maxWidth,
         ),
         child: AbsorbPointer(
           absorbing: true,
@@ -94,7 +94,7 @@ class CustomTextFormField extends StatelessWidget {
     // Sinon, on retourne le champ normal
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: maxWidth ?? cc.maxWith,
+        maxWidth: maxWidth ?? cc.maxWidth,
       ),
       child: _buildTextField(cc, context),
     );

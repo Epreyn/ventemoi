@@ -31,7 +31,7 @@ class CustomSlider extends StatelessWidget {
       children: [
         ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: cc.maxWith.value,
+            maxWidth: cc.maxWidth.value,
           ),
           child: Container(
             decoration: BoxDecoration(

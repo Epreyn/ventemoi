@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../core/mixins/animation_mixin.dart';
+import '../../../core/mixins/interactive_mixin.dart';
 
-class CustomFilledButtonController extends GetxController {
+class CustomFilledButtonController extends GetxController with AnimationMixin, InteractiveMixin {
   RxDouble height = 50.0.obs;
   RxDouble width = 200.0.obs;
 
-  Duration animationDuration = const Duration(milliseconds: 400);
+  // animationDuration inherited from AnimationMixin
+  // isHovered and isPressed inherited from InteractiveMixin
 
   double spacingMultiplier = 1;
 
@@ -13,9 +16,6 @@ class CustomFilledButtonController extends GetxController {
 
   Alignment begin = Alignment.centerLeft;
   Alignment end = Alignment.centerRight;
-
-  RxBool isHovered = false.obs;
-  RxBool isPressed = false.obs;
 
   Decoration buildDecoration(
       bool? isEmpty, List<Color> backgroundColors, List<Color> foregroundColors, bool isPressed) {

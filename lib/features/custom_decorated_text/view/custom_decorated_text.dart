@@ -30,8 +30,8 @@ class CustomDecoratedText extends StatelessWidget {
           constraints: BoxConstraints(
             minHeight: 58,
             maxHeight: 58,
-            minWidth: cc.maxWith.value,
-            maxWidth: cc.maxWith.value,
+            minWidth: cc.maxWidth.value,
+            maxWidth: cc.maxWidth.value,
           ),
           child: Container(
             decoration: BoxDecoration(

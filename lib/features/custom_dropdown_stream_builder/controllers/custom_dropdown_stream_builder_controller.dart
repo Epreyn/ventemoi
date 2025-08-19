@@ -5,7 +5,7 @@ import '../../../core/models/nameable.dart';
 
 class CustomDropdownStreamBuilderController<T extends Nameable> extends GetxController {
   double maxHeight = 40.0;
-  double maxWith = 220.0;
+  double maxWidth = 220.0;
 
   int dropDownElevation = 0;
 

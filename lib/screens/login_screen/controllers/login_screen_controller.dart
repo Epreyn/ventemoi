@@ -33,7 +33,7 @@ class LoginScreenController extends GetxController {
 
   String forgotPasswordTag = 'forgotPassword';
   String forgotPasswordLabel = 'Mot de passe oublié ?';
-  double maxWith = 350.0;
+  double maxWidth = 350.0;
 
   String connectionTag = 'connection';
   String connectionLabel = 'Connexion'.toUpperCase();

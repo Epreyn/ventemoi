@@ -374,6 +374,201 @@ class CustomTheme {
   List<ExtendedColor> get extendedColors => [];
 }
 
+// ============================================================================
+// STYLES CONSTANTS - Factorisation des styles répétés
+// ============================================================================
+
+class AppTextStyles {
+  // Headers
+  static const TextStyle h1 = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.5,
+  );
+  
+  static const TextStyle h2 = TextStyle(
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+  );
+  
+  static const TextStyle h3 = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+  );
+  
+  static const TextStyle h4 = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+  );
+  
+  static const TextStyle h5 = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+  
+  static const TextStyle h6 = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+  );
+  
+  // Body
+  static const TextStyle bodyLarge = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.normal,
+  );
+  
+  static const TextStyle bodyMedium = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.normal,
+  );
+  
+  static const TextStyle bodySmall = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+  );
+  
+  // Labels
+  static const TextStyle labelLarge = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.1,
+  );
+  
+  static const TextStyle labelMedium = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.5,
+  );
+  
+  static const TextStyle labelSmall = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.5,
+  );
+  
+  // Buttons
+  static const TextStyle button = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.0,
+  );
+  
+  static const TextStyle buttonLarge = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.0,
+  );
+}
+
+class AppSpacing {
+  static const double xs = 4.0;
+  static const double sm = 8.0;
+  static const double md = 12.0;
+  static const double lg = 16.0;
+  static const double xl = 20.0;
+  static const double xxl = 24.0;
+  static const double xxxl = 32.0;
+}
+
+class AppBorderRadius {
+  static const BorderRadius xs = BorderRadius.all(Radius.circular(4));
+  static const BorderRadius sm = BorderRadius.all(Radius.circular(8));
+  static const BorderRadius md = BorderRadius.all(Radius.circular(12));
+  static const BorderRadius lg = BorderRadius.all(Radius.circular(16));
+  static const BorderRadius xl = BorderRadius.all(Radius.circular(20));
+  static const BorderRadius xxl = BorderRadius.all(Radius.circular(24));
+  static const BorderRadius round = BorderRadius.all(Radius.circular(90));
+}
+
+class AppShadows {
+  static final List<BoxShadow> sm = [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.05),
+      blurRadius: 4,
+      offset: const Offset(0, 1),
+    ),
+  ];
+  
+  static final List<BoxShadow> md = [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.05),
+      blurRadius: 10,
+      offset: const Offset(0, 2),
+    ),
+  ];
+  
+  static final List<BoxShadow> lg = [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.08),
+      blurRadius: 15,
+      offset: const Offset(0, 4),
+    ),
+  ];
+  
+  static final List<BoxShadow> xl = [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.1),
+      blurRadius: 20,
+      offset: const Offset(0, 8),
+    ),
+  ];
+}
+
+class AppColors {
+  // Greys
+  static final Color grey50 = Colors.grey[50]!;
+  static final Color grey100 = Colors.grey[100]!;
+  static final Color grey200 = Colors.grey[200]!;
+  static final Color grey300 = Colors.grey[300]!;
+  static final Color grey400 = Colors.grey[400]!;
+  static final Color grey500 = Colors.grey[500]!;
+  static final Color grey600 = Colors.grey[600]!;
+  static final Color grey700 = Colors.grey[700]!;
+  static final Color grey800 = Colors.grey[800]!;
+  static final Color grey900 = Colors.grey[900]!;
+  
+  // Status colors
+  static const Color success = Color(0xFF4CAF50);
+  static const Color warning = Color(0xFFFFA726);
+  static const Color error = Color(0xFFEF5350);
+  static const Color info = Color(0xFF29B6F6);
+}
+
+class AppDecorations {
+  static BoxDecoration card({
+    Color? backgroundColor,
+    Color? borderColor,
+    double borderRadius = 16,
+    List<BoxShadow>? boxShadow,
+  }) {
+    return BoxDecoration(
+      color: backgroundColor ?? Colors.white,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: borderColor != null
+          ? Border.all(color: borderColor, width: 1)
+          : null,
+      boxShadow: boxShadow ?? AppShadows.md,
+    );
+  }
+  
+  static BoxDecoration gradient({
+    required List<Color> colors,
+    Alignment begin = Alignment.topLeft,
+    Alignment end = Alignment.bottomRight,
+    double borderRadius = 16,
+  }) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        colors: colors,
+        begin: begin,
+        end: end,
+      ),
+      borderRadius: BorderRadius.circular(borderRadius),
+    );
+  }
+}
+
 class ExtendedColor {
   final Color seed, value;
   final ColorFamily light;

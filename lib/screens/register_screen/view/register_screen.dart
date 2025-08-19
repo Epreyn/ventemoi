@@ -295,7 +295,7 @@ class RegisterScreen extends StatelessWidget {
               stream: cc.getUserTypesStreamExceptAdmin(),
               initialItem: cc.currentUserType,
               labelText: cc.userTypeLabel,
-              maxWith: cc.userTypeMaxWidth,
+              maxWidth: cc.userTypeMaxWidth,
               maxHeight: cc.userTypeMaxHeight,
               iconData: Icons.badge_outlined,
               onChanged: (UserType? value) {
