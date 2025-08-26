@@ -217,34 +217,60 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
 
                 // --- BANNIÈRE (sans description qui est maintenant en haut) ---
                 Expanded(
-                  child: Container(
-                    margin: EdgeInsets.symmetric(
-                      horizontal: UniquesControllers().data.baseSpace * 2,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        UniquesControllers().data.baseSpace,
+                  child: Stack(
+                    children: [
+                      Container(
+                        margin: EdgeInsets.symmetric(
+                          horizontal: UniquesControllers().data.baseSpace * 2,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            UniquesControllers().data.baseSpace,
+                          ),
+                          color: widget.establishment.bannerUrl.isEmpty
+                              ? Colors.grey[100]
+                              : null,
+                          image: widget.establishment.bannerUrl.isNotEmpty
+                              ? DecorationImage(
+                                  image:
+                                      NetworkImage(widget.establishment.bannerUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: widget.establishment.bannerUrl.isEmpty
+                            ? Center(
+                                child: Icon(
+                                  Icons.image,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                              )
+                            : null,
                       ),
-                      color: widget.establishment.bannerUrl.isEmpty
-                          ? Colors.grey[100]
-                          : null,
-                      image: widget.establishment.bannerUrl.isNotEmpty
-                          ? DecorationImage(
-                              image:
-                                  NetworkImage(widget.establishment.bannerUrl),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                    child: widget.establishment.bannerUrl.isEmpty
-                        ? Center(
-                            child: Icon(
-                              Icons.image,
-                              size: 48,
-                              color: Colors.grey[400],
+                      // Dégradé de droite vers la gauche
+                      if (widget.establishment.bannerUrl.isNotEmpty)
+                        Container(
+                          margin: EdgeInsets.symmetric(
+                            horizontal: UniquesControllers().data.baseSpace * 2,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              UniquesControllers().data.baseSpace,
                             ),
-                          )
-                        : null,
+                            gradient: LinearGradient(
+                              begin: Alignment.centerRight,
+                              end: Alignment.centerLeft,
+                              colors: [
+                                Colors.black.withOpacity(0.6),
+                                Colors.black.withOpacity(0.2),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.3, 0.7],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
 

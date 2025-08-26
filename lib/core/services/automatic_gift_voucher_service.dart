@@ -16,7 +16,6 @@ class AutomaticGiftVoucherService {
     required String commerceEmail,
   }) async {
     try {
-      print('Attribution des bons cadeaux pour le commerce: $commerceName');
 
       // 1. Récupérer les IDs des types d'utilisateurs
       final userTypes = await _getUserTypeIds();
@@ -25,7 +24,6 @@ class AutomaticGiftVoucherService {
       final selectedUsers = await _selectRandomUsers(userTypes);
 
       if (selectedUsers.length != 4) {
-        print('Impossible de trouver 4 utilisateurs différents');
         return;
       }
 
@@ -66,9 +64,7 @@ class AutomaticGiftVoucherService {
       // 6. Créer une notification pour le commerce
       await _createNotificationForCommerce(commerceId, vouchers);
 
-      print('Attribution des bons cadeaux terminée avec succès');
     } catch (e) {
-      print('Erreur lors de l\'attribution des bons cadeaux: $e');
       // Log l'erreur mais ne pas bloquer l'inscription
     }
   }
@@ -296,7 +292,6 @@ class AutomaticGiftVoucherService {
         'created_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Erreur lors de la création de la notification: $e');
     }
   }
 

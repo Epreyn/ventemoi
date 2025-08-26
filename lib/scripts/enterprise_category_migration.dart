@@ -8,7 +8,6 @@ class EnterpriseCategoryMigration {
   EnterpriseCategoryMigration(this.firestore);
 
   Future<void> migrateExistingCategories() async {
-    print('🔄 Début de la migration des catégories entreprise...');
 
     final batch = firestore.batch();
     final snapshot = await firestore.collection('enterprise_categories').get();
@@ -30,9 +29,7 @@ class EnterpriseCategoryMigration {
 
     if (count > 0) {
       await batch.commit();
-      print('✅ Migration terminée : $count catégories mises à jour');
     } else {
-      print('ℹ️ Aucune migration nécessaire');
     }
   }
 
@@ -40,7 +37,6 @@ class EnterpriseCategoryMigration {
 
   // Créer des exemples de sous-catégories
   Future<void> createSampleSubcategories() async {
-    print('🔄 Création d\'exemples de sous-catégories...');
 
     // Récupérer quelques catégories principales
     final mainCategories = await firestore
@@ -50,7 +46,6 @@ class EnterpriseCategoryMigration {
         .get();
 
     if (mainCategories.docs.isEmpty) {
-      print('⚠️ Aucune catégorie principale trouvée');
       return;
     }
 
@@ -107,15 +102,13 @@ class EnterpriseCategoryMigration {
           });
         }
 
-        print(
-            '✅ ${subcategories.length} sous-catégories créées pour "$mainName"');
+        // print('✅ ${subcategories.length} sous-catégories créées pour "$mainName"');
       }
     }
   }
 
   // Vérifier l'intégrité des données
   Future<void> verifyDataIntegrity() async {
-    print('🔍 Vérification de l\'intégrité des données...');
 
     final allCategories =
         await firestore.collection('enterprise_categories').get();
@@ -127,6 +120,7 @@ class EnterpriseCategoryMigration {
 
     for (final doc in allCategories.docs) {
       final data = doc.data();
+      final name = data['name'] ?? 'Sans nom';
       final parentId = data['parent_id'];
       final level = data['level'] ?? 0;
 
@@ -141,66 +135,50 @@ class EnterpriseCategoryMigration {
         final parentExists = allCategories.docs.any((d) => d.id == parentId);
 
         if (!parentExists) {
-          issues.add(
-              '⚠️ Sous-catégorie "${data['name']}" a un parent inexistant');
+          issues.add('Parent manquant pour $name');
         }
       }
 
       // Vérifier la cohérence du niveau
       if (parentId == null && level != 0) {
-        issues.add(
-            '⚠️ Catégorie principale "${data['name']}" a un niveau incorrect: $level');
+        issues.add('Niveau incohérent pour $name');
       } else if (parentId != null && level != 1) {
-        issues.add(
-            '⚠️ Sous-catégorie "${data['name']}" a un niveau incorrect: $level');
+        issues.add('Niveau incohérent pour $name');
       }
     }
 
-    print('\n📊 Résumé:');
-    print('- Catégories principales: $mainCount');
-    print('- Sous-catégories: $subCount');
-    print('- Total: ${allCategories.docs.length}');
 
     if (subcategoriesByParent.isNotEmpty) {
-      print('\n📂 Répartition des sous-catégories:');
       for (final entry in subcategoriesByParent.entries) {
         final parentDoc =
             allCategories.docs.firstWhere((d) => d.id == entry.key);
         final parentName = parentDoc.data()['name'];
-        print('  - $parentName: ${entry.value} sous-catégories');
       }
     }
 
     if (issues.isNotEmpty) {
-      print('\n❌ Problèmes détectés:');
       for (final issue in issues) {
-        print(issue);
       }
     } else {
-      print('\n✅ Aucun problème détecté');
     }
   }
 
   // Script principal de migration
   Future<void> runFullMigration() async {
-    print('🚀 Démarrage de la migration complète\n');
 
     try {
       // Étape 1: Migrer les catégories existantes
       await migrateExistingCategories();
 
       // Étape 2: Créer des exemples (optionnel)
-      print(
-          '\nVoulez-vous créer des exemples de sous-catégories ? (Recommandé pour tester)');
+      // print('\nVoulez-vous créer des exemples de sous-catégories ? (Recommandé pour tester)');
       // Dans un vrai script, demander confirmation à l'utilisateur
       // await createSampleSubcategories();
 
       // Étape 3: Vérifier l'intégrité
       await verifyDataIntegrity();
 
-      print('\n🎉 Migration terminée avec succès!');
     } catch (e) {
-      print('\n❌ Erreur pendant la migration: $e');
       rethrow;
     }
   }

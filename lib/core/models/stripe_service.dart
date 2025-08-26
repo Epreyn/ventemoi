@@ -26,7 +26,6 @@ class StripeService extends GetxService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Utilisateur non connecté');
 
-    print('🔵 Vérification du customer Stripe pour: ${user.email}');
 
     // Essayer de synchroniser avec Stripe
     final stripeId = await syncStripeCustomer();
@@ -48,8 +47,7 @@ class StripeService extends GetxService {
     required String cancelUrl,
   }) async {
     try {
-      print(
-          '🔵 Création checkout mensuel pour user: ${_auth.currentUser?.uid}');
+      // print('🔵 Création checkout mensuel pour user: ${_auth.currentUser?.uid}');
 
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
@@ -103,7 +101,6 @@ class StripeService extends GetxService {
         'allow_promotion_codes': true,
       };
 
-      print('🔵 Données checkout: $checkoutData');
 
       final sessionRef = await _firestore
           .collection('customers')
@@ -111,11 +108,9 @@ class StripeService extends GetxService {
           .collection('checkout_sessions')
           .add(checkoutData);
 
-      print('🔵 Session créée avec ID: ${sessionRef.id}');
 
       return await _waitForCheckoutUrl(user.uid, sessionRef.id);
     } catch (e) {
-      print('❌ Erreur création checkout mensuel: $e');
       rethrow;
     }
   }
@@ -127,8 +122,7 @@ class StripeService extends GetxService {
     required String cancelUrl,
   }) async {
     try {
-      print(
-          '🔵 Création checkout mensuel avec ID pour user: ${_auth.currentUser?.uid}');
+      // print('🔵 Création checkout mensuel avec ID pour user: ${_auth.currentUser?.uid}');
 
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
@@ -189,7 +183,6 @@ class StripeService extends GetxService {
           .add(checkoutData);
 
       final firestoreDocId = sessionRef.id;
-      print('📄 Document Firestore créé: $firestoreDocId');
 
       final url = await _waitForCheckoutUrl(user.uid, firestoreDocId);
 
@@ -202,7 +195,6 @@ class StripeService extends GetxService {
 
       return null;
     } catch (e) {
-      print('❌ Erreur création checkout mensuel: $e');
       rethrow;
     }
   }
@@ -214,8 +206,7 @@ class StripeService extends GetxService {
     required String cancelUrl,
   }) async {
     try {
-      print(
-          '🔵 Création checkout annuel avec ID pour user: ${_auth.currentUser?.uid}');
+      // print('🔵 Création checkout annuel avec ID pour user: ${_auth.currentUser?.uid}');
 
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
@@ -257,7 +248,6 @@ class StripeService extends GetxService {
           .add(checkoutData);
 
       final sessionId = sessionRef.id;
-      print('🔵 Session créée avec ID: $sessionId');
 
       final url = await _waitForCheckoutUrl(user.uid, sessionId);
 
@@ -270,7 +260,6 @@ class StripeService extends GetxService {
 
       return null;
     } catch (e) {
-      print('❌ Erreur création checkout annuel: $e');
       rethrow;
     }
   }
@@ -331,7 +320,6 @@ class StripeService extends GetxService {
           .add(checkoutData);
 
       final sessionId = sessionRef.id;
-      print('📄 Document Firestore créé: $sessionId');
 
       final url = await _waitForCheckoutUrl(user.uid, sessionId);
 
@@ -344,7 +332,6 @@ class StripeService extends GetxService {
 
       return null;
     } catch (e) {
-      print('❌ Erreur création checkout slot: $e');
       rethrow;
     }
   }
@@ -356,14 +343,12 @@ class StripeService extends GetxService {
           await _firestore.collection('customers').doc(uid).get();
 
       if (!customerDoc.exists) {
-        print('📝 Création du document customer...');
         await _firestore.collection('customers').doc(uid).set({
           'email': email,
           'created': FieldValue.serverTimestamp(),
         });
       }
     } catch (e) {
-      print('⚠️ Erreur création document customer: $e');
     }
   }
 
@@ -373,7 +358,6 @@ class StripeService extends GetxService {
   // Attendre que l'URL de checkout soit générée par l'extension Stripe
   Future<String?> _waitForCheckoutUrl(
       String customerId, String sessionId) async {
-    print('⏳ En attente de l\'URL de checkout...');
 
     const maxAttempts = 20;
     const delayBetweenAttempts = Duration(seconds: 2);
@@ -391,20 +375,17 @@ class StripeService extends GetxService {
           final data = sessionDoc.data()!;
 
           // Debug: afficher les champs disponibles
-          print(
-              '🔍 Tentative ${i + 1}/$maxAttempts - Data: ${data.keys.join(', ')}');
+          // print('🔍 Tentative ${i + 1}/$maxAttempts - Data: ${data.keys.join(', ')}');
 
           // Vérifier si l'extension a ajouté une erreur
           if (data.containsKey('error')) {
             final error = data['error'];
-            print('❌ Erreur Stripe: $error');
             throw Exception('Erreur Stripe: ${error['message'] ?? error}');
           }
 
           // L'extension Stripe ajoute le champ 'url' automatiquement
           if (data.containsKey('url') && data['url'] != null) {
             final url = data['url'] as String;
-            print('✅ URL de checkout obtenue: $url');
             return url;
           }
 
@@ -413,14 +394,12 @@ class StripeService extends GetxService {
             // Construire l'URL manuellement si nécessaire
             final sessionId = data['sessionId'] as String;
             final url = 'https://checkout.stripe.com/pay/$sessionId';
-            print('✅ URL construite depuis sessionId: $url');
             return url;
           }
         }
 
         await Future.delayed(delayBetweenAttempts);
       } catch (e) {
-        print('❌ Erreur lors de la vérification: $e');
         if (i == maxAttempts - 1) rethrow;
       }
     }
@@ -437,16 +416,16 @@ class StripeService extends GetxService {
         sessionDoc.exists ? sessionDoc.data() : 'Document non trouvé';
 
     throw Exception('''
- Timeout: URL de checkout non générée.
- État final: $debugData
+Timeout: URL de checkout non générée.
+État final: $debugData
 
- Vérifiez que:
- 1. L'extension Stripe est correctement installée et configurée
- 2. Les Cloud Functions de l'extension sont actives
- 3. Les prix Stripe existent et sont actifs dans votre dashboard
- 4. Le webhook Stripe est correctement configuré
- 5. La clé API Stripe a les permissions nécessaires
- ''');
+Vérifiez que:
+1. L'extension Stripe est correctement installée et configurée
+2. Les Cloud Functions de l'extension sont actives
+3. Les prix Stripe existent et sont actifs dans votre dashboard
+4. Le webhook Stripe est correctement configuré
+5. La clé API Stripe a les permissions nécessaires
+''');
   }
 
   // Lancer l'URL de checkout dans le navigateur
@@ -487,7 +466,6 @@ class StripeService extends GetxService {
         }
       }
     } catch (e) {
-      print('Erreur vérification abonnement: $e');
     }
 
     return null;
@@ -514,7 +492,6 @@ class StripeService extends GetxService {
       final metadata = sessionData['metadata'] as Map<String, dynamic>?;
 
       if (metadata == null) {
-        print('❌ Pas de metadata dans la session');
         return;
       }
 
@@ -522,16 +499,10 @@ class StripeService extends GetxService {
       final purchaseType = metadata['purchase_type'] as String?;
       final paymentType = metadata['type'] as String?;
 
-      print('🎉 handleSuccessfulPayment appelé:');
-      print('   - userId: $userId');
-      print('   - purchaseType: $purchaseType');
-      print('   - paymentType: $paymentType');
-      print('   - metadata: ${metadata.toString()}');
 
       // Vérifier si c'est un paiement de slot
       if (purchaseType == 'category_slot' ||
           paymentType == 'additional_category_slot') {
-        print('📦 C\'est un paiement de slot!');
 
         // Trouver l'établissement
         final estabQuery = await _firestore
@@ -541,7 +512,6 @@ class StripeService extends GetxService {
             .get();
 
         if (estabQuery.docs.isEmpty) {
-          print('❌ Aucun établissement trouvé pour user: $userId');
           return;
         }
 
@@ -550,8 +520,6 @@ class StripeService extends GetxService {
         final currentData = establishmentDoc.data();
         final currentSlots = currentData['enterprise_category_slots'] ?? 2;
 
-        print('🏢 Établissement trouvé: $establishmentId');
-        print('   - Slots actuels: $currentSlots');
 
         // Incrémenter les slots
         await _firestore
@@ -562,7 +530,6 @@ class StripeService extends GetxService {
           'last_slot_purchase': FieldValue.serverTimestamp(),
         });
 
-        print('✅ Slot ajouté avec succès! Nouveau total: ${currentSlots + 1}');
       }
 
       // Marquer la session comme traitée
@@ -571,8 +538,6 @@ class StripeService extends GetxService {
         'processed_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Erreur dans handleSuccessfulPayment: $e');
-      print('   Stack: ${e.toString()}');
       rethrow;
     }
   }
@@ -592,9 +557,7 @@ class StripeService extends GetxService {
         'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
       });
 
-      print('🎁 Bon cadeau de bienvenue créé');
     } catch (e) {
-      print('❌ Erreur création bon cadeau: $e');
     }
   }
 
@@ -637,23 +600,18 @@ class StripeService extends GetxService {
 
       return await _waitForCheckoutUrl(customerId, sessionRef.id);
     } catch (e) {
-      print('❌ Erreur création checkout slot: $e');
       rethrow;
     }
   }
 
   // Méthode de debug pour vérifier la configuration
   Future<void> debugStripeSetup() async {
-    print('\n🔍 === DEBUG STRIPE SETUP ===\n');
 
     final user = _auth.currentUser;
     if (user == null) {
-      print('❌ Aucun utilisateur connecté');
       return;
     }
 
-    print('👤 Utilisateur: ${user.uid}');
-    print('📧 Email: ${user.email}');
 
     // Vérifier le customer
     final customerDoc =
@@ -661,21 +619,12 @@ class StripeService extends GetxService {
 
     if (customerDoc.exists) {
       final data = customerDoc.data()!;
-      print('\n✅ Document customer existe:');
-      print('   - stripeId: ${data['stripeId'] ?? 'NON DÉFINI'}');
-      print('   - email: ${data['email']}');
-      print('   - created: ${data['created']}');
 
       if (data['stripeId'] == null) {
-        print('\n⚠️  ATTENTION: Le stripeId est manquant!');
-        print('   L\'extension Stripe n\'a pas créé le customer.');
-        print('   Vérifiez la configuration de l\'extension.');
       }
     } else {
-      print('\n❌ Document customer n\'existe pas');
     }
 
-    print('\n=== FIN DEBUG ===\n');
   }
 
   // Méthode de diagnostic pour tester les Cloud Functions
@@ -683,14 +632,12 @@ class StripeService extends GetxService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    print('🧪 Test Cloud Function...');
 
     // Supprimer l'ancien document s'il existe
     final ref =
         FirebaseFirestore.instance.collection('customers').doc(user.uid);
 
     await ref.delete();
-    print('🗑️ Ancien document supprimé');
 
     // Créer un nouveau document
     await ref.set({
@@ -698,8 +645,6 @@ class StripeService extends GetxService {
       'created': FieldValue.serverTimestamp(),
     });
 
-    print('📝 Nouveau document créé');
-    print('⏳ Attente de la Cloud Function...');
 
     // Attendre et vérifier
     for (int i = 0; i < 10; i++) {
@@ -709,25 +654,20 @@ class StripeService extends GetxService {
       if (doc.exists) {
         final data = doc.data()!;
         if (data.containsKey('stripeId')) {
-          print('✅ SUCCESS! stripeId: ${data['stripeId']}');
           return;
         }
         if (data.containsKey('error')) {
-          print('❌ ERREUR: ${data['error']}');
           return;
         }
       }
-      print('   Tentative ${i + 1}/10...');
     }
 
-    print('⏱️ Timeout - vérifiez les logs Cloud Functions');
   }
 
   // Ajouter ces méthodes dans la classe StripeService (lib/core/models/stripe_service.dart)
 
   // Méthode pour forcer la mise à jour du statut (en cas d'urgence)
   Future<void> forceCheckSessionStatus(String sessionId) async {
-    print('🔄 Forçage de la vérification du statut...');
 
     final user = _auth.currentUser;
     if (user == null) return;
@@ -742,7 +682,6 @@ class StripeService extends GetxService {
 
       final sessionDoc = await sessionRef.get();
       if (!sessionDoc.exists) {
-        print('❌ Session introuvable');
         return;
       }
 
@@ -750,8 +689,6 @@ class StripeService extends GetxService {
 
       // Si la session a un payment_intent mais pas de payment_status
       if (data['payment_intent'] != null && data['payment_status'] == null) {
-        print('⚠️ Session avec payment_intent mais sans payment_status');
-        print('   → Mise à jour forcée du statut');
 
         await sessionRef.update({
           'payment_status': 'paid',
@@ -760,12 +697,9 @@ class StripeService extends GetxService {
           'force_updated_at': FieldValue.serverTimestamp(),
         });
 
-        print('✅ Statut forcé à "paid"');
       } else {
-        print('ℹ️ Session déjà à jour ou pas de payment_intent');
       }
     } catch (e) {
-      print('❌ Erreur force update: $e');
     }
   }
 
@@ -773,7 +707,6 @@ class StripeService extends GetxService {
   // Note: Cette méthode nécessite le déploiement d'une Cloud Function
   Future<bool> verifyPaymentViaCloudFunction(String sessionId) async {
     try {
-      print('☁️ Tentative de vérification via Cloud Function...');
 
       // Si vous n'avez pas de Cloud Function déployée, retournez false
       // Cette méthode est un placeholder pour une future implémentation
@@ -793,16 +726,13 @@ class StripeService extends GetxService {
         });
 
         final data = result.data as Map<String, dynamic>;
-        print('☁️ Résultat: ${data['success']} - Status: ${data['status']}');
 
         return data['success'] == true;
         */
 
       // Pour l'instant, retourner false car non implémenté
-      print('⚠️ Cloud Function non implémentée, utilisation du fallback');
       return false;
     } catch (e) {
-      print('❌ Erreur Cloud Function: $e');
       return false;
     }
   }
@@ -841,7 +771,6 @@ class StripeService extends GetxService {
 
       return isPaid && hasAmount;
     } catch (e) {
-      print('Erreur vérification paiement: $e');
       return false;
     }
   }
@@ -865,8 +794,7 @@ class StripeService extends GetxService {
             .get();
 
         if (!sessionDoc.exists) {
-          print(
-              '❌ Session $sessionId introuvable (tentative ${i + 1}/$maxRetries)');
+          // print('❌ Session $sessionId introuvable');
           await Future.delayed(Duration(seconds: 2));
           continue;
         }
@@ -881,12 +809,6 @@ class StripeService extends GetxService {
         final invoice = data['invoice'] as String?;
 
         // Debug
-        print('🔍 Session $sessionId - Tentative ${i + 1}:');
-        print('   payment_status: $paymentStatus');
-        print('   status: $status');
-        print('   payment_intent: ${paymentIntent != null ? '✅' : '❌'}');
-        print('   subscription: ${subscription != null ? '✅' : '❌'}');
-        print('   invoice: ${invoice != null ? '✅' : '❌'}');
 
         // Succès si un de ces critères est rempli
         if (paymentStatus == 'paid' ||
@@ -897,7 +819,6 @@ class StripeService extends GetxService {
             paymentIntent != null ||
             subscription != null ||
             invoice != null) {
-          print('✅ Paiement confirmé!');
           return true;
         }
 
@@ -913,7 +834,6 @@ class StripeService extends GetxService {
               estabQuery.docs.first.data()['has_active_subscription'] ?? false;
 
           if (hasActiveSubscription) {
-            print('✅ Abonnement actif détecté dans l\'établissement!');
 
             // Mettre à jour la session pour cohérence
             try {
@@ -923,7 +843,6 @@ class StripeService extends GetxService {
                 'updated_at': FieldValue.serverTimestamp(),
               });
             } catch (e) {
-              print('⚠️ Impossible de mettre à jour la session: $e');
             }
 
             return true;
@@ -936,14 +855,12 @@ class StripeService extends GetxService {
                 invoice != null) &&
             paymentStatus == null &&
             i == maxRetries - 1) {
-          print(
-              '⚠️ Session avec données Stripe mais sans statut - considérée comme réussie');
+          // print('⚠️ Session avec données Stripe mais sans statut - considérée comme réussie');
           return true;
         }
 
         await Future.delayed(Duration(seconds: 2));
       } catch (e) {
-        print('❌ Erreur vérification (tentative ${i + 1}): $e');
       }
     }
 
@@ -955,7 +872,6 @@ class StripeService extends GetxService {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    print('🔄 Forçage de la mise à jour du statut pour session: $sessionId');
 
     try {
       // 1. Récupérer la session
@@ -968,7 +884,6 @@ class StripeService extends GetxService {
       final sessionDoc = await sessionRef.get();
 
       if (!sessionDoc.exists) {
-        print('❌ Session introuvable: $sessionId');
         return;
       }
 
@@ -992,8 +907,6 @@ class StripeService extends GetxService {
       // 4. Forcer la mise à jour si nécessaire
       if ((hasPaymentIndicators || hasActiveSubscription) &&
           data['payment_status'] != 'paid') {
-        print('⚠️ Indicateurs de paiement trouvés mais statut incorrect');
-        print('   → Mise à jour forcée du statut');
 
         await sessionRef.update({
           'payment_status': 'paid',
@@ -1005,24 +918,18 @@ class StripeService extends GetxService {
               : 'Payment indicators present',
         });
 
-        print('✅ Statut forcé à "paid"');
       } else if (!hasPaymentIndicators && !hasActiveSubscription) {
-        print('❌ Aucun indicateur de paiement trouvé');
       } else {
-        print('✅ Statut déjà correct');
       }
     } catch (e) {
-      print('❌ Erreur force update: $e');
     }
   }
 
   // Méthode de debug améliorée
   Future<void> debugCheckoutSession(String sessionId) async {
-    print('\n🔍 === DEBUG CHECKOUT SESSION ===\n');
 
     final user = _auth.currentUser;
     if (user == null) {
-      print('❌ Aucun utilisateur connecté');
       return;
     }
 
@@ -1036,35 +943,23 @@ class StripeService extends GetxService {
           .get();
 
       if (!sessionDoc.exists) {
-        print('❌ Session introuvable: $sessionId');
-        print('   User ID: ${user.uid}');
         return;
       }
 
       final data = sessionDoc.data()!;
-      print('📄 Session trouvée:');
-      print('   ID: $sessionId');
-      print('   User: ${user.uid}');
 
       // 2. Afficher tous les champs
-      print('\n📊 Données de la session:');
       data.forEach((key, value) {
         if (value is Map) {
-          print('   $key:');
           value.forEach((k, v) {
-            print('      $k: $v');
           });
         } else if (value is Timestamp) {
-          print('   $key: ${value.toDate()}');
         } else if (value is List) {
-          print('   $key: [${value.length} éléments]');
         } else {
-          print('   $key: $value');
         }
       });
 
       // 3. Analyse des champs critiques
-      print('\n🔎 Analyse du statut:');
 
       final hasUrl = data.containsKey('url') && data['url'] != null;
       final hasPaymentStatus =
@@ -1079,19 +974,10 @@ class StripeService extends GetxService {
       final hasAmountTotal =
           data.containsKey('amount_total') && data['amount_total'] != null;
 
-      print('   ✓ URL générée: ${hasUrl ? '✅' : '❌'}');
-      print(
-          '   ✓ payment_status: ${hasPaymentStatus ? '✅ (${data['payment_status']})' : '❌'}');
-      print('   ✓ status: ${hasStatus ? '✅ (${data['status']})' : '❌'}');
-      print('   ✓ payment_intent: ${hasPaymentIntent ? '✅' : '❌'}');
-      print('   ✓ subscription: ${hasSubscription ? '✅' : '❌'}');
-      print('   ✓ invoice: ${hasInvoice ? '✅' : '❌'}');
-      print(
-          '   ✓ amount_total: ${hasAmountTotal ? '✅ (${data['amount_total']} centimes)' : '❌'}');
-      print('   ✓ Erreur: ${hasError ? '❌ ${data['error']}' : '✅ Aucune'}');
+      // print('   ✓ payment_status: défini');
+      // print('   ✓ amount_total: défini');
 
       // 4. Vérifier l'établissement
-      print('\n🏢 Vérification de l\'établissement:');
       final estabQuery = await _firestore
           .collection('establishments')
           .where('user_id', isEqualTo: user.uid)
@@ -1100,53 +986,32 @@ class StripeService extends GetxService {
 
       if (estabQuery.docs.isNotEmpty) {
         final estabData = estabQuery.docs.first.data();
-        print('   ID: ${estabQuery.docs.first.id}');
-        print(
-            '   has_active_subscription: ${estabData['has_active_subscription'] ?? 'non défini'}');
-        print(
-            '   subscription_type: ${estabData['subscription_type'] ?? 'non défini'}');
-        print(
-            '   subscription_end_date: ${estabData['subscription_end_date']?.toDate() ?? 'non défini'}');
+        // print('   has_active_subscription: défini');
+        // print('   subscription_type: défini');
+        // print('   subscription_end_date: défini');
       } else {
-        print('   ❌ Aucun établissement trouvé pour cet utilisateur');
       }
 
       // 5. Diagnostic
-      print('\n💡 Diagnostic:');
 
       if (hasPaymentStatus && data['payment_status'] == 'paid') {
-        print('   ✅ Paiement confirmé par Stripe');
       } else if (hasPaymentIntent || hasSubscription || hasInvoice) {
-        print(
-            '   ⚠️ Indicateurs de paiement présents mais statut non mis à jour');
-        print('   → Essayez forceUpdatePaymentStatus()');
+        // print('   ⚠️ Indicateurs de paiement présents mais statut non mis à jour');
       } else if (hasError) {
-        print('   ❌ Erreur Stripe détectée');
       } else if (!hasUrl) {
-        print('   ⏳ Session en cours de création (URL non générée)');
       } else {
-        print('   ⏳ En attente du webhook Stripe');
       }
 
       // 6. Recommandations
-      print('\n📋 Actions recommandées:');
 
       if (!hasPaymentStatus && (hasPaymentIntent || hasSubscription)) {
-        print('   1. Vérifier la configuration des webhooks Stripe');
-        print('   2. Vérifier les logs des Cloud Functions');
-        print('   3. Utiliser forceUpdatePaymentStatus() si nécessaire');
       }
 
       if (hasError) {
-        print('   1. Vérifier les détails de l\'erreur ci-dessus');
-        print('   2. Vérifier la configuration Stripe (prix, produits)');
-        print('   3. Tester avec une nouvelle session');
       }
     } catch (e) {
-      print('❌ Erreur debug: $e');
     }
 
-    print('\n=== FIN DEBUG ===\n');
   }
 
   // Dans lib/core/models/stripe_service.dart
@@ -1157,7 +1022,6 @@ class StripeService extends GetxService {
     required String establishmentId,
   }) async {
     try {
-      print('🔵 Création checkout slot pour catégorie: $categoryId');
 
       final customerId = await _ensureStripeCustomer();
 
@@ -1209,7 +1073,6 @@ class StripeService extends GetxService {
 
       final sessionId = sessionRef.id;
 
-      print('📄 Document Firestore créé: $sessionId');
 
       // Attendre que l'URL soit générée
       final url = await _waitForCheckoutUrl(customerId, sessionId);
@@ -1223,7 +1086,6 @@ class StripeService extends GetxService {
 
       return null;
     } catch (e) {
-      print('❌ Erreur création checkout slot: $e');
       rethrow;
     }
   }
@@ -1233,7 +1095,6 @@ class StripeService extends GetxService {
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
 
-      print('🔄 Synchronisation du customer Stripe...');
 
       // Appeler la Cloud Function
       final HttpsCallable callable =
@@ -1244,13 +1105,11 @@ class StripeService extends GetxService {
       final data = result.data as Map<String, dynamic>;
 
       if (data['success'] == true && data['customerId'] != null) {
-        print('✅ Customer synchronisé: ${data['customerId']}');
         return data['customerId'];
       }
 
       throw Exception('Échec de la synchronisation');
     } catch (e) {
-      print('❌ Erreur sync customer: $e');
       // Fallback : utiliser l'email
       return null;
     }

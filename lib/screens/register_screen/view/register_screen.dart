@@ -1,19 +1,17 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-import '../../../core/classes/unique_controllers.dart';
-import '../../../core/models/user_type.dart';
-import '../../../core/routes/app_routes.dart';
+import '../../../widgets/reusable/reusable_widgets_getx.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
+import '../../../core/models/user_type.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../features/custom_dropdown_stream_builder/view/custom_dropdown_stream_builder.dart';
-import '../../../features/custom_fab_button/view/custom_fab_button.dart';
 import '../../../features/custom_profile_image_picker/view/custom_profile_image_picker.dart';
-import '../../../features/custom_space/view/custom_space.dart';
-import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/register_screen_controller.dart';
 
@@ -38,6 +36,7 @@ class RegisterScreen extends StatelessWidget {
       noFAB: true,
       body: Stack(
         children: [
+          
           // Contenu principal
           SafeArea(
             child: Center(
@@ -56,66 +55,7 @@ class RegisterScreen extends StatelessWidget {
                       // Container glassmorphique
                       CustomCardAnimation(
                         index: 1,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Container glassmorphique
-                                Container(
-                                  constraints: BoxConstraints(
-                                    maxWidth: isTablet ? 500 : 400,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Colors.white.withOpacity(0.35),
-                                        Colors.white.withOpacity(0.25),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(30),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.5),
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: CustomTheme.lightScheme()
-                                            .primary
-                                            .withOpacity(0.15),
-                                        blurRadius: 30,
-                                        spreadRadius: 5,
-                                      ),
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.08),
-                                        blurRadius: 15,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(28),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                          sigmaX: 8, sigmaY: 8),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(32),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(28),
-                                        ),
-                                        child: _buildRegisterForm(cc, context),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                        child: _buildRegisterCard(context, cc, isTablet),
                       ),
                       const SizedBox(height: 40),
                     ],
@@ -137,7 +77,7 @@ class RegisterScreen extends StatelessWidget {
                   onTap: () => Get.offNamed(Routes.login),
                   borderRadius: BorderRadius.circular(28),
                   child: Container(
-                    width: 56, // Taille fixe pour une meilleure zone de clic
+                    width: 56,
                     height: 56,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
@@ -167,10 +107,61 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
+
+  Widget _buildRegisterCard(BuildContext context, RegisterScreenController cc, bool isTablet) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: isTablet ? 500 : 400,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.35),
+            Colors.white.withOpacity(0.25),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.5),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: CustomTheme.lightScheme().primary.withOpacity(0.15),
+            blurRadius: 30,
+            spreadRadius: 5,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: _buildRegisterForm(cc, context),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRegisterForm(RegisterScreenController cc, BuildContext context) {
     return Form(
       key: cc.formKey,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Titre
           CustomCardAnimation(
@@ -271,9 +262,7 @@ class RegisterScreen extends StatelessWidget {
               haveToReset: true,
             ),
           ),
-
           const SizedBox(height: 8),
-
           CustomCardAnimation(
             index: 4,
             child: Text(
@@ -303,7 +292,6 @@ class RegisterScreen extends StatelessWidget {
               },
             ),
           ),
-
           const SizedBox(height: 16),
 
           // Description du type
@@ -316,8 +304,7 @@ class RegisterScreen extends StatelessWidget {
                       color: CustomTheme.lightScheme().primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color:
-                            CustomTheme.lightScheme().primary.withOpacity(0.3),
+                        color: CustomTheme.lightScheme().primary.withOpacity(0.3),
                       ),
                     ),
                     child: Text(
@@ -338,7 +325,7 @@ class RegisterScreen extends StatelessWidget {
           // Nom
           CustomCardAnimation(
             index: 7,
-            child: CustomTextFormField(
+            child: ReusableTextFieldX(
               tag: cc.nameTag,
               controller: cc.nameController,
               iconData: cc.nameIconData,
@@ -349,55 +336,52 @@ class RegisterScreen extends StatelessWidget {
               validatorPattern: cc.nameValidatorPattern,
             ),
           ),
-
           const SizedBox(height: 20),
 
           // Email
           CustomCardAnimation(
             index: 8,
-            child: CustomTextFormField(
+            child: ReusableTextFieldX(
               tag: cc.emailTag,
               controller: cc.emailController,
               iconData: cc.emailIconData,
               labelText: cc.emailLabel,
               errorText: cc.emailError,
-              textInputAction: cc.emailTextInputAction,
+              textInputAction: cc.emailInputAction,
               keyboardType: cc.emailInputType,
               validatorPattern: cc.emailValidatorPattern,
             ),
           ),
-
           const SizedBox(height: 20),
 
           // Mot de passe
           CustomCardAnimation(
             index: 9,
-            child: CustomTextFormField(
+            child: ReusableTextFieldX(
               tag: cc.passwordTag,
               controller: cc.passwordController,
               iconData: cc.passwordIconData,
               labelText: cc.passwordLabel,
               errorText: cc.passwordError,
               isPassword: true,
-              textInputAction: cc.passwordTextInputAction,
+              textInputAction: cc.passwordInputAction,
               keyboardType: cc.passwordInputType,
               validatorPattern: cc.passwordValidatorPattern,
             ),
           ),
-
           const SizedBox(height: 20),
 
           // Confirmer mot de passe
           CustomCardAnimation(
             index: 10,
-            child: CustomTextFormField(
+            child: ReusableTextFieldX(
               tag: cc.confirmPasswordTag,
               controller: cc.confirmPasswordController,
               iconData: cc.confirmPasswordIconData,
               labelText: cc.confirmPasswordLabel,
               errorText: cc.confirmPasswordError,
               isPassword: true,
-              textInputAction: cc.confirmPasswordTextInputAction,
+              textInputAction: cc.confirmPasswordInputAction,
               keyboardType: cc.confirmPasswordInputType,
               validatorPattern: cc.confirmPasswordValidatorPattern,
             ),
@@ -436,9 +420,9 @@ class RegisterScreen extends StatelessWidget {
           // Bouton d'inscription
           CustomCardAnimation(
             index: 16,
-            child: CustomFABButton(
+            child: ReusableButtonX(
               tag: 'register-button',
-              iconData: Icons.app_registration_rounded,
+              icon: Icons.app_registration_rounded,
               text: 'S\'INSCRIRE',
               onPressed: () {
                 cc.isPressedRegisterButton.value = true;
@@ -452,6 +436,7 @@ class RegisterScreen extends StatelessWidget {
               },
             ),
           ),
+
         ],
       ),
     );
@@ -463,7 +448,7 @@ class RegisterScreen extends StatelessWidget {
         // Champ de code de parrainage
         CustomCardAnimation(
           index: 12,
-          child: CustomTextFormField(
+          child: ReusableTextFieldX(
             tag: cc.referralCodeTag,
             controller: cc.referralCodeController,
             labelText: cc.referralCodeLabel,
@@ -478,7 +463,7 @@ class RegisterScreen extends StatelessWidget {
               }
             },
             suffixIcon: Obx(() => cc.hasValidReferralCode.value
-                ? Icon(
+                ? const Icon(
                     Icons.check_circle,
                     color: Colors.green,
                   )
@@ -602,10 +587,10 @@ class RegisterScreen extends StatelessWidget {
           index: 15,
           child: Column(
             children: [
-              // Conteneur pour centrer le CustomTextFormField
+              // Conteneur pour centrer le ReusableTextFieldX
               SizedBox(
                 width: double.infinity,
-                child: CustomTextFormField(
+                child: ReusableTextFieldX(
                   tag: cc.associationSearchTag,
                   controller: cc.associationSearchController,
                   labelText: cc.associationSearchLabel,
@@ -684,7 +669,7 @@ class RegisterScreen extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.check_circle,
                             color: Colors.green,
                             size: 20,
@@ -758,7 +743,7 @@ class RegisterScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
-                            child: CustomTextFormField(
+                            child: ReusableTextFieldX(
                               tag: cc.invitationEmailTag,
                               controller: cc.invitationEmailController,
                               labelText: cc.invitationEmailLabel,

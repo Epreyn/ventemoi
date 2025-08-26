@@ -1312,7 +1312,6 @@ mixin ControllerMixin on GetxController {
         htmlBody: buildModernMailHtml(content),
       );
     } catch (e) {
-      print('Erreur envoi email invitation: $e');
       rethrow;
     }
   }

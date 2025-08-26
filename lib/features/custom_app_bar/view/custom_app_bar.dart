@@ -6,8 +6,10 @@ import 'package:ventemoi/core/routes/app_routes.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_animation/view/custom_animation.dart';
+import '../../../features/custom_logo/view/custom_logo.dart';
 import '../../../screens/notifications_screen/view/notifications_screen.dart';
 import '../../../screens/notifications_screen/widget/notifications_badge.dart';
+import '../../../screens/points_transfer/points_transfer.dart';
 import '../controllers/custom_app_bar_actions_controller.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -116,7 +118,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
 
-        // Logo/Titre centré
+        // Logo/Titre centré comme sur la page login
         Expanded(
           child: CustomAnimation(
             duration: UniquesControllers().data.baseAnimationDuration,
@@ -125,13 +127,27 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             yStartPosition: -10,
             isOpacity: true,
             child: Center(
-              child: Text(
-                'Vente Moi',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Logo
+                  SizedBox(
+                    height: 35,
+                    child: const CustomLogo(),
+                  ),
+                  const SizedBox(height: 2),
+                  // Titre
+                  const Text(
+                    'VENTE MOI',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -206,6 +222,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   fontSize: 14,
                 ),
               ),
+              // Indicateur de transfert pour les points
+              if (!isAdmin && !isBoutique && realPoints > 0) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(
+                    Icons.swap_horiz_rounded,
+                    color: Colors.white,
+                    size: 12,
+                  ),
+                ),
+              ],
               const SizedBox(width: 4),
               const Icon(
                 Icons.arrow_drop_down,
@@ -217,6 +249,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         onSelected: (value) {
           switch (value) {
+            case 'transfer':
+              Get.dialog(
+                const PointsTransferDialog(),
+                barrierDismissible: false,
+              );
+              break;
             case 'profile':
               Get.toNamed(Routes.profile);
               break;
@@ -368,6 +406,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
           const PopupMenuDivider(),
 
+          // Transfert de points (si l'utilisateur a des points)
+          if (!isAdmin && realPoints > 0)
+            PopupMenuItem<String>(
+              value: 'transfer',
+              child: Row(
+                children: [
+                  Icon(Icons.swap_horiz_rounded, size: 20, color: CustomTheme.lightScheme().primary),
+                  const SizedBox(width: 12),
+                  Text('Transférer des points', style: TextStyle(color: CustomTheme.lightScheme().primary, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+
           // Actions
           const PopupMenuItem<String>(
             value: 'profile',
@@ -450,7 +501,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
             const SizedBox(width: 16),
 
-            // Titre et sous-titre
+            // Titre et sous-titre (sans logo pour desktop)
             CustomAnimation(
               duration: UniquesControllers().data.baseAnimationDuration,
               delay: UniquesControllers().data.baseAnimationDuration * 1.2,
@@ -670,59 +721,109 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: 8),
         ],
 
-        // Points
-        InkWell(
-          onTap: () => Get.toNamed(Routes.clientHistory),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: CustomTheme.lightScheme().primary,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+        // Points (avec transfert)
+        Tooltip(
+          message: realPoints > 0 
+            ? 'Cliquez pour transférer des points' 
+            : 'Voir l\'historique',
+          child: InkWell(
+            onTap: realPoints > 0 
+              ? () {
+                  // Ouvrir le dialog de transfert de points
+                  Get.dialog(
+                    const PointsTransferDialog(),
+                    barrierDismissible: false,
+                  );
+                }
+              : () => Get.toNamed(Routes.clientHistory),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: realPoints > 0 
+                  ? LinearGradient(
+                      colors: [
+                        CustomTheme.lightScheme().primary,
+                        CustomTheme.lightScheme().primary.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+                color: realPoints > 0 ? null : CustomTheme.lightScheme().primary,
+                borderRadius: BorderRadius.circular(16),
+                border: realPoints > 0 
+                  ? Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    )
+                  : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.stars_rounded,
-                      color: Colors.white,
-                      size: 16,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.stars_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$realPoints',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$realPoints',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    if (pendingPoints > 0)
+                      Text(
+                        '$pendingPoints en attente',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white70,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
                   ],
                 ),
-                if (pendingPoints > 0)
-                  Text(
-                    '$pendingPoints en attente',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.white70,
-                      fontStyle: FontStyle.italic,
+                if (realPoints > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.swap_horiz_rounded,
+                      color: Colors.white,
+                      size: 14,
                     ),
                   ),
+                ],
               ],
             ),
           ),
         ),
+        ), // Fermeture de Tooltip
       ],
     );
   }
@@ -741,13 +842,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         .map((doc) {
       if (!doc.exists) return {'name': 'Utilisateur', 'image': ''};
       final data = doc.data()!;
-      final firstName = data['firstName'] ?? '';
-      final lastName = data['lastName'] ?? '';
-      final name = '$firstName $lastName'.trim().isNotEmpty
-          ? '$firstName $lastName'.trim()
-          : 'Utilisateur';
-      final image =
-          data['image_url'] ?? ''; // Changé de profileImageUrl à image_url
+      // Le nom est directement stocké dans le champ 'name'
+      final name = data['name'] ?? 'Utilisateur';
+      final image = data['image_url'] ?? '';
       return {'name': name, 'image': image};
     });
   }
@@ -765,10 +862,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         .map((doc) {
       if (!doc.exists) return 'Utilisateur';
       final data = doc.data()!;
-      final firstName = data['firstName'] ?? '';
-      final lastName = data['lastName'] ?? '';
-      return '$firstName $lastName'.trim().isNotEmpty
-          ? '$firstName $lastName'.trim()
+      // Le nom est directement stocké dans le champ 'name'
+      final name = data['name'];
+      return (name != null && name.toString().trim().isNotEmpty)
+          ? name.toString()
           : 'Utilisateur';
     });
   }
@@ -786,7 +883,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         .map((doc) {
       if (!doc.exists) return '';
       final data = doc.data()!;
-      return data['image_url'] ?? ''; // Changé de profileImageUrl à image_url
+      return data['image_url'] ?? '';
     });
   }
 }

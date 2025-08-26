@@ -23,6 +23,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   String userTypeLabel = 'Je suis un(e)';
   double userTypeMaxWidth = 350.0;
   double userTypeMaxHeight = 50.0;
+  IconData userTypeIconData = Icons.account_circle_outlined;
 
   // Champs du formulaire
   String nameTag = 'register-name';
@@ -34,10 +35,34 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   String nameValidatorPattern = r'^[a-zA-ZÀ-ÖØ-öø-ÿ\s]{2,}$';
   TextEditingController nameController = TextEditingController();
 
+  // Champs séparés pour nom et prénom
+  String firstNameTag = 'register-first-name';
+  String firstNameLabel = 'Nom';
+  TextInputAction firstNameInputAction = TextInputAction.next;
+  TextInputType firstNameInputType = TextInputType.text;
+  IconData firstNameIconData = Icons.person_outlined;
+  TextEditingController firstNameController = TextEditingController();
+
+  String lastNameTag = 'register-last-name';
+  String lastNameLabel = 'Prénom';
+  TextInputAction lastNameInputAction = TextInputAction.next;
+  TextInputType lastNameInputType = TextInputType.text;
+  IconData lastNameIconData = Icons.person_outlined;
+  TextEditingController lastNameController = TextEditingController();
+
+  // Champ entreprise/boutique
+  String companyTag = 'register-company';
+  String companyLabel = 'Nom de l\'entreprise/boutique';
+  TextInputAction companyInputAction = TextInputAction.next;
+  TextInputType companyInputType = TextInputType.text;
+  IconData companyIconData = Icons.business_outlined;
+  TextEditingController companyController = TextEditingController();
+  RxBool showCompanyField = false.obs;
+
   String emailTag = 'register-email';
   String emailLabel = 'Email';
   String emailError = 'Veuillez entrer une adresse mail valide';
-  TextInputAction emailTextInputAction = TextInputAction.next;
+  TextInputAction emailInputAction = TextInputAction.next;
   TextInputType emailInputType = TextInputType.emailAddress;
   IconData emailIconData = Icons.email_outlined;
   String emailValidatorPattern =
@@ -47,7 +72,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   String passwordTag = 'register-password';
   String passwordLabel = 'Mot de Passe';
   String passwordError = 'Veuillez entrer un mot de passe';
-  TextInputAction passwordTextInputAction = TextInputAction.next;
+  TextInputAction passwordInputAction = TextInputAction.next;
   TextInputType passwordInputType = TextInputType.visiblePassword;
   IconData passwordIconData = Icons.lock_outlined;
   String passwordValidatorPattern = r'^.{8,}$';
@@ -56,7 +81,7 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   String confirmPasswordTag = 'register-confirm-password';
   String confirmPasswordLabel = 'Confirmer le mot de passe';
   String confirmPasswordError = 'Veuillez confirmer votre mot de passe';
-  TextInputAction confirmPasswordTextInputAction = TextInputAction.done;
+  TextInputAction confirmPasswordInputAction = TextInputAction.done;
   TextInputType confirmPasswordInputType = TextInputType.visiblePassword;
   IconData confirmPasswordIconData = Icons.lock_outlined;
   String confirmPasswordValidatorPattern = r'^.{8,}$';
@@ -94,6 +119,11 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   // Variables pour les points en attente
   RxBool hasPendingPoints = false.obs;
   RxInt pendingPointsAmount = 0.obs;
+
+  // Bouton d'inscription
+  String registerTag = 'register-button';
+  String registerLabel = 'S\'INSCRIRE';
+  IconData registerIconData = Icons.app_registration;
 
   @override
   void onInit() {
@@ -160,7 +190,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         pendingPointsAmount.value = points;
       }
     } catch (e) {
-      print('Erreur vérification token invitation: $e');
     }
   }
 
@@ -270,7 +299,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         showInviteOption.value = false;
       }
     } catch (e) {
-      print('Erreur lors de la recherche d\'associations: $e');
       searchResults.clear();
       showInviteOption.value = true;
     } finally {
@@ -741,7 +769,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       await batch.commit();
       return totalPoints;
     } catch (e) {
-      print('Erreur lors de la réclamation des points en attente: $e');
       return 0;
     }
   }
@@ -769,7 +796,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         });
       }
     } catch (e) {
-      print('Erreur lors de l\'ajout des points de parrainage: $e');
     }
   }
 
@@ -855,5 +881,20 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .snackbar('Erreur image Web', e.toString(), true);
     }
     return imageUrl;
+  }
+
+  // Méthode appelée quand le type d'utilisateur change
+  void onUserTypeChanged(dynamic userType) {
+    currentUserType.value = userType;
+    
+    // Afficher le champ entreprise si c'est un pro
+    if (userType != null && userType.name != null) {
+      final typeName = userType.name.toString().toLowerCase();
+      showCompanyField.value = typeName.contains('entreprise') || 
+                              typeName.contains('boutique') ||
+                              typeName.contains('commerçant');
+    } else {
+      showCompanyField.value = false;
+    }
   }
 }

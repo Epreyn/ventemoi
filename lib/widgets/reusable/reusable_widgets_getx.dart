@@ -84,7 +84,7 @@ class ReusableLoaderController extends GetxController with GetTickerProviderStat
       dotAnimations.add(animation);
       
       Future.delayed(Duration(milliseconds: i * 200), () {
-        if (!controller.isDisposed) {
+        if (controller.isAnimating || controller.status != AnimationStatus.dismissed) {
           controller.repeat(reverse: true);
         }
       });
@@ -304,7 +304,7 @@ class ReusableStatCardController extends GetxController with GetTickerProviderSt
 // WIDGETS
 // ============================================================================
 
-/// Optimized GetX Button Widget
+/// Optimized GetX Button Widget (avec style CustomFABButton)
 class ReusableButtonX extends StatelessWidget {
   final String tag;
   final String? text;
@@ -343,9 +343,9 @@ class ReusableButtonX extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final cc = Get.put(ReusableButtonController(), tag: tag);
     final theme = Theme.of(context);
-    final effectiveDisabled = isDisabled || isLoading || onPressed == null;
+    final bgColor = backgroundColor ?? theme.primaryColor;
+    final fgColor = foregroundColor ?? (outlined ? theme.primaryColor : Colors.white);
     
     Widget content = child ?? Row(
       mainAxisSize: MainAxisSize.min,
@@ -357,49 +357,41 @@ class ReusableButtonX extends StatelessWidget {
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                foregroundColor ?? Colors.white,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(fgColor),
             ),
           )
         else if (icon != null)
-          Icon(icon, size: 20, color: foregroundColor),
+          Icon(icon, size: 24, color: fgColor),
         if ((icon != null || isLoading) && text != null)
           const SizedBox(width: 8),
         if (text != null)
           Text(
             text!,
             style: TextStyle(
-              color: foregroundColor,
+              color: fgColor,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
             ),
           ),
       ],
     );
     
-    return GestureDetector(
-      onTapDown: effectiveDisabled ? null : (_) => cc.animatePress(),
-      onTapUp: effectiveDisabled ? null : (_) {
-        cc.animateRelease();
-        onPressed?.call();
-      },
-      onTapCancel: effectiveDisabled ? null : cc.animateRelease,
-      child: AnimatedBuilder(
-        animation: cc.scaleAnimation,
-        builder: (context, child) => Transform.scale(
-          scale: cc.scaleAnimation.value,
+    return SizedBox(
+      width: width ?? double.infinity,
+      height: height ?? 56,
+      child: Material(
+        color: outlined ? Colors.white : bgColor,
+        borderRadius: BorderRadius.circular(borderRadius ?? 28),
+        child: InkWell(
+          onTap: (isDisabled || isLoading || onPressed == null) ? null : onPressed,
+          borderRadius: BorderRadius.circular(borderRadius ?? 28),
           child: Container(
-            width: width,
-            height: height ?? 48,
-            padding: padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              color: outlined ? Colors.transparent : (backgroundColor ?? theme.primaryColor),
-              borderRadius: BorderRadius.circular(borderRadius ?? 12),
-              border: outlined ? Border.all(
-                color: backgroundColor ?? theme.primaryColor,
-                width: 1.5,
-              ) : null,
-            ),
+            padding: padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            decoration: outlined ? BoxDecoration(
+              borderRadius: BorderRadius.circular(borderRadius ?? 28),
+              border: Border.all(color: bgColor, width: 2),
+            ) : null,
             child: Center(child: content),
           ),
         ),
@@ -887,5 +879,290 @@ class ReusableEmptyStateX extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Controller for ReusableTextFieldX  
+class ReusableTextFieldController extends GetxController {
+  final TextEditingController textController;
+  final RxBool isObscure = true.obs;
+  final RxBool hasFocus = false.obs;
+  final RxInt currentLength = 0.obs;
+  final int? maxCharacters;
+  
+  ReusableTextFieldController({
+    required this.textController,
+    this.maxCharacters,
+  });
+  
+  @override
+  void onInit() {
+    super.onInit();
+    textController.addListener(_updateLength);
+  }
+  
+  @override
+  void onClose() {
+    textController.removeListener(_updateLength);
+    super.onClose();
+  }
+  
+  void _updateLength() {
+    currentLength.value = textController.text.length;
+  }
+  
+  void toggleObscure() {
+    isObscure.value = !isObscure.value;
+  }
+  
+  void setFocus(bool value) {
+    hasFocus.value = value;
+  }
+}
+
+/// Optimized GetX TextField Widget (avec style CustomTextFormField)
+class ReusableTextFieldX extends StatelessWidget {
+  final String tag;
+  final TextEditingController controller;
+  final String labelText;
+  final IconData? iconData;
+  final bool isPassword;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final String? validatorPattern;
+  final String? errorText;
+  final Function(String)? onChanged;
+  final Function(String)? onFieldSubmitted;
+  final Widget? suffixIcon;
+  final bool enabled;
+  final FocusNode? focusNode;
+  final int? maxCharacters;
+  final TextCapitalization? textCapitalization;
+  
+  const ReusableTextFieldX({
+    super.key,
+    required this.tag,
+    required this.controller,
+    required this.labelText,
+    this.iconData,
+    this.isPassword = false,
+    this.keyboardType,
+    this.textInputAction,
+    this.validatorPattern,
+    this.errorText,
+    this.onChanged,
+    this.onFieldSubmitted,
+    this.suffixIcon,
+    this.enabled = true,
+    this.focusNode,
+    this.maxCharacters,
+    this.textCapitalization,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    final cc = Get.put(
+      ReusableTextFieldController(
+        textController: controller,
+        maxCharacters: maxCharacters,
+      ),
+      tag: tag,
+    );
+    
+    final theme = Theme.of(context);
+    
+    // Build password toggle icon if needed
+    Widget? buildPasswordToggle() {
+      if (!isPassword) return null;
+      
+      return Obx(() => GestureDetector(
+        onTap: cc.toggleObscure,
+        child: Icon(
+          cc.isObscure.value
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          color: Colors.grey[600],
+        ),
+      ));
+    }
+    
+    // Build label with character count if needed
+    Widget buildLabel() {
+      if (maxCharacters == null) {
+        return Text(labelText);
+      }
+      
+      return Obx(() => Text(
+        "$labelText (${cc.currentLength.value}/$maxCharacters)",
+      ));
+    }
+    
+    // Main text field widget
+    Widget textField = TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      enabled: enabled,
+      obscureText: false, // Will be handled by Obx wrapper if needed
+      keyboardType: keyboardType ?? TextInputType.text,
+      textInputAction: textInputAction ?? TextInputAction.done,
+      textCapitalization: textCapitalization ?? TextCapitalization.none,
+      onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
+      validator: validatorPattern != null ? (value) {
+        if (value == null || value.isEmpty) {
+          return errorText ?? "Ce champ est vide";
+        }
+        if (!RegExp(validatorPattern!).hasMatch(value)) {
+          return errorText ?? "Ce champ est invalide";
+        }
+        return null;
+      } : null,
+      style: TextStyle(
+        fontSize: 16,
+        color: enabled ? Colors.black87 : Colors.grey[600],
+      ),
+      decoration: InputDecoration(
+        label: maxCharacters != null ? buildLabel() : null,
+        labelText: maxCharacters != null ? null : labelText,
+        labelStyle: TextStyle(
+          color: Colors.grey[700],
+          fontSize: 16,
+        ),
+        prefixIcon: iconData != null
+            ? Icon(iconData, color: theme.primaryColor)
+            : null,
+        suffixIcon: suffixIcon ?? buildPasswordToggle(),
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
+        filled: true,
+        fillColor: enabled
+            ? Colors.white.withOpacity(0.8)
+            : Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: theme.primaryColor,
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: theme.colorScheme.error,
+            width: 2,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: theme.colorScheme.error,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+    
+    // Wrap with Obx only if password field
+    if (isPassword) {
+      return Obx(() => TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        enabled: enabled,
+        obscureText: cc.isObscure.value,
+        keyboardType: keyboardType ?? TextInputType.text,
+        textInputAction: textInputAction ?? TextInputAction.done,
+        textCapitalization: textCapitalization ?? TextCapitalization.none,
+        onChanged: onChanged,
+        onFieldSubmitted: onFieldSubmitted,
+        validator: validatorPattern != null ? (value) {
+          if (value == null || value.isEmpty) {
+            return errorText ?? "Ce champ est vide";
+          }
+          if (!RegExp(validatorPattern!).hasMatch(value)) {
+            return errorText ?? "Ce champ est invalide";
+          }
+          return null;
+        } : null,
+        style: TextStyle(
+          fontSize: 16,
+          color: enabled ? Colors.black87 : Colors.grey[600],
+        ),
+        decoration: InputDecoration(
+          label: maxCharacters != null ? buildLabel() : null,
+          labelText: maxCharacters != null ? null : labelText,
+          labelStyle: TextStyle(
+            color: Colors.grey[700],
+            fontSize: 16,
+          ),
+          prefixIcon: iconData != null
+              ? Icon(iconData, color: theme.primaryColor)
+              : null,
+          suffixIcon: suffixIcon ?? buildPasswordToggle(),
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
+          filled: true,
+          fillColor: enabled
+              ? Colors.white.withOpacity(0.8)
+              : Colors.grey[100],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: Colors.grey[300]!,
+              width: 1,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: Colors.grey[300]!,
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: theme.primaryColor,
+              width: 2,
+            ),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: theme.colorScheme.error,
+              width: 2,
+            ),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: theme.colorScheme.error,
+              width: 2,
+            ),
+          ),
+        ),
+      ));
+    }
+    
+    return textField;
   }
 }

@@ -31,7 +31,6 @@ class SponsorshipService {
         'sponsorship_doc_id': sponsorshipDoc.id,
       };
     } catch (e) {
-      print('Erreur checkForSponsor: $e');
       return null;
     }
   }
@@ -141,7 +140,6 @@ class SponsorshipService {
         reason: 'attribution',
       );
     } catch (e) {
-      print('Erreur attributeParticulierSponsorshipPoints: $e');
     }
   }
 
@@ -170,7 +168,6 @@ class SponsorshipService {
 
       // Si le bonus a déjà été donné, on ne le redonne pas
       if (existingDetail != null && existingDetail.totalEarnings > 0) {
-        print('Bonus déjà attribué pour $filleulEmail');
         return;
       }
 
@@ -249,7 +246,6 @@ class SponsorshipService {
         reason: 'signup',
       );
     } catch (e) {
-      print('Erreur attributeNonParticulierSponsorshipPoints: $e');
     }
   }
 
@@ -310,7 +306,6 @@ class SponsorshipService {
 
       await _firestore.collection('mail').add(mailDoc);
     } catch (e) {
-      print('Erreur envoi email parrainage: $e');
     }
   }
 

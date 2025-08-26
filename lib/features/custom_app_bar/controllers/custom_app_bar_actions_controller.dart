@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import '../../../core/classes/unique_controllers.dart';
 
 class CustomAppBarActionsController extends GetxController {
+  static CustomAppBarActionsController get instance => Get.find();
+  
   // Points
   RxInt realPoints = 0.obs; // points confirmés
   RxInt pendingPoints = 0.obs; // points en attente
@@ -27,22 +29,36 @@ class CustomAppBarActionsController extends GetxController {
     super.onInit();
 
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      // CustomAppBarActionsController: uid is null
+      return;
+    }
+    
+    // CustomAppBarActionsController: Initializing with uid
 
     _determineUserType(uid);
 
     // Souscrire aux streams
     _walletSub = _walletStream(uid).listen((pts) {
+      // Points updated: $pts
       realPoints.value = pts;
     });
     _pendingSub = _pendingPointsStream(uid).listen((sum) {
+      // Pending points updated: $sum
       pendingPoints.value = sum;
     });
     _couponsSub = _couponsStream(uid).listen((val) {
+      // Coupons updated: $val
       couponsRestants.value = val;
     });
     _couponsPendingSub = _couponsPendingStream(uid).listen((val) {
+      // Pending coupons updated: $val
       couponsPending.value = val;
+    });
+    
+    // Force un refresh immédiat au cas où les streams ne fonctionnent pas
+    Future.delayed(const Duration(milliseconds: 500), () {
+      refreshWallet();
     });
   }
 
@@ -53,6 +69,37 @@ class CustomAppBarActionsController extends GetxController {
     _couponsSub?.cancel();
     _couponsPendingSub?.cancel();
     super.onClose();
+  }
+
+  // Méthode pour forcer le rechargement
+  Future<void> refreshWallet() async {
+    final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (uid == null) return;
+
+    // Force refresh wallet for user: $uid
+    
+    try {
+      // Charger directement les points
+      final walletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+      
+      if (walletQuery.docs.isNotEmpty) {
+        final data = walletQuery.docs.first.data();
+        // Direct wallet data
+        realPoints.value = data['points'] ?? 0;
+        couponsRestants.value = data['coupons'] ?? 0;
+        // Updated: points and coupons
+      } else {
+        // No wallet found in direct query
+      }
+    } catch (e) {
+      // Error refreshing wallet: $e
+    }
   }
 
   Future<void> _determineUserType(String uid) async {
@@ -97,8 +144,16 @@ class CustomAppBarActionsController extends GetxController {
         .limit(1)
         .snapshots()
         .map((snap) {
-      if (snap.docs.isEmpty) return 0;
-      return snap.docs.first.data()['points'] ?? 0;
+      // Wallet stream - docs found
+      if (snap.docs.isEmpty) {
+        // No wallet found for user
+        return 0;
+      }
+      final data = snap.docs.first.data();
+      // Wallet data retrieved
+      final points = data['points'] ?? 0;
+      // Points in wallet retrieved
+      return points;
     });
   }
 
@@ -131,8 +186,15 @@ class CustomAppBarActionsController extends GetxController {
         .limit(1)
         .snapshots()
         .map((snap) {
-      if (snap.docs.isEmpty) return 0;
-      return snap.docs.first.data()['coupons'] ?? 0;
+      // Coupons stream - docs found
+      if (snap.docs.isEmpty) {
+        // No wallet found for coupons
+        return 0;
+      }
+      final data = snap.docs.first.data();
+      final coupons = data['coupons'] ?? 0;
+      // Coupons in wallet retrieved
+      return coupons;
     });
   }
 
@@ -208,7 +270,7 @@ class CustomAppBarActionsController extends GetxController {
       }
       couponsPending.value = couponsPendingTotal;
     } catch (e) {
-      print('Erreur lors du rafraîchissement des données wallet: $e');
+      // Erreur lors du rafraîchissement des données wallet
     }
   }
 

@@ -168,7 +168,6 @@ class StripePaymentDialog {
       try {
         return DateTime.parse(created);
       } catch (e) {
-        print('Erreur parsing date: $e');
         return null;
       }
     }
@@ -212,15 +211,9 @@ class StripePaymentDialog {
             // Vérifier que ce n'est pas un ancien paiement déjà traité
             final paymentId = change.doc.id;
             if (_lastProcessedPaymentId == paymentId) {
-              print('⏭️ Paiement $paymentId déjà traité, ignoré');
               continue;
             }
 
-            print('✅ Nouveau paiement détecté via listener!');
-            print('   ID: ${paymentId}');
-            print('   Amount: ${paymentData?['amount']}');
-            print('   Status: ${paymentData?['status']}');
-            print('   Created: $created');
 
             _lastProcessedPaymentId = paymentId;
             _lastProcessedPaymentTime = created;
@@ -231,7 +224,6 @@ class StripePaymentDialog {
         }
       }
     }, onError: (error) {
-      print('Erreur listener payments: $error');
     });
 
     // 2. Écouter les messages web
@@ -278,7 +270,6 @@ class StripePaymentDialog {
               // Vérifier le statut de paiement de la session
               final paymentStatus = sessionData['payment_status'] as String?;
               if (paymentStatus == 'paid' || paymentStatus == 'succeeded') {
-                print('✅ Session $sessionId marquée comme payée!');
                 debugStatus.value = '✅ Paiement confirmé !';
                 timer.cancel();
                 onSuccess();
@@ -300,9 +291,7 @@ class StripePaymentDialog {
                 if (paymentsQuery.docs.isNotEmpty) {
                   final paymentData = paymentsQuery.docs.first.data();
                   if (paymentData['status'] == 'succeeded') {
-                    print(
-                        '✅ Paiement spécifique trouvé pour session $sessionId!');
-                    print('   Payment Intent: $paymentIntentId');
+                    // print('✅ Paiement spécifique trouvé pour session $sessionId!');
                     debugStatus.value = '✅ Paiement confirmé !';
                     timer.cancel();
                     onSuccess();
@@ -314,13 +303,11 @@ class StripePaymentDialog {
 
             // Log périodique
             if (attemptCount.value % 5 == 0) {
-              print(
-                  '🔍 Tentative ${attemptCount.value} - Pas de paiement trouvé pour session $sessionId');
+              // print('🔍 Tentative ${attemptCount.value} - Pas de paiement trouvé pour session $sessionId');
               debugStatus.value =
                   'Vérification en cours... (${attemptCount.value})';
             }
           } catch (e) {
-            print('❌ Erreur vérification: $e');
           } finally {
             isCheckingPayment.value = false;
           }

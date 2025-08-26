@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
 
 import '../../../core/classes/unique_controllers.dart';
@@ -50,10 +51,16 @@ class LoginScreenController extends GetxController {
 
   // Visibilité du mot de passe
   RxBool isPasswordVisible = false.obs;
+  
+  // Se souvenir de moi
+  RxBool rememberMe = false.obs;
+  final GetStorage storage = GetStorage();
 
   @override
   void onInit() {
     super.onInit();
+    // Charger les identifiants sauvegardés au démarrage
+    loadSavedCredentials();
   }
 
   // ⚠️ IMPORTANT : Disposer des FocusNodes
@@ -69,19 +76,72 @@ class LoginScreenController extends GetxController {
   void togglePasswordVisibility() {
     isPasswordVisible.value = !isPasswordVisible.value;
   }
+  
+  // Charger les identifiants sauvegardés
+  void loadSavedCredentials() {
+    try {
+      final savedEmail = storage.read('saved_email');
+      final savedPassword = storage.read('saved_password');
+      final savedRememberMe = storage.read('remember_me') ?? false;
+      
+      if (savedRememberMe && savedEmail != null && savedPassword != null) {
+        emailController.text = savedEmail;
+        passwordController.text = savedPassword;
+        rememberMe.value = true;
+      }
+    } catch (e) {
+    }
+  }
+  
+  // Sauvegarder ou supprimer les identifiants selon le choix
+  void saveCredentials() {
+    if (rememberMe.value) {
+      storage.write('saved_email', emailController.text);
+      storage.write('saved_password', passwordController.text);
+      storage.write('remember_me', true);
+    } else {
+      storage.remove('saved_email');
+      storage.remove('saved_password');
+      storage.write('remember_me', false);
+    }
+  }
+  
+  // Toggle Se souvenir de moi
+  void toggleRememberMe() {
+    rememberMe.value = !rememberMe.value;
+  }
 
   void passwordScreenOnPressed() {
     Get.offNamed(Routes.password);
   }
+  
+  // Alias pour la nouvelle interface
+  void onForgotPassword() {
+    passwordScreenOnPressed();
+  }
 
   void registerScreenOnPressed() {
     Get.offNamed(Routes.register);
+  }
+  
+  // Alias pour la nouvelle interface
+  void onRegister() {
+    registerScreenOnPressed();
+  }
+  
+  // Alias pour la nouvelle interface
+  void onSignIn() {
+    login();
   }
 
   void login() async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
 
+      // Sauvegarder les identifiants si "Se souvenir de moi" est coché
+      saveCredentials();
+      
+      // Toujours sauvegarder l'email actuel pour d'autres usages
       UniquesControllers().getStorage.write('email', emailController.text);
       UniquesControllers()
           .getStorage

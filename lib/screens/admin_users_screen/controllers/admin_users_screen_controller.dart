@@ -120,7 +120,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
       }
       userTypes.value = types;
     } catch (e) {
-      print('Erreur chargement types utilisateurs: $e');
     }
   }
 
@@ -192,7 +191,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
       }
       userTypeNames.value = names;
     } catch (e) {
-      print('Erreur chargement types: $e');
     }
   }
 
@@ -372,7 +370,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
         'has_establishment': true,
       };
     } catch (e) {
-      print('Erreur récupération infos paiement: $e');
       return {};
     }
   }
@@ -485,7 +482,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
       }
       return null;
     } catch (e) {
-      print('Erreur récupération établissement: $e');
       return null;
     }
   }
@@ -531,7 +527,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
         'updatedAt': estabData['updated_at'],
       };
     } catch (e) {
-      print('Erreur récupération info établissement: $e');
       return null;
     }
   }
@@ -1737,7 +1732,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
           .collection('establishments')
           .add(establishmentData);
 
-      print('✅ Établissement créé avec ID: ${docRef.id}');
 
       // Si accès gratuit, créer le wallet et le bon cadeau
       if (grantFreeAccess.value) {
@@ -1745,7 +1739,6 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
         await _createWelcomeGiftVoucher(docRef.id);
       }
     } catch (e) {
-      print('Erreur création établissement: $e');
     }
   }
 
@@ -1772,10 +1765,8 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
           'created_at': FieldValue.serverTimestamp(),
           'updated_at': FieldValue.serverTimestamp(),
         });
-        print('💰 Wallet créé avec 50 points de bienvenue');
       }
     } catch (e) {
-      print('Erreur création wallet: $e');
     }
   }
 
@@ -1796,9 +1787,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
         'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
         'is_free_access_gift': true,
       });
-      print('🎁 Bon cadeau de bienvenue créé');
     } catch (e) {
-      print('Erreur création bon cadeau: $e');
     }
   }
 

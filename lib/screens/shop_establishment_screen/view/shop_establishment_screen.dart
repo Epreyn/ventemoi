@@ -226,7 +226,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
 
             return Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 8), // Ajout du padding horizontal
+                  horizontal: 12), // Ajout du padding horizontal
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

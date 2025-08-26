@@ -137,6 +137,23 @@ class ProSellsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Titre principal "Tableau de bord"
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: UniquesControllers().data.baseSpace * 2,
+                        vertical: UniquesControllers().data.baseSpace,
+                      ),
+                      child: const Text(
+                        'Tableau de bord',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const CustomSpace(heightMultiplier: 2),
+                    
                     // Section Statistiques
                     _buildStatisticsSection(cc, isMobile),
                     const CustomSpace(heightMultiplier: 3),

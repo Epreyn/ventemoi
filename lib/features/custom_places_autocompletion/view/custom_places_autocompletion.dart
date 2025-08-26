@@ -105,7 +105,6 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
         });
       }
     } catch (e) {
-      print('Error getting predictions: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -158,7 +157,6 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
       };
 
       final uri = Uri.parse(baseUrl).replace(queryParameters: params);
-      print('Nominatim URL: $uri');
 
       final response = await http.get(
         uri,
@@ -168,7 +166,6 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
         },
       );
 
-      print('Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -183,15 +180,12 @@ class _CustomPlacesAutocompleteState extends State<CustomPlacesAutocomplete> {
                   ))
               .toList();
         } else {
-          print('No results found for: $input');
           return [];
         }
       } else {
-        print('Error response: ${response.body}');
         throw Exception('Failed to load predictions: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error in _getPlacePredictionsWeb: $e');
       rethrow;
     }
   }
@@ -610,7 +604,6 @@ extension PlaceDetails on CustomPlacesAutocomplete {
       }
       return null;
     } catch (e) {
-      print('Error getting place details: $e');
       return null;
     }
   }
@@ -639,7 +632,6 @@ extension PlaceDetails on CustomPlacesAutocomplete {
       }
       return null;
     } catch (e) {
-      print('Error getting place details from Nominatim: $e');
       return null;
     }
   }

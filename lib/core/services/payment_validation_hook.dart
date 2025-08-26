@@ -26,20 +26,17 @@ class PaymentValidationHook {
           userType: userType,
           userName: userName,
         );
-        print('✅ 16 bons attribués (12 wallet + 4 distribués) pour $userEmail');
       }
 
       // Vérifier si c'est bien un non-particulier pour le parrainage
       if (userType == 'Particulier') {
-        print(
-            'PaymentValidationHook: Utilisateur est un particulier, pas de bonus de parrainage');
+        // print('PaymentValidationHook: Utilisateur est un particulier, pas de bonus de parrainage');
         return;
       }
 
       // Le reste du code pour le parrainage...
       final sponsorInfo = await SponsorshipService.checkForSponsor(userEmail);
       if (sponsorInfo == null) {
-        print('PaymentValidationHook: Pas de parrain trouvé pour $userEmail');
         return;
       }
 
@@ -52,8 +49,7 @@ class PaymentValidationHook {
         sponsorshipDocId: sponsorInfo['sponsorship_doc_id'],
       );
 
-      print(
-          'PaymentValidationHook: 50 points attribués au parrain pour $userEmail');
+      // print('PaymentValidationHook: 50 points attribués au parrain pour $userEmail');
 
       // Marquer dans le profil utilisateur qu'il a validé le paiement/CGU
       await _firestore.collection('users').doc(userId).update({
@@ -62,7 +58,6 @@ class PaymentValidationHook {
         'payment_validation_date': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Erreur PaymentValidationHook: $e');
       // Ne pas faire échouer le processus principal si le parrainage échoue
     }
   }
@@ -77,7 +72,6 @@ class PaymentValidationHook {
       return data['has_validated_payment'] == true &&
           data['has_accepted_cgu'] == true;
     } catch (e) {
-      print('Erreur hasAlreadyValidated: $e');
       return false;
     }
   }

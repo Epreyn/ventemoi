@@ -96,7 +96,6 @@ class GiftPurchaseController extends GetxController with ControllerMixin {
         return establishmentName;
       }
     } catch (e) {
-      print('Erreur récupération établissement: $e');
     }
 
     establishmentNameCache[userId] = '';

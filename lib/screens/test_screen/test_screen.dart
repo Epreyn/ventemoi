@@ -239,7 +239,6 @@ class ScreenLayoutDebugTest extends StatelessWidget {
         // Avec GestureDetector et onTap
         return GestureDetector(
           onTap: () {
-            print('>>> GestureDetector tapped');
             FocusScope.of(Get.context!).unfocus();
           },
           child: Stack(

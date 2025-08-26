@@ -17,7 +17,6 @@ class InitialCouponsService {
     try {
       // Vérifier que c'est bien une boutique/entreprise
       if (userType != 'Boutique' && userType != 'Entreprise') {
-        print('InitialCouponsService: Non applicable pour le type $userType');
         return;
       }
 
@@ -44,7 +43,6 @@ class InitialCouponsService {
             'holder': '',
           },
         });
-        print('✅ Wallet créé avec 12 bons pour la boutique');
       } else {
         // Vérifier si déjà attribués
         final walletData = walletQuery.docs.first.data();
@@ -57,16 +55,13 @@ class InitialCouponsService {
             'initial_coupons_attributed': true,
             'initial_coupons_date': FieldValue.serverTimestamp(),
           });
-          print('✅ 12 bons ajoutés au wallet existant');
         } else {
-          print('⚠️ Les bons initiaux ont déjà été attribués');
           return; // Ne pas redistribuer si déjà fait
         }
       }
 
       // Distribuer automatiquement 4 bons à 4 utilisateurs différents
       if (!alreadyAttributed) {
-        print('🎁 Distribution des 4 bons offerts...');
         await AutomaticGiftVoucherService.attributeWelcomeVouchers(
           commerceId: userId,
           commerceName: userName,
@@ -95,7 +90,6 @@ class InitialCouponsService {
         'attributed_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Erreur InitialCouponsService: $e');
       rethrow;
     }
   }

@@ -150,8 +150,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         if (data['stripe_session_id'] != null &&
             (data['has_accepted_contract'] != true ||
                 data['has_active_subscription'] != true)) {
-          print(
-              '⚠️ Paiement détecté mais activation incomplète. Activation forcée...');
+          // print('⚠️ Paiement détecté mais activation incomplète. Activation forcée...');
 
           // Forcer l'activation
           await doc.reference.update({
@@ -165,7 +164,6 @@ class ProEstablishmentProfileScreenController extends GetxController
             'post_payment_activation_at': FieldValue.serverTimestamp(),
           });
 
-          print('✅ Activation post-paiement réussie');
 
           // // Créer le bon cadeau si nécessaire
           // final giftQuery = await UniquesControllers()
@@ -193,7 +191,7 @@ class ProEstablishmentProfileScreenController extends GetxController
           //     'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
           //   });
 
-          //   print('🎁 Bon cadeau de bienvenue créé');
+          //   // print('🎁 Bon cadeau de bienvenue créé');
           // }
 
           final walletQuery = await UniquesControllers()
@@ -215,7 +213,6 @@ class ProEstablishmentProfileScreenController extends GetxController
               'coupons': 0,
               'created_at': FieldValue.serverTimestamp(),
             });
-            print('💰 Wallet créé avec 50 points de bienvenue');
           } else {
             final existingPoints = walletQuery.docs.first.data()['points'] ?? 0;
             // Vérifier si les points ont déjà été crédités pour éviter les doublons
@@ -223,7 +220,6 @@ class ProEstablishmentProfileScreenController extends GetxController
               await walletQuery.docs.first.reference.update({
                 'points': FieldValue.increment(50),
               });
-              print('💰 50 points de bienvenue ajoutés au wallet');
             }
           }
 
@@ -236,7 +232,6 @@ class ProEstablishmentProfileScreenController extends GetxController
         }
       }
     } catch (e) {
-      print('❌ Erreur _checkPostPaymentActivation: $e');
     }
   }
 
@@ -264,7 +259,6 @@ class ProEstablishmentProfileScreenController extends GetxController
   void initializeEnterpriseCategoriesFromStream(Map<String, dynamic> data) {
     // NE PAS réinitialiser si l'utilisateur a des modifications en cours
     if (hasModifications.value) {
-      print('⚠️ Modifications en cours, pas de réinitialisation');
       return;
     }
 
@@ -272,7 +266,6 @@ class ProEstablishmentProfileScreenController extends GetxController
         data['enterprise_categories'] as List<dynamic>?;
     final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
 
-    print('🔍 Catégories reçues depuis Firestore: $catIds');
 
     // Initialiser seulement si les valeurs ont changé
     if (!_listEquals(selectedEnterpriseCategoryIds, catIds)) {
@@ -280,8 +273,7 @@ class ProEstablishmentProfileScreenController extends GetxController
       selectedEnterpriseCategoryIds.addAll(catIds);
       hasModifications.value = false;
 
-      print(
-          '✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
+      // print('✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
     }
   }
 
@@ -1411,7 +1403,6 @@ class ProEstablishmentProfileScreenController extends GetxController
               }
             }
           } catch (e) {
-            print('Erreur vérification: $e');
           } finally {
             isCheckingPayment.value = false;
           }
@@ -1425,7 +1416,6 @@ class ProEstablishmentProfileScreenController extends GetxController
       final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
       if (uid == null) return;
 
-      print('🎰 _handleSlotPaymentSuccess appelé pour user: $uid');
 
       // Attendre que Firestore se mette à jour
       await Future.delayed(Duration(seconds: 1));
@@ -1446,8 +1436,6 @@ class ProEstablishmentProfileScreenController extends GetxController
         final currentSlots = data['enterprise_category_slots'] ?? 2;
         final newSlots = currentSlots + 1;
 
-        print('📦 Slots actuels: $currentSlots');
-        print('📦 Nouveaux slots: $newSlots');
 
         // IMPORTANT: Mettre à jour Firestore
         await UniquesControllers()
@@ -1460,7 +1448,6 @@ class ProEstablishmentProfileScreenController extends GetxController
           'last_slot_purchase': FieldValue.serverTimestamp(),
         });
 
-        print('✅ Firestore mis à jour avec $newSlots slots');
 
         // Mettre à jour l'UI
         enterpriseCategorySlots.value = newSlots;
@@ -1476,10 +1463,8 @@ class ProEstablishmentProfileScreenController extends GetxController
 
         update();
       } else {
-        print('❌ Aucun établissement trouvé pour user: $uid');
       }
     } catch (e) {
-      print('❌ Erreur après paiement slot: $e');
       UniquesControllers().data.snackbar(
             'Erreur',
             'Impossible d\'ajouter le slot. Contactez le support.',

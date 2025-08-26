@@ -63,7 +63,6 @@ class AssociationVisibilityService {
       // Vérifier si l'association doit être visible
       await checkAndUpdateVisibility(establishmentId);
     } catch (e) {
-      print('Erreur updateAffiliatesCount: $e');
     }
   }
 
@@ -98,7 +97,6 @@ class AssociationVisibilityService {
         });
       }
     } catch (e) {
-      print('Erreur checkAndUpdateVisibility: $e');
     }
   }
 
@@ -116,7 +114,6 @@ class AssociationVisibilityService {
       // Recalculer la visibilité
       await checkAndUpdateVisibility(establishmentId);
     } catch (e) {
-      print('Erreur setVisibilityOverride: $e');
     }
   }
 
@@ -134,7 +131,6 @@ class AssociationVisibilityService {
       }
       return null;
     } catch (e) {
-      print('Erreur getEstablishmentIdByUserId: $e');
       return null;
     }
   }

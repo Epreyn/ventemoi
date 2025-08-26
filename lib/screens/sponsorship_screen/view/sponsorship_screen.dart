@@ -279,8 +279,22 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                     UniquesControllers().data.baseSpace * 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.black87,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        CustomTheme.lightScheme().primary.withOpacity(0.9),
+                                        CustomTheme.lightScheme().primary.withOpacity(0.7),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
                                     borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
                                   child: Row(
                                     children: [
@@ -435,7 +449,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                       icon: Icons.monetization_on_rounded,
                                       value: '$totalEarnings',
                                       label: 'Points',
-                                      bgColor: Colors.black87,
+                                      bgColor: CustomTheme.lightScheme().primary,
                                       iconColor: Colors.white,
                                       textColor: Colors.white,
                                     ),
@@ -1108,7 +1122,9 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color:
-                bgColor == Colors.black87 ? Colors.black87 : Colors.transparent,
+                bgColor == CustomTheme.lightScheme().primary 
+                ? CustomTheme.lightScheme().primary 
+                : Colors.transparent,
           ),
         ),
         child: Column(

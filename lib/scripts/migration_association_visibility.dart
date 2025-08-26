@@ -6,7 +6,6 @@ class MigrationAssociationVisibility {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static Future<void> run() async {
-    print('🚀 Début de la migration des associations...');
 
     try {
       // Récupérer l'ID du type Association
@@ -17,12 +16,10 @@ class MigrationAssociationVisibility {
           .get();
 
       if (userTypeSnap.docs.isEmpty) {
-        print('❌ Type "Association" non trouvé');
         return;
       }
 
       final associationTypeId = userTypeSnap.docs.first.id;
-      print('✅ Type Association trouvé: $associationTypeId');
 
       // Récupérer tous les utilisateurs de type Association
       final associationUsersSnap = await _firestore
@@ -30,8 +27,7 @@ class MigrationAssociationVisibility {
           .where('user_type_id', isEqualTo: associationTypeId)
           .get();
 
-      print(
-          '📊 Nombre d\'associations trouvées: ${associationUsersSnap.docs.length}');
+      // print('📊 Nombre d\'associations trouvées: ${associationUsersSnap.docs.length}');
 
       WriteBatch batch = _firestore.batch();
       int batchCount = 0;
@@ -59,7 +55,6 @@ class MigrationAssociationVisibility {
 
           if (batchCount >= 500) {
             await batch.commit();
-            print('✅ Batch de 500 documents mis à jour');
             batch = _firestore.batch();
             batchCount = 0;
           }
@@ -68,13 +63,10 @@ class MigrationAssociationVisibility {
 
       if (batchCount > 0) {
         await batch.commit();
-        print('✅ Dernier batch mis à jour');
       }
 
-      print('📝 Total établissements mis à jour: $totalUpdated');
 
       // Étape 2 : Recalculer les compteurs d'affiliés
-      print('🔄 Recalcul des compteurs d\'affiliés...');
       int recalculated = 0;
 
       for (var userDoc in associationUsersSnap.docs) {
@@ -85,18 +77,11 @@ class MigrationAssociationVisibility {
           await AssociationVisibilityService.updateAffiliatesCount(estabId);
           recalculated++;
           if (recalculated % 10 == 0) {
-            print('  ↳ $recalculated associations traitées...');
           }
         }
       }
 
-      print('✅ Migration terminée avec succès !');
-      print('📊 Résumé:');
-      print('  - Associations trouvées: ${associationUsersSnap.docs.length}');
-      print('  - Établissements mis à jour: $totalUpdated');
-      print('  - Compteurs recalculés: $recalculated');
     } catch (e) {
-      print('❌ Erreur lors de la migration: $e');
     }
   }
 }

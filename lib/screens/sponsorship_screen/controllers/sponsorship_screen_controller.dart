@@ -96,7 +96,6 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         }
       }
     } catch (e) {
-      print('Erreur lors de l\'initialisation du code de parrainage: $e');
     }
   }
 
@@ -137,7 +136,6 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         });
       }
     } catch (e) {
-      print('Erreur lors de la vérification du parrain: $e');
     }
   }
 
@@ -228,8 +226,7 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
           }
         }
       } catch (e) {
-        print(
-            'Erreur lors de la mise à jour des détails du filleul $email: $e');
+        // print('Erreur lors de la mise à jour des détails du filleul $email: $e');
       }
     }
 
@@ -251,7 +248,6 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         return userQuery.docs.first.data()['name'] ?? '';
       }
     } catch (e) {
-      print('Erreur _getUserNameByEmail: $e');
     }
     return '';
   }
@@ -269,7 +265,6 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         return typeDoc.data()?['name'] ?? '';
       }
     } catch (e) {
-      print('Erreur _getUserTypeNameById: $e');
     }
     return '';
   }

@@ -45,8 +45,7 @@ class PaymentListenerController extends GetxController {
   }
 
   Future<void> _handlePaymentSession(QuerySnapshot snapshot) async {
-    print(
-        '🔔 PaymentListener: ${snapshot.docChanges.length} changements détectés');
+    // print('🔔 PaymentListener: ${snapshot.docChanges.length} changements détectés');
 
     for (final change in snapshot.docChanges) {
       if (change.type == DocumentChangeType.added ||
@@ -56,31 +55,22 @@ class PaymentListenerController extends GetxController {
         final paymentStatus = sessionData['payment_status'] as String?;
         final metadata = sessionData['metadata'] as Map<String, dynamic>?;
 
-        print('💰 PaymentListener - Session $sessionId:');
-        print('   - Type de changement: ${change.type}');
-        print('   - payment_status: $paymentStatus');
-        print('   - type: ${metadata?['type']}');
-        print('   - purchase_type: ${metadata?['purchase_type']}');
 
         // Vérifier si c'est payé ET non déjà traité
         if (paymentStatus == 'paid' &&
             !_processedSessions.contains(sessionId)) {
-          print('✅ Nouvelle session payée détectée!');
           _processedSessions.add(sessionId);
 
           // Vérifier si c'est un paiement de slot
           if (metadata?['type'] == 'additional_category_slot' ||
               metadata?['purchase_type'] == 'category_slot') {
-            print('🎰 C\'est un paiement de SLOT!');
             lastSlotSessionId.value = sessionId;
             slotPaymentDetected.value = true;
           }
 
           await _processSuccessfulPayment(change.doc);
         } else if (paymentStatus != 'paid') {
-          print('⏳ Session pas encore payée: $paymentStatus');
         } else if (_processedSessions.contains(sessionId)) {
-          print('⏭️ Session déjà traitée: $sessionId');
         }
       }
     }
@@ -88,13 +78,11 @@ class PaymentListenerController extends GetxController {
 
   Future<void> _processSuccessfulPayment(DocumentSnapshot sessionDoc) async {
     try {
-      print('🔄 _processSuccessfulPayment appelé');
 
       final sessionData = sessionDoc.data() as Map<String, dynamic>;
       final metadata = sessionData['metadata'] as Map<String, dynamic>?;
 
       if (metadata == null) {
-        print('❌ Pas de metadata');
         return;
       }
 
@@ -102,20 +90,13 @@ class PaymentListenerController extends GetxController {
       final purchaseType = metadata['purchase_type'] as String?;
       final paymentType = metadata['type'] as String?;
 
-      print('📋 Metadata du paiement:');
-      print('   - userId: $userId');
-      print('   - purchaseType: $purchaseType');
-      print('   - paymentType: $paymentType');
 
       // Appeler handleSuccessfulPayment de StripeService
-      print('🔄 Appel de StripeService.handleSuccessfulPayment...');
       await StripeService.to.handleSuccessfulPayment(sessionDoc);
-      print('✅ StripeService.handleSuccessfulPayment terminé');
 
       // Notification spécifique pour les slots
       if (paymentType == 'additional_category_slot' ||
           purchaseType == 'category_slot') {
-        print('🎰 Notification pour slot...');
 
         // Attendre un peu pour que Firestore se mette à jour
         await Future.delayed(Duration(seconds: 1));
@@ -131,7 +112,6 @@ class PaymentListenerController extends GetxController {
           final doc = estabQuery.docs.first;
           final newSlots = doc.data()['enterprise_category_slots'] ?? 2;
 
-          print('📦 Nouveaux slots récupérés: $newSlots');
 
           UniquesControllers().data.snackbar(
                 'Slot ajouté !',
@@ -141,7 +121,6 @@ class PaymentListenerController extends GetxController {
 
           // Rafraîchir le contrôleur si disponible
           if (Get.isRegistered<ProEstablishmentProfileScreenController>()) {
-            print('🔄 Rafraîchissement du contrôleur...');
             final controller =
                 Get.find<ProEstablishmentProfileScreenController>();
 
@@ -151,7 +130,6 @@ class PaymentListenerController extends GetxController {
                 .add(Rx<EnterpriseCategory?>(null));
             controller.update();
 
-            print('✅ Contrôleur mis à jour avec $newSlots slots');
           }
         }
       }
@@ -162,7 +140,6 @@ class PaymentListenerController extends GetxController {
         'processed_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Erreur dans _processSuccessfulPayment: $e');
     }
   }
 

@@ -34,15 +34,12 @@ class StripePaymentDialogWeb {
 
           // Vérifier si c'est un message de nos pages Stripe
           if (messageData['type'] == 'stripe-payment-success') {
-            print('✅ Message de succès reçu de la page Stripe!');
             onSuccess();
           } else if (messageData['type'] == 'stripe-payment-cancelled') {
-            print('❌ Message d\'annulation reçu de la page Stripe!');
             onCancel();
           }
         }
       } catch (e) {
-        print('Erreur parsing message: $e');
       }
     });
 
@@ -55,11 +52,9 @@ class StripePaymentDialogWeb {
           final data = json.decode(storageData);
 
           if (data['status'] == 'success') {
-            print('✅ Succès détecté via localStorage!');
             html.window.localStorage.remove('stripe_payment_status');
             onSuccess();
           } else if (data['status'] == 'cancelled') {
-            print('❌ Annulation détectée via localStorage!');
             html.window.localStorage.remove('stripe_payment_status');
             onCancel();
           }

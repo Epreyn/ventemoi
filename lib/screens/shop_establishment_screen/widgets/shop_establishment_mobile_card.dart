@@ -66,57 +66,98 @@ class _ShopEstablishmentMobileCardState
           ),
           child: Column(
             children: [
-              // Partie toujours visible (condensée)
-              Container(
-                padding: const EdgeInsets.all(12),
-                child: Row(
+              // Partie toujours visible avec bannière en overlay
+              ClipRRect(
+                borderRadius: _isExpanded 
+                  ? const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    )
+                  : BorderRadius.circular(16),
+                child: Stack(
                   children: [
-                    // Logo
-                    _buildCompactLogo(),
-                    const SizedBox(width: 12),
-                    // Informations principales
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Nom avec badge "Vous"
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  widget.establishment.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                    // Bannière en overlay sur le dernier tiers (EN PREMIER pour être derrière)
+                    if (widget.establishment.bannerUrl.isNotEmpty)
+                      Positioned.fill(
+                        left: MediaQuery.of(context).size.width * 0.65, // Commence aux 2/3
+                        child: ShaderMask(
+                          shaderCallback: (Rect bounds) {
+                            return LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Colors.transparent,
+                                Colors.white.withOpacity(0.2),
+                                Colors.white.withOpacity(0.6),
+                                Colors.white.withOpacity(0.85),
+                                Colors.white,
+                              ],
+                              stops: const [0.0, 0.1, 0.3, 0.6, 1.0],
+                            ).createShader(bounds);
+                          },
+                          blendMode: BlendMode.dstIn,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: NetworkImage(widget.establishment.bannerUrl),
+                                fit: BoxFit.cover,
+                                alignment: Alignment.centerLeft,
                               ),
-                              if (widget.isOwnEstablishment)
-                                Container(
-                                  margin: const EdgeInsets.only(left: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: CustomTheme.lightScheme()
-                                        .primary
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    'Vous',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: CustomTheme.lightScheme().primary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                            ),
                           ),
+                        ),
+                      ),
+                    // Contenu principal (AU-DESSUS de la bannière)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          // Logo
+                          _buildCompactLogo(),
+                          const SizedBox(width: 12),
+                          // Informations principales
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Nom avec badge "Vous"
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        widget.establishment.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (widget.isOwnEstablishment)
+                                      Container(
+                                        margin: const EdgeInsets.only(left: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: CustomTheme.lightScheme()
+                                              .primary
+                                              .withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          'Vous',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: CustomTheme.lightScheme().primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                           const SizedBox(height: 6),
                           // Catégorie (type de boutique)
                           Row(
@@ -171,7 +212,7 @@ class _ShopEstablishmentMobileCardState
 
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
+                                    horizontal: 12,
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
@@ -210,7 +251,7 @@ class _ShopEstablishmentMobileCardState
                           if (widget.isEnterprise)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                                horizontal: 12,
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
@@ -237,47 +278,57 @@ class _ShopEstablishmentMobileCardState
                                 ],
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                    // Actions rapides (vidéo et expand)
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (widget.establishment.videoUrl.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _launchVideo(widget.establishment.videoUrl);
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: CustomTheme.lightScheme()
-                                    .primary
-                                    .withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Icon(
-                                Icons.play_circle_filled,
-                                color: CustomTheme.lightScheme().primary,
-                                size: 28,
-                              ),
+                              ],
                             ),
                           ),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            shape: BoxShape.circle,
+                          // Actions rapides (vidéo et expand)
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (widget.establishment.videoUrl.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () {
+                                    _launchVideo(widget.establishment.videoUrl);
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: CustomTheme.lightScheme().primary,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: CustomTheme.lightScheme()
+                                              .primary
+                                              .withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.play_circle_filled,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                  ),
+                                ),
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _isExpanded ? Icons.expand_less : Icons.expand_more,
+                                  color: Colors.grey[600],
+                                  size: 20,
+                                ),
+                              ),
+                            ],
                           ),
-                          child: Icon(
-                            _isExpanded ? Icons.expand_less : Icons.expand_more,
-                            color: Colors.grey[600],
-                            size: 20,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),

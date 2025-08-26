@@ -5,7 +5,7 @@ import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_loader/view/custom_loader.dart';
 import '../../custom_app_bar/view/custom_app_bar.dart';
-import '../../custom_app_bar/widgets/custom_app_bar_actions.dart';
+// import '../../custom_app_bar/widgets/custom_app_bar_actions.dart'; // Non nécessaire, CustomAppBar gère ses propres actions
 import '../../custom_card_animation/view/custom_card_animation.dart';
 import '../../custom_navigation_menu/view/custom_navigation_menu.dart';
 import '../../custom_profile_leading/view/custom_profile_leading.dart';
@@ -105,7 +105,7 @@ class _ScreenLayoutState extends State<ScreenLayout> {
                           .uid,
                     ),
                     title: const SizedBox.shrink(),
-                    actions: [CustomAppBarActions(scaffoldKey: _scaffoldKey)],
+                    // actions sont gérées automatiquement par CustomAppBar
                   ),
           floatingActionButton: widget.noFAB == true
               ? null

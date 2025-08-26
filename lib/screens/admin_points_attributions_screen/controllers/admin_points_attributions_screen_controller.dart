@@ -451,7 +451,6 @@ class AdminPointsAttributionsScreenController extends GetxController
       }
       emailSearchResults.value = results;
     } catch (e) {
-      print('Erreur recherche email: $e');
     }
   }
 
@@ -669,7 +668,6 @@ class AdminPointsAttributionsScreenController extends GetxController
 
       await batch.commit();
     } catch (e) {
-      print('Erreur lors de la réclamation des points en attente: $e');
     }
   }
 }

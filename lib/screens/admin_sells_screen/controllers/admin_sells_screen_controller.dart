@@ -205,7 +205,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
       // Précharger les noms pour améliorer les performances
       _preloadParticipantNames();
     }, onError: (error) {
-      print('Erreur lors du chargement des ventes: $error');
       UniquesControllers().data.snackbar(
             'Erreur',
             'Impossible de charger les ventes',
@@ -284,7 +283,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
 
       return names;
     } catch (e) {
-      print('Erreur lors de la récupération des noms: $e');
       final errorNames = {
         'buyer': 'Erreur',
         'seller': 'Erreur',
@@ -331,7 +329,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
         'email': (data['email'] ?? 'sans-email@example.com').toString(),
       };
     } catch (e) {
-      print('Erreur lors de la récupération de l\'utilisateur $userId: $e');
       return {'name': 'Erreur', 'email': 'erreur@example.com'};
     }
   }
@@ -366,7 +363,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
       // Si pas d'établissement, récupérer l'utilisateur
       return _getUserInfo(sellerId);
     } catch (e) {
-      print('Erreur lors de la récupération du vendeur $sellerId: $e');
       return {'name': 'Erreur', 'email': 'erreur@example.com'};
     }
   }
@@ -431,7 +427,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
             false,
           );
     } catch (e) {
-      print('Erreur lors de la mise à jour de la vente: $e');
       UniquesControllers().data.snackbar(
             'Erreur',
             'Impossible de mettre à jour la vente',

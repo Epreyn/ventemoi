@@ -400,10 +400,10 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                 title: 'Formule Mensuelle',
                                 price: '55€ HT/mois',
                                 details: [
-                                  '270€ HT de frais d\'adhésion (1ère année)',
-                                  '55€ HT/mois en prélèvement automatique',
-                                  'Total 1ère année : 930€ HT',
-                                  'Dès la 2ème année : 55€ HT/mois',
+                                  '270€ HT de frais d\'adhésion (324€ TTC)',
+                                  '55€ HT/mois (66€ TTC avec TVA 20%)',
+                                  'Total 1ère année : 930€ HT (1 116€ TTC)',
+                                  'Dès la 2ème année : 55€ HT/mois (66€ TTC)',
                                 ],
                                 badge: null,
                               )),
@@ -420,16 +420,46 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                 title: 'Formule Annuelle',
                                 price: '870€ HT/an',
                                 details: [
-                                  '270€ HT de frais d\'adhésion inclus',
-                                  '600€ HT de cotisation annuelle',
-                                  'Économisez 60€ sur la 1ère année',
-                                  'Dès la 2ème année : 600€ HT/an',
+                                  '270€ HT de frais d\'adhésion (324€ TTC)',
+                                  '600€ HT de cotisation (720€ TTC avec TVA 20%)',
+                                  'Total : 870€ HT (1 044€ TTC)',
+                                  'Dès la 2ème année : 600€ HT/an (720€ TTC)',
                                 ],
                                 badge: 'Recommandé',
                               )),
                         ],
 
-                        const CustomSpace(heightMultiplier: 3),
+                        const CustomSpace(heightMultiplier: 2),
+                        
+                        // Indicateur TVA
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: UniquesControllers().data.baseSpace * 2,
+                            vertical: UniquesControllers().data.baseSpace,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'TVA de 20% incluse dans tous les prix TTC affichés',
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const CustomSpace(heightMultiplier: 2),
 
                         // Avantages inclus
                         Container(
@@ -642,17 +672,20 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                         size: 20,
                                       ),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        currentStep.value == 0
-                                            ? 'CONTINUER'
-                                            : widget.userType == 'Association'
-                                                ? 'TERMINER'
-                                                : 'PROCÉDER AU PAIEMENT',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1,
+                                      Flexible(
+                                        child: Text(
+                                          currentStep.value == 0
+                                              ? 'CONTINUER'
+                                              : widget.userType == 'Association'
+                                                  ? 'TERMINER'
+                                                  : 'PAYER',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -901,7 +934,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         };
       }
     } catch (e) {
-      print('Erreur création session: $e');
     }
 
     return null;
@@ -1106,10 +1138,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           final data = snapshot.data()!;
 
           // Debug
-          print('📘 Session mise à jour:');
-          print('   - payment_status: ${data['payment_status']}');
-          print('   - status: ${data['status']}');
-          print('   - amount_total: ${data['amount_total']}');
 
           debugStatus.value =
               'Statut: ${data['payment_status'] ?? data['status'] ?? 'en attente'}';
@@ -1119,7 +1147,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
             paymentProcessed = true;
             debugStatus.value = '✅ Paiement confirmé!';
 
-            print('✅ Paiement réussi confirmé!');
 
             // Attendre un peu pour l'affichage
             await Future.delayed(Duration(seconds: 1));
@@ -1141,7 +1168,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           // Vérifier si c'est une annulation
           if (data['status'] == 'expired' || data['status'] == 'canceled') {
             debugStatus.value = '❌ Paiement annulé';
-            print('❌ Paiement annulé ou expiré');
 
             subscription?.cancel();
             paymentIntentSubscription?.cancel();
@@ -1192,7 +1218,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
               }
             }
           } catch (e) {
-            print('Erreur vérification: $e');
           } finally {
             isCheckingPayment.value = false;
           }
@@ -1212,7 +1237,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
     Timer? timeoutTimer,
   ) async {
     try {
-      print('🔄 Polling session...');
 
       // Vérifier la session
       final sessionDoc = await UniquesControllers()
@@ -1243,7 +1267,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
             }
           }
         });
-        print('🔍 Polling - Champs non-null: ${nonNullFields.join(', ')}');
 
         // Vérifier aussi les payments
         final payments = await UniquesControllers()
@@ -1258,10 +1281,8 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
 
         if (payments.docs.isNotEmpty) {
           final paymentData = payments.docs.first.data();
-          print('💳 Payment trouvé: ${paymentData['status']}');
 
           if (paymentData['status'] == 'succeeded') {
-            print('✅ Paiement réussi détecté par polling!');
             subscription?.cancel();
             paymentIntentSubscription?.cancel();
             estabSubscription?.cancel();
@@ -1293,7 +1314,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
               estabData['has_active_subscription'] ?? false;
 
           if (hasActiveSubscription) {
-            print('✅ Abonnement actif détecté dans l\'établissement!');
             subscription?.cancel();
             paymentIntentSubscription?.cancel();
             estabSubscription?.cancel();
@@ -1319,7 +1339,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
             data['invoice'] != null;
 
         if (isPaid && subscription != null) {
-          print('✅ Paiement détecté par polling!');
           subscription?.cancel();
           paymentIntentSubscription?.cancel();
           estabSubscription?.cancel();
@@ -1335,22 +1354,18 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         }
       }
     } catch (e) {
-      print('❌ Erreur polling: $e');
     }
   }
 
   // Nouvelle méthode pour gérer le succès du paiement
   Future<void> _handlePaymentSuccess() async {
     try {
-      print('🚀 Début _handlePaymentSuccess()');
 
       final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
       if (uid == null) {
-        print('❌ Aucun utilisateur connecté');
         return;
       }
 
-      print('👤 UID utilisateur: $uid');
 
       // Récupérer les infos utilisateur
       final userDoc = await UniquesControllers()
@@ -1390,7 +1405,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
 
       if (estabQuery.docs.isNotEmpty) {
         final docId = estabQuery.docs.first.id;
-        print('🏢 Établissement trouvé: $docId');
 
         // Déterminer le type d'abonnement
         // Si selectedPaymentOption n'est pas défini, essayer de le récupérer depuis l'établissement
@@ -1398,11 +1412,9 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         if (paymentOption.isEmpty) {
           final existingData = estabQuery.docs.first.data();
           paymentOption = existingData['payment_option'] ?? 'monthly';
-          print(
-              '⚠️ Option de paiement récupérée depuis Firestore: $paymentOption');
+          // print('⚠️ Option de paiement récupérée depuis Firestore: $paymentOption');
         }
 
-        print('💳 Type d\'abonnement: $paymentOption');
 
         // Mettre à jour les statuts
         final updateData = {
@@ -1422,7 +1434,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           'free_access_removed_at': FieldValue.delete(),
         };
 
-        print('📝 Mise à jour avec: $updateData');
 
         await UniquesControllers()
             .data
@@ -1431,25 +1442,19 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
             .doc(docId)
             .update(updateData);
 
-        print('✅ Établissement mis à jour avec succès');
 
         // Créer le bon cadeau de bienvenue
         try {
           await _createWelcomeGiftVoucher(docId);
-          print('🎁 Bon cadeau créé');
         } catch (e) {
-          print('⚠️ Erreur création bon cadeau (non bloquant): $e');
         }
 
         // Créditer les 50 points de bienvenue dans le wallet
         try {
           await _creditWelcomePoints(uid, 50);
-          print('💰 50 points de bienvenue crédités');
         } catch (e) {
-          print('⚠️ Erreur crédit des points (non bloquant): $e');
         }
       } else {
-        print('❌ Aucun établissement trouvé pour l\'utilisateur');
       }
 
       // Afficher le dialog de succès
@@ -1562,7 +1567,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         barrierDismissible: false,
       );
     } catch (e) {
-      print('❌ Erreur handlePaymentSuccess: $e');
       UniquesControllers().data.snackbar(
             'Erreur',
             'Une erreur est survenue lors de la finalisation: $e',
@@ -1611,7 +1615,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         // Vérifier si l'activation n'est pas complète
         if (data['has_accepted_contract'] != true ||
             data['has_active_subscription'] != true) {
-          print('⚠️ Établissement non activé détecté, mise à jour forcée...');
 
           await doc.reference.update({
             'has_accepted_contract': true,
@@ -1629,14 +1632,12 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
             'activation_forced_at': FieldValue.serverTimestamp(),
           });
 
-          print('✅ Activation forcée réussie');
 
           // Créditer les 50 points si pas déjà fait
           await _creditWelcomePoints(uid, 50);
         }
       }
     } catch (e) {
-      print('❌ Erreur _ensureEstablishmentActivated: $e');
     }
   }
 
@@ -1690,7 +1691,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         // );
       }
     } catch (e) {
-      print('Impossible de créer le bon cadeau: $e');
     }
 
     // Fermer la dialog
@@ -1793,7 +1793,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           'created_at': FieldValue.serverTimestamp(),
         });
 
-        print('💰 Nouveau wallet créé avec $points points de bienvenue');
       } else {
         // Mettre à jour le wallet existant
         final walletDoc = walletQuery.docs.first;
@@ -1801,10 +1800,8 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           'points': FieldValue.increment(points),
         });
 
-        print('💰 $points points de bienvenue ajoutés au wallet existant');
       }
     } catch (e) {
-      print('❌ Erreur lors du crédit des points de bienvenue: $e');
     }
   }
 }

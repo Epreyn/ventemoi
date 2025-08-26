@@ -160,7 +160,6 @@ class StripePaymentManager extends GetxService {
     try {
       await StripeService.to.debugCheckoutSession(sessionId);
     } catch (e) {
-      print('Erreur debug session: $e');
     }
   }
 
@@ -169,7 +168,6 @@ class StripePaymentManager extends GetxService {
     try {
       return await StripeService.to.checkPaymentSuccess(sessionId);
     } catch (e) {
-      print('Erreur vérification paiement: $e');
       return false;
     }
   }
@@ -179,7 +177,6 @@ class StripePaymentManager extends GetxService {
     try {
       await StripeService.to.forceCheckSessionStatus(sessionId);
     } catch (e) {
-      print('Erreur force check: $e');
     }
   }
 
@@ -188,7 +185,6 @@ class StripePaymentManager extends GetxService {
     try {
       return await StripeService.to.verifyPaymentViaCloudFunction(sessionId);
     } catch (e) {
-      print('Cloud Function non disponible: $e');
       return false;
     }
   }

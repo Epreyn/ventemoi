@@ -55,7 +55,6 @@ class NotificationsController extends GetxController with ControllerMixin {
           .doc(notificationId)
           .update({'read': true});
     } catch (e) {
-      print('Error marking notification as read: $e');
     }
   }
 
@@ -80,7 +79,6 @@ class NotificationsController extends GetxController with ControllerMixin {
 
       await batch.commit();
     } catch (e) {
-      print('Error marking all notifications as read: $e');
     }
   }
 
@@ -93,7 +91,6 @@ class NotificationsController extends GetxController with ControllerMixin {
           .doc(notificationId)
           .delete();
     } catch (e) {
-      print('Error deleting notification: $e');
     }
   }
 
@@ -117,7 +114,6 @@ class NotificationsController extends GetxController with ControllerMixin {
 
       await batch.commit();
     } catch (e) {
-      print('Error deleting all notifications: $e');
     }
   }
 
@@ -148,7 +144,6 @@ class NotificationsController extends GetxController with ControllerMixin {
         'metadata': metadata,
       });
     } catch (e) {
-      print('Error creating notification: $e');
     }
   }
 }
