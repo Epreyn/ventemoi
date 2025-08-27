@@ -27,6 +27,7 @@ dependencies:
 
   shimmer:
   fl_chart:
+  confetti: ^0.7.0
 
 dev_dependencies:
   flutter_test:

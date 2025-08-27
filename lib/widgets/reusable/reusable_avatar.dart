@@ -34,7 +34,7 @@ class ReusableAvatar extends StatefulWidget {
   final ReusableAvatarShape shape;
   final ReusableAvatarSize size;
   final double? customSize;
-  
+
   // Content
   final String? imageUrl;
   final String? assetPath;
@@ -43,7 +43,7 @@ class ReusableAvatar extends StatefulWidget {
   final IconData? icon;
   final Widget? child;
   final String? heroTag;
-  
+
   // Styling
   final Color? backgroundColor;
   final Color? foregroundColor;
@@ -53,18 +53,18 @@ class ReusableAvatar extends StatefulWidget {
   final double? fontSize;
   final FontWeight? fontWeight;
   final double? iconSize;
-  
+
   // Border
   final double? borderWidth;
   final Color? borderColor;
   final List<Color>? borderGradientColors;
   final double? borderRadius;
   final BoxBorder? customBorder;
-  
+
   // Shadow
   final List<BoxShadow>? boxShadow;
   final double? elevation;
-  
+
   // Badge
   final Widget? badge;
   final String? badgeText;
@@ -74,24 +74,24 @@ class ReusableAvatar extends StatefulWidget {
   final bool showBadge;
   final double? badgeSize;
   final EdgeInsetsGeometry? badgePadding;
-  
+
   // Status indicator
   final bool showStatus;
   final Color? statusColor;
   final double? statusSize;
   final AlignmentGeometry? statusAlignment;
   final bool statusPulse;
-  
+
   // Loading
   final bool isLoading;
   final Widget? loadingWidget;
   final Color? loadingColor;
-  
+
   // Error
   final Widget? errorWidget;
   final IconData? errorIcon;
   final Color? errorColor;
-  
+
   // Interaction
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -99,14 +99,14 @@ class ReusableAvatar extends StatefulWidget {
   final bool enableRipple;
   final Color? splashColor;
   final Color? highlightColor;
-  
+
   // Animation
   final Duration? animationDuration;
   final Curve? animationCurve;
   final bool enableAnimation;
   final bool enableHoverEffect;
   final double? hoverScale;
-  
+
   // Misc
   final String? tooltip;
   final EdgeInsetsGeometry? margin;
@@ -122,7 +122,7 @@ class ReusableAvatar extends StatefulWidget {
   final String? fallbackText;
   final bool autoGenerateInitials;
   final int maxInitials;
-  
+
   const ReusableAvatar({
     super.key,
     this.type = ReusableAvatarType.text,
@@ -229,11 +229,11 @@ class _ReusableAvatarState extends State<ReusableAvatar>
       parent: _pulseController,
       curve: Curves.easeInOut,
     ));
-    
+
     if (widget.statusPulse && widget.showStatus) {
       _pulseController.repeat(reverse: true);
     }
-    
+
     // Scale animation for hover/press
     _scaleController = AnimationController(
       duration: widget.animationDuration ?? const Duration(milliseconds: 200),
@@ -257,7 +257,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
 
   double _getAvatarSize() {
     if (widget.customSize != null) return widget.customSize!;
-    
+
     switch (widget.size) {
       case ReusableAvatarSize.mini:
         return 24;
@@ -295,13 +295,13 @@ class _ReusableAvatarState extends State<ReusableAvatar>
 
   String _generateInitials(String? text) {
     if (text == null || text.isEmpty) return '';
-    
+
     final words = text.trim().split(' ');
     final initials = words
         .take(widget.maxInitials)
         .map((word) => word.isNotEmpty ? word[0].toUpperCase() : '')
         .join();
-    
+
     return initials;
   }
 
@@ -309,15 +309,15 @@ class _ReusableAvatarState extends State<ReusableAvatar>
     if (widget.isLoading) {
       return _buildLoadingContent(size);
     }
-    
+
     if (_hasError) {
       return _buildErrorContent(size);
     }
-    
+
     if (widget.child != null) {
       return widget.child!;
     }
-    
+
     switch (widget.type) {
       case ReusableAvatarType.image:
         return _buildImageContent(size);
@@ -355,7 +355,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
 
   Widget _buildImageContent(double size) {
     Widget? imageWidget;
-    
+
     if (widget.imageUrl != null) {
       imageWidget = Image.network(
         widget.imageUrl!,
@@ -411,7 +411,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
             },
       );
     }
-    
+
     return imageWidget ?? _buildFallbackContent(size);
   }
 
@@ -419,7 +419,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
     final text = widget.autoGenerateInitials
         ? _generateInitials(widget.text ?? widget.fallbackText)
         : (widget.text ?? widget.fallbackText ?? '');
-    
+
     return Text(
       text,
       style: widget.textStyle ??
@@ -450,7 +450,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
 
   Widget _buildStatusIndicator(double size) {
     final statusSize = widget.statusSize ?? size * 0.25;
-    
+
     Widget indicator = Container(
       width: statusSize,
       height: statusSize,
@@ -463,7 +463,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         ),
       ),
     );
-    
+
     if (widget.statusPulse) {
       indicator = AnimatedBuilder(
         animation: _pulseAnimation,
@@ -476,7 +476,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         child: indicator,
       );
     }
-    
+
     return indicator;
   }
 
@@ -484,10 +484,11 @@ class _ReusableAvatarState extends State<ReusableAvatar>
     if (widget.badge != null) {
       return widget.badge!;
     }
-    
+
     if (widget.badgeText != null) {
       return Container(
-        padding: widget.badgePadding ?? const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: widget.badgePadding ??
+            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: widget.badgeColor ?? Colors.red,
           borderRadius: BorderRadius.circular(widget.badgeSize ?? 10),
@@ -507,7 +508,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         ),
       );
     }
-    
+
     return const SizedBox();
   }
 
@@ -517,11 +518,11 @@ class _ReusableAvatarState extends State<ReusableAvatar>
     final size = _getAvatarSize();
     final borderRadius = _getBorderRadius(size);
     final boxShape = _getBoxShape();
-    
+
     // Default colors
     final backgroundColor = widget.backgroundColor ?? theme.primaryColor;
     final foregroundColor = widget.foregroundColor ?? Colors.white;
-    
+
     // Build the main avatar content
     Widget avatar = Container(
       width: size,
@@ -529,9 +530,10 @@ class _ReusableAvatarState extends State<ReusableAvatar>
       padding: widget.padding,
       clipBehavior: widget.clipBehavior,
       decoration: BoxDecoration(
-        color: widget.backgroundGradient == null && widget.gradientColors == null
-            ? backgroundColor
-            : null,
+        color:
+            widget.backgroundGradient == null && widget.gradientColors == null
+                ? backgroundColor
+                : null,
         gradient: widget.backgroundGradient ??
             (widget.gradientColors != null
                 ? LinearGradient(colors: widget.gradientColors!)
@@ -557,13 +559,14 @@ class _ReusableAvatarState extends State<ReusableAvatar>
                 : null),
       ),
       child: ClipRRect(
-        borderRadius: boxShape == BoxShape.rectangle ? borderRadius : BorderRadius.zero,
+        borderRadius:
+            boxShape == BoxShape.rectangle ? borderRadius : BorderRadius.zero,
         child: Center(
           child: _buildContent(size),
         ),
       ),
     );
-    
+
     // Add hero animation if tag is provided
     if (widget.heroTag != null) {
       avatar = Hero(
@@ -571,7 +574,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         child: avatar,
       );
     }
-    
+
     // Add status indicator
     if (widget.showStatus) {
       avatar = Stack(
@@ -585,9 +588,10 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         ],
       );
     }
-    
+
     // Add badge
-    if (widget.showBadge && (widget.badge != null || widget.badgeText != null)) {
+    if (widget.showBadge &&
+        (widget.badge != null || widget.badgeText != null)) {
       avatar = Stack(
         clipBehavior: Clip.none,
         children: [
@@ -600,16 +604,19 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         ],
       );
     }
-    
+
     // Add interaction
-    if (widget.onTap != null || widget.onLongPress != null || widget.onDoubleTap != null) {
+    if (widget.onTap != null ||
+        widget.onLongPress != null ||
+        widget.onDoubleTap != null) {
       avatar = Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: widget.onTap,
           onLongPress: widget.onLongPress,
           onDoubleTap: widget.onDoubleTap,
-          customBorder: boxShape == BoxShape.circle ? const CircleBorder() : null,
+          customBorder:
+              boxShape == BoxShape.circle ? const CircleBorder() : null,
           borderRadius: boxShape == BoxShape.rectangle ? borderRadius : null,
           splashColor: widget.splashColor,
           highlightColor: widget.highlightColor,
@@ -617,7 +624,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         ),
       );
     }
-    
+
     // Add hover effect
     if (widget.enableHoverEffect) {
       avatar = MouseRegion(
@@ -649,7 +656,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         ),
       );
     }
-    
+
     // Add tooltip
     if (widget.tooltip != null) {
       avatar = Tooltip(
@@ -657,7 +664,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         child: avatar,
       );
     }
-    
+
     // Add margin
     if (widget.margin != null) {
       avatar = Padding(
@@ -665,7 +672,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         child: avatar,
       );
     }
-    
+
     // Add semantics
     if (widget.semanticsLabel != null) {
       avatar = Semantics(
@@ -673,7 +680,7 @@ class _ReusableAvatarState extends State<ReusableAvatar>
         child: avatar,
       );
     }
-    
+
     return avatar;
   }
 }

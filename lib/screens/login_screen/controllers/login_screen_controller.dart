@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
+import 'package:ventemoi/core/services/gift_notification_service_simple.dart';
+import 'package:ventemoi/widgets/celebration_dialog_improved.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart';
@@ -203,19 +205,57 @@ class LoginScreenController extends GetxController {
           .get();
       final userType = userTypeDoc.data()!['name'] as String;
 
+      // Initialiser le service de notifications de cadeaux si nécessaire
+      print('🎁 GIFT CHECK: Initializing gift notification service...');
+      if (!Get.isRegistered<GiftNotificationServiceSimple>()) {
+        await Get.putAsync(() => GiftNotificationServiceSimple().init());
+      }
+      
+      final giftService = Get.find<GiftNotificationServiceSimple>();
+      
+      // Vérifier les nouveaux cadeaux/points
+      print('🎁 GIFT CHECK: Checking for new gifts...');
+      // Nettoyer d'abord les documents de test qui pourraient exister
+      await giftService.cleanTestDocuments();
+      // Utiliser la vraie méthode maintenant que la collection est correcte
+      final newGifts = await giftService.checkForNewGiftsSimple();
+      print('🎁 GIFT CHECK: Found ${newGifts.length} new gifts/points');
+      
       // Redirection selon le type d'utilisateur
+      String targetRoute;
       if (userType == 'Administrateur') {
-        Get.offAllNamed(Routes.adminUsers);
+        targetRoute = Routes.adminUsers;
       } else if (userType == 'Particulier') {
-        Get.offAllNamed(Routes.shopEstablishment);
+        targetRoute = Routes.shopEstablishment;
       } else if (userType == 'Boutique') {
-        Get.offAllNamed(Routes.proEstablishmentProfile);
+        targetRoute = Routes.proEstablishmentProfile;
       } else if (userType == 'Entreprise') {
-        Get.offAllNamed(Routes.proEstablishmentProfile);
+        targetRoute = Routes.proEstablishmentProfile;
       } else {
         UniquesControllers()
             .data
             .snackbar('Erreur', 'Type d\'utilisateur inconnu.', true);
+        return;
+      }
+      
+      // Naviguer vers la page cible
+      print('🎁 GIFT CHECK: Navigating to $targetRoute');
+      Get.offAllNamed(targetRoute);
+      
+      // Afficher les notifications de cadeaux après la navigation
+      if (newGifts.isNotEmpty) {
+        print('🎉 GIFT CHECK: Showing celebration dialog for ${newGifts.length} notifications');
+        // Attendre un peu pour que la navigation soit terminée
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (Get.context != null) {
+          print('🎉 GIFT CHECK: Context available, showing dialog...');
+          await showCelebrationDialogImproved(Get.context!, newGifts);
+          print('🎉 GIFT CHECK: Dialog shown and closed');
+        } else {
+          print('❌ GIFT CHECK: No context available for showing dialog');
+        }
+      } else {
+        print('ℹ️ GIFT CHECK: No new gifts to show');
       }
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
