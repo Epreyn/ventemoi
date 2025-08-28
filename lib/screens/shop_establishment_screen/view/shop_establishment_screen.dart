@@ -11,6 +11,7 @@ import '../widgets/shop_establishment_card.dart';
 import '../widgets/enterprise_establishment_card.dart';
 import '../widgets/shop_establishment_mobile_card.dart';
 import '../widgets/empty_state_widget.dart';
+import '../widgets/special_offers_banner.dart';
 
 class ShopEstablishmentScreen extends StatelessWidget {
   const ShopEstablishmentScreen({Key? key}) : super(key: key);
@@ -30,6 +31,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
       noFAB: true,
       body: Column(
         children: [
+          const SpecialOffersBanner(), // Bandeau des offres du moment
           _buildSearchBar(cc),
           _buildModernTabs(cc),
           _buildTabDescription(cc),

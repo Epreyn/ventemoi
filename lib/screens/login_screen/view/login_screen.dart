@@ -93,7 +93,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      'v 1.9.4',
+                      'v 1.9.5',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,

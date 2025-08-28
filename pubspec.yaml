@@ -28,6 +28,9 @@ dependencies:
   shimmer:
   fl_chart:
   confetti: ^0.7.0
+  carousel_slider: ^5.0.0
+  flutter_colorpicker: ^1.0.3
+  cached_network_image: ^3.3.0
 
 dev_dependencies:
   flutter_test:

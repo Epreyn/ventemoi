@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:ventemoi/screens/admin_commissions_screen/view/admin_commissions_screen.dart';
+import 'package:ventemoi/screens/admin_offers_screen/view/admin_offers_screen.dart';
 import 'package:ventemoi/screens/admin_establishments_screen/view/admin_establishments_screen.dart';
 import 'package:ventemoi/screens/admin_points_requests_screen/view/admin_points_requests_screen.dart';
 import 'package:ventemoi/screens/admin_sells_screen/view/admin_sells_screen.dart';
@@ -114,6 +115,10 @@ class AppScreens {
     GetPage(
       name: RoutePaths.adminCommissions,
       page: () => const AdminCommissionsScreen(),
+    ),
+    GetPage(
+      name: RoutePaths.adminOffers,
+      page: () => const AdminOffersScreen(),
     ),
     GetPage(
       name: RoutePaths.onboarding,

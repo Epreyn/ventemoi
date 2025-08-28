@@ -424,11 +424,33 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
                 Timestamp.fromDate(DateTime.now().add(Duration(days: 36500))),
             'enterprise_category_slots': _getCategorySlots(subscriptionType),
             'force_visible_override': true,
+            'is_visible': true, // Rendre visible immédiatement
           });
+
+          // Récupérer les informations de l'utilisateur pour l'email
+          final userDoc = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('users')
+              .doc(userId)
+              .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data()!;
+            final userEmail = userData['email'] ?? '';
+            final userName = userData['name'] ?? '';
+
+            // Envoyer l'email de notification d'activation d'accès gratuit
+            await sendFreeAccessGrantedEmail(
+              toEmail: userEmail,
+              name: userName,
+              subscriptionType: subscriptionType,
+            );
+          }
 
           UniquesControllers().data.snackbar(
                 'Succès',
-                'Accès gratuit activé',
+                'Accès gratuit activé - L\'utilisateur a été notifié par email',
                 false,
               );
         } else {
@@ -446,6 +468,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
             'subscription_status': null,
             'subscription_end_date': null,
             'force_visible_override': false,
+            'is_visible': false, // Rendre l'établissement invisible immédiatement
             // IMPORTANT : NE PAS réinitialiser has_accepted_contract ici
             // On le garde pour savoir que l'utilisateur a déjà accepté les CGU
             // Mais on ajoute un flag pour indiquer qu'il doit repayer
@@ -453,9 +476,29 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
             'free_access_removed_at': FieldValue.serverTimestamp(),
           });
 
+          // Récupérer les informations de l'utilisateur pour l'email
+          final userDoc = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('users')
+              .doc(userId)
+              .get();
+
+          if (userDoc.exists) {
+            final userData = userDoc.data()!;
+            final userEmail = userData['email'] ?? '';
+            final userName = userData['name'] ?? '';
+
+            // Envoyer l'email de notification de retrait d'accès gratuit
+            await sendFreeAccessRevokedEmail(
+              toEmail: userEmail,
+              name: userName,
+            );
+          }
+
           UniquesControllers().data.snackbar(
                 'Succès',
-                'Accès gratuit désactivé - L\'utilisateur devra souscrire un abonnement pour être visible',
+                'Accès gratuit désactivé - L\'utilisateur a été notifié par email',
                 false,
               );
         }
@@ -1801,6 +1844,166 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
       default:
         return 2;
     }
+  }
+
+  Future<void> sendFreeAccessGrantedEmail({
+    required String toEmail,
+    required String name,
+    required String subscriptionType,
+  }) async {
+    String subscriptionName = subscriptionType == 'premium'
+        ? 'Premium'
+        : subscriptionType == 'standard'
+            ? 'Standard'
+            : 'Basic';
+
+    int slots = _getCategorySlots(subscriptionType);
+
+    final content = '''
+      <h2>🎉 Bonne nouvelle : Accès Premium offert !</h2>
+
+      <p>Bonjour $name,</p>
+
+      <p>
+        Nous avons le plaisir de vous informer qu'un administrateur de Vente Moi 
+        vient de vous octroyer un <strong>accès $subscriptionName gratuit à vie</strong> !
+      </p>
+
+      <div style="background-color: #f3e5f5; padding: 20px; border-radius: 12px; margin: 20px 0;">
+        <h3 style="color: #6a1b9a; margin-top: 0;">🎁 Vos avantages Premium</h3>
+        <ul style="color: #4a148c; margin: 10px 0;">
+          <li>✅ <strong>Toutes les fonctionnalités premium débloquées</strong></li>
+          <li>✅ <strong>$slots catégories d'entreprise</strong> disponibles</li>
+          <li>✅ <strong>50 points de bienvenue</strong> offerts</li>
+          <li>✅ <strong>Bon cadeau de 50€</strong> pour vos achats</li>
+          <li>✅ <strong>Visibilité immédiate</strong> de votre établissement</li>
+          <li>✅ <strong>Accès à vie</strong> - aucun paiement requis</li>
+        </ul>
+      </div>
+
+      <div style="background-color: #e8f5e9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #2e7d32; margin-top: 0;">✨ Que pouvez-vous faire maintenant ?</h3>
+        <ul style="margin: 10px 0;">
+          <li>Modifier et enrichir votre profil d'établissement</li>
+          <li>Ajouter des photos et vidéos</li>
+          <li>Configurer vos catégories d'entreprise</li>
+          <li>Commencer à accumuler des points</li>
+          <li>Parrainer d'autres utilisateurs</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 30px; text-align: center;">
+        <a href="https://ventemoi.com/login"
+           style="display: inline-block; padding: 15px 30px; background-color: #ff6b35;
+                  color: white; text-decoration: none; border-radius: 30px; font-weight: bold;">
+          Accéder à mon compte
+        </a>
+      </div>
+
+      <p style="margin-top: 30px; color: #666; font-size: 12px; font-style: italic;">
+        Cet accès gratuit vous a été offert par ${UniquesControllers().data.firebaseAuth.currentUser?.email ?? 'un administrateur'}.
+      </p>
+
+      <p style="color: #666;">
+        Si vous avez des questions, n'hésitez pas à nous contacter.
+      </p>
+
+      <p>
+        Cordialement,<br>
+        <strong>L'équipe Vente Moi</strong>
+      </p>
+    ''';
+
+    final emailData = {
+      'to': toEmail,
+      'message': {
+        'subject': '🎉 Votre accès Premium Vente Moi a été activé !',
+        'html': content,
+      },
+    };
+
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('mail')
+        .add(emailData);
+  }
+
+  Future<void> sendFreeAccessRevokedEmail({
+    required String toEmail,
+    required String name,
+  }) async {
+    final content = '''
+      <h2>Important : Modification de votre accès Vente Moi</h2>
+
+      <p>Bonjour $name,</p>
+
+      <p>
+        Nous vous informons que votre accès gratuit Premium à la plateforme Vente Moi 
+        vient d'être désactivé par un administrateur.
+      </p>
+
+      <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+        <h3 style="color: #856404; margin-top: 0;">⚠️ Action requise</h3>
+        <p style="color: #856404; margin-bottom: 10px;">
+          <strong>Votre établissement n'est plus visible sur la plateforme.</strong>
+        </p>
+        <p style="color: #856404;">
+          Pour retrouver votre visibilité et accéder à toutes les fonctionnalités, 
+          vous devez souscrire à un abonnement payant.
+        </p>
+      </div>
+
+      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin-top: 0;">Nos offres d'abonnement :</h3>
+        <ul style="margin: 10px 0;">
+          <li><strong>Basic</strong> : 2 catégories d'entreprise - 9,99€/mois</li>
+          <li><strong>Standard</strong> : 3 catégories d'entreprise - 19,99€/mois</li>
+          <li><strong>Premium</strong> : 5 catégories d'entreprise - 29,99€/mois</li>
+        </ul>
+        <p style="font-size: 14px; color: #666;">
+          💡 Économisez 20% avec un abonnement annuel !
+        </p>
+      </div>
+
+      <div style="margin-top: 30px; text-align: center;">
+        <a href="https://ventemoi.com/login"
+           style="display: inline-block; padding: 15px 30px; background-color: #ff6b35;
+                  color: white; text-decoration: none; border-radius: 30px; font-weight: bold;">
+          Souscrire maintenant
+        </a>
+      </div>
+
+      <p style="margin-top: 30px; color: #666;">
+        <strong>Important :</strong> Vous pouvez toujours vous connecter à votre compte et 
+        modifier vos informations. Cependant, votre établissement ne sera visible qu'après 
+        la souscription d'un abonnement.
+      </p>
+
+      <p style="color: #666;">
+        Si vous pensez qu'il s'agit d'une erreur ou si vous avez des questions, 
+        n'hésitez pas à nous contacter.
+      </p>
+
+      <p>
+        Cordialement,<br>
+        <strong>L'équipe Vente Moi</strong>
+      </p>
+    ''';
+
+    final emailData = {
+      'to': toEmail,
+      'message': {
+        'subject': '⚠️ Votre accès gratuit Vente Moi a été désactivé',
+        'html': content,
+      },
+    };
+
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('mail')
+        .add(emailData);
   }
 
   Future<void> sendAccountCreatedEmail({
