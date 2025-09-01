@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../core/models/special_offer.dart';
 import '../../../core/classes/unique_controllers.dart';
+import '../../../core/routes/app_routes.dart';
 
 class SpecialOffersBanner extends StatefulWidget {
   const SpecialOffersBanner({super.key});
@@ -24,37 +25,51 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('special_offers')
-          .orderBy('priority', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const SizedBox.shrink();
-        }
+    // Vérifier si l'utilisateur est une entreprise/boutique
+    final userType = UniquesControllers().getStorage.read('currentUserType');
+    final isBusinessUser = userType == 'Boutique' || userType == 'Entreprise' || 
+                          userType == 'Sponsor' || userType == 'Association';
+    
+    // Pour le moment, on affiche toujours le bouton pour tous les utilisateurs
+    final showRequestButton = true; // isBusinessUser;
+    
+    return Column(
+      children: [
+        StreamBuilder<QuerySnapshot>(
+          stream: UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('special_offers')
+              .orderBy('priority', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              // Si pas d'offres mais on veut montrer le bouton, montrer quand même le bouton
+              if (showRequestButton) {
+                return _buildRequestBannerButton();
+              }
+              return const SizedBox.shrink();
+            }
 
-        final offers = snapshot.data!.docs
-            .map((doc) => SpecialOffer.fromDocument(doc))
-            .where((offer) => offer.isActive && offer.isCurrentlyActive)
-            .toList();
+            final offers = snapshot.data!.docs
+                .map((doc) => SpecialOffer.fromDocument(doc))
+                .where((offer) => offer.isActive && offer.isCurrentlyActive)
+                .toList();
 
-        if (offers.isEmpty) {
-          return const SizedBox.shrink();
-        }
+            if (offers.isEmpty && !showRequestButton) {
+              return const SizedBox.shrink();
+            }
 
-        // Si une seule offre, affichage simple
-        if (offers.length == 1) {
-          return Container(
-            margin: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 8),
-            child: _buildModernBanner(offers.first),
-          );
-        }
+            // Si une seule offre, affichage simple
+            if (offers.length == 1) {
+              return Container(
+                margin: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 8),
+                child: _buildModernBanner(offers.first),
+              );
+            }
 
-        // Si plusieurs offres, carrousel avec contrôles
-        return Column(
+            // Si plusieurs offres, carrousel avec contrôles
+            return Column(
           children: [
             const SizedBox(height: 12), // Espace en haut
             Stack(
@@ -103,9 +118,13 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
             // Indicateurs de pagination
             const SizedBox(height: 8),
             _buildPaginationIndicator(offers.length),
-          ],
-        );
-      },
+              ],
+            );
+          },
+        ),
+        // Bouton pour demander une bannière
+        if (showRequestButton) _buildRequestBannerButton(),
+      ],
     );
   }
 
@@ -473,6 +492,76 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
       return 'Jusqu\'au ${formatter.format(offer.endDate!)}';
     }
     return '';
+  }
+
+  Widget _buildRequestBannerButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Naviguer vers la page de demande d'offre
+            Get.toNamed(Routes.proRequestOffer);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.orange.shade400, Colors.orange.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.campaign_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Je veux ma bannière publicitaire',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'NOUVEAU',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Color _parseHexColor(String hexColor) {

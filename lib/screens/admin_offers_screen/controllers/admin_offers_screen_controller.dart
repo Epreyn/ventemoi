@@ -16,6 +16,7 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
 
   // Observables
   final allOffers = <SpecialOffer>[].obs;
+  final pendingRequests = <Map<String, dynamic>>[].obs;
   final isLoading = false.obs;
 
   // Form controllers
@@ -37,12 +38,52 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
   // Edition
   String? editingOfferId;
 
-  StreamSubscription<List<SpecialOffer>>? _offersSub;
+  StreamSubscription? _offersSub;
 
   @override
   void onInit() {
     super.onInit();
     _loadOffers();
+    _loadPendingRequests();
+    // Créer une offre de test si la collection est vide
+    _checkAndCreateSampleOffer();
+  }
+  
+  Future<void> _checkAndCreateSampleOffer() async {
+    try {
+      // Vérifier s'il y a des offres
+      final snap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('special_offers')
+          .limit(1)
+          .get();
+      
+      if (snap.docs.isEmpty) {
+        print('📝 Création d\'une offre exemple...');
+        // Créer une offre exemple
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('special_offers')
+            .add({
+          'title': 'Offre de bienvenue',
+          'description': 'Profitez de -20% sur votre première commande avec le code BIENVENUE20',
+          'image_url': 'https://picsum.photos/800/400',
+          'link_url': 'https://ventemoi.fr',
+          'button_text': 'Découvrir',
+          'background_color': '#FFF3CD',
+          'text_color': '#856404',
+          'is_active': true,
+          'priority': 1,
+          'created_at': FieldValue.serverTimestamp(),
+          'updated_at': FieldValue.serverTimestamp(),
+        });
+        print('✅ Offre exemple créée');
+      }
+    } catch (e) {
+      print('❌ Erreur création offre exemple: $e');
+    }
   }
 
   @override
@@ -59,16 +100,109 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
   }
 
   void _loadOffers() {
+    print('🔍 Chargement des offres special_offers...');
     _offersSub = UniquesControllers()
         .data
         .firebaseFirestore
         .collection('special_offers')
-        .orderBy('priority', descending: true)
+        .snapshots()
+        .listen((snap) {
+          print('📦 Reçu ${snap.docs.length} offres de Firebase');
+          
+          // Mapper et trier manuellement
+          final offers = snap.docs.map((d) {
+            try {
+              return SpecialOffer.fromDocument(d);
+            } catch (e) {
+              print('❌ Erreur parsing offre ${d.id}: $e');
+              return null;
+            }
+          })
+          .where((offer) => offer != null)
+          .cast<SpecialOffer>()
+          .toList();
+          
+          // Trier par priorité puis par date
+          offers.sort((a, b) {
+            // D'abord par priorité (décroissant)
+            final priorityCompare = (b.priority).compareTo(a.priority);
+            if (priorityCompare != 0) return priorityCompare;
+            
+            // Ensuite par date de création (décroissant)
+            if (a.createdAt != null && b.createdAt != null) {
+              return b.createdAt!.compareTo(a.createdAt!);
+            }
+            return 0;
+          });
+          
+          allOffers.value = offers;
+          print('✅ ${offers.length} offres chargées et triées');
+        }, onError: (error) {
+          print('❌ Erreur chargement offres: $error');
+          // Si erreur, essayer sans orderBy
+          _loadOffersSimple();
+        });
+  }
+  
+  void _loadOffersSimple() {
+    print('🔄 Tentative de chargement simple des offres...');
+    UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('special_offers')
+        .get()
+        .then((snap) {
+          print('📦 Reçu ${snap.docs.length} offres (requête simple)');
+          
+          final offers = snap.docs.map((d) {
+            try {
+              return SpecialOffer.fromDocument(d);
+            } catch (e) {
+              print('❌ Erreur parsing offre ${d.id}: $e');
+              return null;
+            }
+          })
+          .where((offer) => offer != null)
+          .cast<SpecialOffer>()
+          .toList();
+          
+          // Trier manuellement
+          offers.sort((a, b) {
+            final priorityCompare = (b.priority).compareTo(a.priority);
+            if (priorityCompare != 0) return priorityCompare;
+            
+            if (a.createdAt != null && b.createdAt != null) {
+              return b.createdAt!.compareTo(a.createdAt!);
+            }
+            return 0;
+          });
+          
+          allOffers.value = offers;
+          print('✅ ${offers.length} offres chargées (méthode simple)');
+        })
+        .catchError((error) {
+          print('❌ Erreur finale chargement offres: $error');
+          allOffers.value = [];
+        });
+  }
+
+  void _loadPendingRequests() {
+    UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('offer_requests')
+        .where('status', isEqualTo: 'pending')
         .orderBy('created_at', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => SpecialOffer.fromDocument(d)).toList())
-        .listen((offers) {
-          allOffers.value = offers;
+        .listen((snap) {
+          pendingRequests.value = snap.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+        }, onError: (error) {
+          print('Erreur chargement demandes: $error');
+          pendingRequests.value = [];
         });
   }
 
@@ -634,6 +768,91 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
   }
 
   // Sélecteur de couleur
+  Future<void> approveRequest(Map<String, dynamic> request) async {
+    try {
+      isLoading.value = true;
+      
+      // Créer l'offre dans special_offers
+      final offerData = {
+        'title': request['title'],
+        'description': request['description'],
+        'image_url': request['image_url'],
+        'link_url': request['link_url'],
+        'button_text': request['button_text'] ?? 'En savoir plus',
+        'background_color': '#FFF3CD',
+        'text_color': '#856404',
+        'is_active': true,
+        'priority': 0,
+        'start_date': request['start_date'],
+        'end_date': request['end_date'],
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+        'requested_by': request['user_id'],
+        'establishment_name': request['establishment_name'],
+      };
+      
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('special_offers')
+          .add(offerData);
+      
+      // Mettre à jour le statut de la demande
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('offer_requests')
+          .doc(request['id'])
+          .update({
+        'status': 'approved',
+        'approved_at': FieldValue.serverTimestamp(),
+        'approved_by': UniquesControllers().getStorage.read('currentUserUID'),
+      });
+      
+      UniquesControllers().data.snackbar(
+        'Succès',
+        'La demande d\'offre a été approuvée',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible d\'approuver la demande: $e',
+        true,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> rejectRequest(String requestId, String reason) async {
+    try {
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('offer_requests')
+          .doc(requestId)
+          .update({
+        'status': 'rejected',
+        'rejected_at': FieldValue.serverTimestamp(),
+        'rejected_by': UniquesControllers().getStorage.read('currentUserUID'),
+        'rejection_reason': reason,
+      });
+      
+      UniquesControllers().data.snackbar(
+        'Succès',
+        'La demande a été rejetée',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible de rejeter la demande: $e',
+        true,
+      );
+    }
+  }
+
   void showColorPicker(bool isBackgroundColor) {
     Color currentColor = isBackgroundColor 
         ? parseHexColor(backgroundColorCtrl.text)

@@ -93,7 +93,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      'v 1.9.5',
+                      'v 1.9.7',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -280,63 +280,145 @@ class LoginScreen extends StatelessWidget {
                 CustomCardAnimation(
                   key: const Key('remember_forgot_row'),
                   index: 4,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Checkbox Se souvenir de moi
-                      Expanded(
-                        child: InkWell(
-                          onTap: cc.toggleRememberMe,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Obx(() => SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: Checkbox(
-                                      value: cc.rememberMe.value,
-                                      onChanged: (_) => cc.toggleRememberMe(),
-                                      activeColor:
-                                          CustomTheme.lightScheme().primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bool isSmallScreen = constraints.maxWidth < 400;
+
+                      if (isSmallScreen) {
+                        // Sur petit écran, mettre en colonne
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Checkbox Se souvenir de moi
+                            InkWell(
+                              onTap: cc.toggleRememberMe,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Obx(() => SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: Checkbox(
+                                          value: cc.rememberMe.value,
+                                          onChanged: (_) =>
+                                              cc.toggleRememberMe(),
+                                          activeColor:
+                                              CustomTheme.lightScheme().primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      )),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Se souvenir de moi',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  )),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Se souvenir de moi',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Mot de passe oublié
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: cc.passwordScreenOnPressed,
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(50, 30),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  cc.forgotPasswordLabel,
+                                  style: TextStyle(
+                                    color: CustomTheme.lightScheme().primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Mot de passe oublié
-                      TextButton(
-                        onPressed: cc.passwordScreenOnPressed,
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(50, 30),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          cc.forgotPasswordLabel,
-                          style: TextStyle(
-                            color: CustomTheme.lightScheme().primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
+                            ),
+                          ],
+                        );
+                      } else {
+                        // Sur grand écran, garder en ligne
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Checkbox Se souvenir de moi
+                            Flexible(
+                              child: InkWell(
+                                onTap: cc.toggleRememberMe,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Obx(() => SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: Checkbox(
+                                            value: cc.rememberMe.value,
+                                            onChanged: (_) =>
+                                                cc.toggleRememberMe(),
+                                            activeColor:
+                                                CustomTheme.lightScheme()
+                                                    .primary,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                          ),
+                                        )),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Se souvenir de moi',
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            // Mot de passe oublié
+                            TextButton(
+                              onPressed: cc.passwordScreenOnPressed,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(50, 30),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                cc.forgotPasswordLabel,
+                                style: TextStyle(
+                                  color: CustomTheme.lightScheme().primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),

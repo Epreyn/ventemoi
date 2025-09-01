@@ -34,22 +34,23 @@ class _CGUPaymentDialogState extends State<CGUPaymentDialog> {
   final RxString selectedPaymentOption = 'monthly'.obs; // monthly or annual
 
   // Calcul des prix selon le type d'utilisateur et l'option de paiement
+  // Retourne le prix TTC (TVA 20% incluse)
   String get firstYearPrice {
     if (widget.userType == 'Association') return '0';
 
     switch (widget.userType) {
       case 'Boutique':
         if (selectedPaymentOption.value == 'annual') {
-          return '870'; // 270€ adhésion + 600€ cotisation annuelle
+          return '1044'; // 870€ HT * 1.20 = 1044€ TTC
         } else {
-          return '930'; // 270€ adhésion + 55€/mois x 12
+          return '1116'; // 930€ HT * 1.20 = 1116€ TTC
         }
       case 'Commerçant':
       case 'Entreprise':
         if (selectedPaymentOption.value == 'annual') {
-          return '870'; // 270€ adhésion + 600€ cotisation annuelle
+          return '1044'; // 870€ HT * 1.20 = 1044€ TTC
         } else {
-          return '930'; // 270€ adhésion + 55€/mois x 12
+          return '1116'; // 930€ HT * 1.20 = 1116€ TTC
         }
       default:
         return '0';
@@ -60,13 +61,13 @@ class _CGUPaymentDialogState extends State<CGUPaymentDialog> {
     switch (widget.userType) {
       case 'Boutique':
         if (selectedPaymentOption.value == 'annual') {
-          return '870'; // 270€ adhésion + 600€ cotisation annuelle
+          return '720'; // 600€ HT * 1.20 = 720€ TTC
         } else {
-          return '930'; // 270€ adhésion + 55€/mois x 12
+          return '66'; // 55€ HT * 1.20 = 66€ TTC
         }
       case 'Commerçant':
       case 'Entreprise':
-        return selectedPaymentOption.value == 'annual' ? '600' : '55';
+        return selectedPaymentOption.value == 'annual' ? '720' : '66'; // Prix TTC
       case 'Association':
         return '0';
       default:
@@ -398,12 +399,12 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                     selectedPaymentOption.value = 'monthly',
                                 icon: Icons.calendar_today_rounded,
                                 title: 'Formule Mensuelle',
-                                price: '55€ HT/mois',
+                                price: '66€ TTC/mois',
                                 details: [
-                                  '270€ HT de frais d\'adhésion (324€ TTC)',
-                                  '55€ HT/mois (66€ TTC avec TVA 20%)',
-                                  'Total 1ère année : 930€ HT (1 116€ TTC)',
-                                  'Dès la 2ème année : 55€ HT/mois (66€ TTC)',
+                                  '324€ TTC de frais d\'adhésion (270€ HT)',
+                                  '66€ TTC/mois (55€ HT)',
+                                  'Total 1ère année : 1 116€ TTC (930€ HT)',
+                                  'Dès la 2ème année : 66€ TTC/mois (55€ HT)',
                                 ],
                                 badge: null,
                               )),
@@ -418,12 +419,12 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                                     selectedPaymentOption.value = 'annual',
                                 icon: Icons.star_rounded,
                                 title: 'Formule Annuelle',
-                                price: '870€ HT/an',
+                                price: '1 044€ TTC/an',
                                 details: [
-                                  '270€ HT de frais d\'adhésion (324€ TTC)',
-                                  '600€ HT de cotisation (720€ TTC avec TVA 20%)',
-                                  'Total : 870€ HT (1 044€ TTC)',
-                                  'Dès la 2ème année : 600€ HT/an (720€ TTC)',
+                                  '324€ TTC de frais d\'adhésion (270€ HT)',
+                                  '720€ TTC de cotisation (600€ HT)',
+                                  'Total : 1 044€ TTC (870€ HT)',
+                                  'Dès la 2ème année : 720€ TTC/an (600€ HT)',
                                 ],
                                 badge: 'Recommandé',
                               )),

@@ -3,7 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SpecialOffer {
-  final String id;
+  final String? id;
   final String title;
   final String description;
   final String? imageUrl;
@@ -15,11 +15,11 @@ class SpecialOffer {
   final DateTime? endDate;
   final String? backgroundColor;
   final String? textColor;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   SpecialOffer({
-    required this.id,
+    this.id,
     required this.title,
     required this.description,
     this.imageUrl,
@@ -31,8 +31,8 @@ class SpecialOffer {
     this.endDate,
     this.backgroundColor,
     this.textColor,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory SpecialOffer.fromDocument(DocumentSnapshot doc) {
@@ -76,8 +76,8 @@ class SpecialOffer {
       'end_date': endDate != null ? Timestamp.fromDate(endDate!) : null,
       'background_color': backgroundColor,
       'text_color': textColor,
-      'created_at': Timestamp.fromDate(createdAt),
-      'updated_at': Timestamp.fromDate(updatedAt),
+      'created_at': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'updated_at': updatedAt != null ? Timestamp.fromDate(updatedAt!) : FieldValue.serverTimestamp(),
     };
   }
 

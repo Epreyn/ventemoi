@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../quotes_screen/controllers/quotes_screen_controller.dart';
+import '../../quotes_screen/widgets/quote_form_dialog.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/establishement.dart';
@@ -390,9 +392,9 @@ class _ShopEstablishmentMobileCardState
                       if (!widget.isEnterprise) _buildActionButton(),
                       if (widget.isEnterprise)
                         ElevatedButton.icon(
-                          onPressed: () => _showPointsSimulator(context),
-                          icon: const Icon(Icons.calculate, size: 18),
-                          label: const Text('Simulateur de points'),
+                          onPressed: () => _showQuoteForm(context),
+                          icon: const Icon(Icons.description, size: 18),
+                          label: const Text('Demander un devis'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: CustomTheme.lightScheme().primary,
                             foregroundColor: Colors.white,
@@ -658,6 +660,17 @@ class _ShopEstablishmentMobileCardState
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
+  }
+
+  void _showQuoteForm(BuildContext context) {
+    final controller = Get.put(QuotesScreenController());
+    // Réinitialiser le formulaire avant d'ouvrir le dialog
+    controller.resetForm();
+    
+    Get.dialog(
+      QuoteFormDialog(enterprise: widget.establishment),
+      barrierDismissible: false,
+    );
   }
 
   void _showPointsSimulator(BuildContext context) {

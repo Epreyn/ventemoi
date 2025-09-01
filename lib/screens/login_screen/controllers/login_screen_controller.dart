@@ -231,10 +231,16 @@ class LoginScreenController extends GetxController {
         targetRoute = Routes.proEstablishmentProfile;
       } else if (userType == 'Entreprise') {
         targetRoute = Routes.proEstablishmentProfile;
+      } else if (userType == 'Sponsor' || userType == 'Cine7com') {
+        // Les sponsors sont redirigés vers la page établissement professionnel
+        targetRoute = Routes.proEstablishmentProfile;
+      } else if (userType == 'Association') {
+        // Les associations sont redirigées vers la page établissement professionnel
+        targetRoute = Routes.proEstablishmentProfile;
       } else {
         UniquesControllers()
             .data
-            .snackbar('Erreur', 'Type d\'utilisateur inconnu.', true);
+            .snackbar('Erreur', 'Type d\'utilisateur inconnu: $userType', true);
         return;
       }
       

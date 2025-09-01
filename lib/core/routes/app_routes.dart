@@ -6,10 +6,12 @@ abstract class Routes {
   static const register = RoutePaths.register;
   static const password = RoutePaths.password;
   static const shopEstablishment = RoutePaths.shopEstablishment;
+  static const quotes = RoutePaths.quotes;
   static const clientHistory = RoutePaths.clientHistory;
   static const proEstablishmentProfile = RoutePaths.proEstablishmentProfile;
   static const proSells = RoutePaths.proSells;
   static const proPoints = RoutePaths.proPoints;
+  static const proRequestOffer = RoutePaths.proRequestOffer;
   static const profile = RoutePaths.profile;
   static const sponsorship = RoutePaths.sponsorship;
   static const adminUsers = RoutePaths.adminUsers;
@@ -34,10 +36,12 @@ abstract class RoutePaths {
   static const password = '/password';
   static const register = '/register';
   static const shopEstablishment = '/shop-establishment';
+  static const quotes = '/quotes';
   static const clientHistory = '/client-history';
   static const proEstablishmentProfile = '/pro-establishment-profile';
   static const proSells = '/pro-sells';
   static const proPoints = '/pro-points';
+  static const proRequestOffer = '/pro-request-offer';
   static const profile = '/profile';
   static const sponsorship = '/sponsorship';
   static const adminUsers = '/admin-users';

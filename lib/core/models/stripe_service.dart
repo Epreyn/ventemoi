@@ -72,14 +72,14 @@ class StripeService extends GetxService {
                 'name': 'Frais d\'adhésion VenteMoi (unique)',
                 'description': 'Accès à la plateforme pour votre établissement',
               },
-              'unit_amount': 27000, // 270€
+              'unit_amount': 32400, // 324€ TTC (270€ HT + TVA 20%)
               'recurring': null, // Pas récurrent
             },
             'quantity': 1,
           },
           // 2. Abonnement mensuel
           {
-            'price': PRICE_ID_MONTHLY_RECURRING, // 55€/mois
+            'price': PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
             'quantity': 1,
           }
         ],
@@ -96,7 +96,7 @@ class StripeService extends GetxService {
           'user_type': userType,
           'user_id': user.uid,
           'includes_setup_fee': 'true',
-          'setup_fee_amount': '270',
+          'setup_fee_amount': '324', // TTC
         },
         'allow_promotion_codes': true,
       };
@@ -149,13 +149,13 @@ class StripeService extends GetxService {
                 'name': 'Frais d\'adhésion VenteMoi (unique)',
                 'description': 'Accès à la plateforme pour votre établissement',
               },
-              'unit_amount': 27000, // 270€
+              'unit_amount': 32400, // 324€ TTC (270€ HT + TVA 20%)
             },
             'quantity': 1,
           },
           // Abonnement mensuel
           {
-            'price': PRICE_ID_MONTHLY_RECURRING, // 55€/mois
+            'price': PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
             'quantity': 1,
           }
         ],

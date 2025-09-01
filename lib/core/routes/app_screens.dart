@@ -19,10 +19,12 @@ import '../../screens/onboarding_screen/view/onboarding_screen.dart';
 import '../../screens/password_screen/view/password_screen.dart';
 import '../../screens/pro_establishment_profile_screen/view/pro_establishment_profile_screen.dart';
 import '../../screens/pro_points_screen/view/pro_points_screen.dart';
+import '../../screens/pro_request_offer_screen/view/pro_request_offer_screen.dart';
 import '../../screens/pro_sells_screen/view/pro_sells_screen.dart';
 import '../../screens/profile_screen/view/profile_screen.dart';
 import '../../screens/register_screen/view/register_screen.dart';
 import '../../screens/shop_establishment_screen/view/shop_establishment_screen.dart';
+import '../../screens/quotes_screen/view/quotes_screen.dart';
 import 'app_routes.dart';
 
 class AppScreens {
@@ -57,6 +59,10 @@ class AppScreens {
       page: () => const ShopEstablishmentScreen(),
     ),
     GetPage(
+      name: RoutePaths.quotes,
+      page: () => const QuotesScreen(),
+    ),
+    GetPage(
       name: RoutePaths.clientHistory,
       page: () => const ClientHistoryScreen(),
     ),
@@ -71,6 +77,10 @@ class AppScreens {
     GetPage(
       name: RoutePaths.proPoints,
       page: () => const ProPointsScreen(),
+    ),
+    GetPage(
+      name: RoutePaths.proRequestOffer,
+      page: () => const ProRequestOfferScreen(),
     ),
     GetPage(
       name: RoutePaths.profile,

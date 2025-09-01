@@ -544,8 +544,11 @@ class ShopEstablishmentScreen extends StatelessWidget {
       ShopEstablishmentScreenController cc) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Détection mobile vs desktop
-        final isMobile = constraints.maxWidth < 600;
+        // Définir les breakpoints et tailles de cartes
+        final bool isMobile = constraints.maxWidth < 600;
+        final bool isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+        final bool isSmallDesktop = constraints.maxWidth >= 900 && constraints.maxWidth < 1400;
+        final bool isLargeDesktop = constraints.maxWidth >= 1400;
 
         if (isMobile) {
           // Format liste horizontale condensée sur mobile
@@ -577,24 +580,26 @@ class ShopEstablishmentScreen extends StatelessWidget {
             },
           );
         } else {
-          // Format grille sur desktop
-          const double maxCardWidth = 500.0;
-          const double minCardWidth = 400.0;
-
-          int crossAxisCount = 1;
-          if (constraints.maxWidth > minCardWidth * 1.5) {
-            crossAxisCount = (constraints.maxWidth / minCardWidth).floor();
-            final cardWidth = constraints.maxWidth / crossAxisCount;
-            if (cardWidth > maxCardWidth) {
-              crossAxisCount = (constraints.maxWidth / maxCardWidth).ceil();
-            }
+          // Format grille adaptatif avec taille maximale variable selon l'écran
+          double maxCardWidth;
+          double aspectRatio;
+          
+          if (isTablet) {
+            maxCardWidth = 350.0; // Cartes plus petites sur tablette
+            aspectRatio = 0.8;
+          } else if (isSmallDesktop) {
+            maxCardWidth = 380.0; // Taille moyenne sur petit desktop
+            aspectRatio = 0.75;
+          } else {
+            maxCardWidth = 420.0; // Taille max sur grand écran
+            aspectRatio = 0.75;
           }
 
           return GridView.builder(
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              childAspectRatio: 0.75,
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: maxCardWidth,
+              childAspectRatio: aspectRatio,
               crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
               mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
             ),

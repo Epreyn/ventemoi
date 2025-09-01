@@ -155,7 +155,12 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
     // Utiliser les nouvelles données du modèle
     totalEarnings.value = sponsorship.totalEarnings;
 
-    for (String email in sponsorship.sponsoredEmails) {
+    // Parcourir TOUS les emails (en attente + détails)
+    Set<String> allEmails = {};
+    allEmails.addAll(sponsorship.sponsoredEmails); // Emails en attente
+    allEmails.addAll(sponsorship.sponsorshipDetails.keys); // Emails inscrits
+
+    for (String email in allEmails) {
       try {
         final detail = sponsorship.sponsorshipDetails[email.toLowerCase()];
 
