@@ -27,6 +27,11 @@ class AdminEnterpriseCategoriesScreenController extends GetxController
   // Variables pour la recherche et le tri
   RxString searchText = ''.obs;
   RxString sortBy = 'hierarchy'.obs; // 'hierarchy', 'index' ou 'name'
+  
+  // Variables pour le chargement progressif
+  RxInt itemsToShow = 20.obs;
+  final int itemsPerLoad = 20;
+  RxBool isLoadingMore = false.obs;
 
   // Obtenir uniquement les catégories principales
   List<EnterpriseCategory> get mainCategories {
@@ -83,7 +88,29 @@ class AdminEnterpriseCategoriesScreenController extends GetxController
         break;
     }
 
+    // Limiter le nombre d'éléments affichés pour le chargement progressif
+    if (filtered.length > itemsToShow.value) {
+      filtered = filtered.take(itemsToShow.value).toList();
+    }
+
     return filtered.obs;
+  }
+  
+  // Charger plus d'éléments
+  void loadMoreItems() {
+    if (isLoadingMore.value) return;
+    
+    isLoadingMore.value = true;
+    // Simuler un délai pour une meilleure UX
+    Future.delayed(Duration(milliseconds: 300), () {
+      itemsToShow.value += itemsPerLoad;
+      isLoadingMore.value = false;
+    });
+  }
+  
+  // Réinitialiser le nombre d'éléments lors de la recherche
+  void resetItemsToShow() {
+    itemsToShow.value = itemsPerLoad;
   }
 
   @override
@@ -114,6 +141,72 @@ class AdminEnterpriseCategoriesScreenController extends GetxController
 
   void onSearchChanged(String value) {
     searchText.value = value;
+    resetItemsToShow();
+  }
+
+  Future<void> moveCategory(EnterpriseCategory category, int direction) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // Obtenir la liste appropriée (principales ou sous-catégories)
+      List<EnterpriseCategory> relevantCategories;
+      if (category.isMainCategory) {
+        relevantCategories = mainCategories
+          ..sort((a, b) => a.index.compareTo(b.index));
+      } else {
+        relevantCategories = getSubcategories(category.parentId!)
+          ..sort((a, b) => a.index.compareTo(b.index));
+      }
+
+      // Trouver l'index actuel
+      final currentIndex = relevantCategories.indexOf(category);
+      if (currentIndex == -1) return;
+
+      // Calculer le nouvel index
+      final newIndex = currentIndex + direction;
+      if (newIndex < 0 || newIndex >= relevantCategories.length) return;
+
+      // Échanger les indices
+      final otherCategory = relevantCategories[newIndex];
+      final tempIndex = category.index;
+
+      // Mettre à jour dans Firestore
+      final batch = UniquesControllers().data.firebaseFirestore.batch();
+
+      batch.update(
+        UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('enterprise_categories')
+            .doc(category.id),
+        {'index': otherCategory.index},
+      );
+
+      batch.update(
+        UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('enterprise_categories')
+            .doc(otherCategory.id),
+        {'index': tempIndex},
+      );
+
+      await batch.commit();
+
+      UniquesControllers().data.snackbar(
+        'Succès',
+        'Ordre modifié avec succès',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible de modifier l\'ordre: ${e.toString()}',
+        true,
+      );
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
   }
 
   void openCreateBottomSheet({String? parentId}) {
@@ -331,8 +424,8 @@ class AdminEnterpriseCategoriesScreenController extends GetxController
     }
   }
 
-  // Déplacer une catégorie principale
-  Future<void> moveCategory(EnterpriseCategory category, bool moveUp) async {
+  // Déplacer une catégorie principale (ancienne méthode - supprimée)
+  Future<void> moveCategoryOld(EnterpriseCategory category, bool moveUp) async {
     if (!category.isMainCategory) return;
 
     final mainCats = mainCategories;
@@ -434,5 +527,159 @@ class AdminEnterpriseCategoriesScreenController extends GetxController
     // Cette méthode est maintenant remplacée par moveCategory et moveSubcategory
     UniquesControllers().data.snackbar(
         'Info', 'Utilisez les flèches pour réorganiser les catégories.', false);
+  }
+
+  // Méthodes pour gérer les options de sous-catégories
+  Stream<List<Map<String, dynamic>>> getSubcategoryOptions(String subcategoryId) {
+    return UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('enterprise_subcategory_options')
+        .where('subcategory_id', isEqualTo: subcategoryId)
+        .snapshots()
+        .map((snap) {
+          final options = snap.docs
+              .map((doc) => {
+                    'id': doc.id,
+                    'name': doc.data()['name'] as String,
+                    'index': doc.data()['index'] as int? ?? 0,
+                  })
+              .toList();
+          // Trier manuellement par index
+          options.sort((a, b) => (a['index'] as int).compareTo(b['index'] as int));
+          return options;
+        });
+  }
+
+  Future<void> addSubcategoryOption(String subcategoryId, String optionName) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // Obtenir le prochain index
+      final existingOptions = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('enterprise_subcategory_options')
+          .where('subcategory_id', isEqualTo: subcategoryId)
+          .get();
+
+      int maxIndex = 0;
+      for (final doc in existingOptions.docs) {
+        final index = doc.data()['index'] as int? ?? 0;
+        if (index > maxIndex) maxIndex = index;
+      }
+
+      // Créer la nouvelle option
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('enterprise_subcategory_options')
+          .add({
+        'name': optionName,
+        'subcategory_id': subcategoryId,
+        'index': maxIndex + 1,
+        'is_active': true,
+      });
+
+      UniquesControllers()
+          .data
+          .snackbar('Succès', 'Option ajoutée avec succès', false);
+    } catch (e) {
+      UniquesControllers()
+          .data
+          .snackbar('Erreur', 'Impossible d\'ajouter l\'option: ${e.toString()}', true);
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  Future<void> deleteSubcategoryOption(String subcategoryId, String optionId) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('enterprise_subcategory_options')
+          .doc(optionId)
+          .delete();
+
+      UniquesControllers()
+          .data
+          .snackbar('Succès', 'Option supprimée avec succès', false);
+    } catch (e) {
+      UniquesControllers()
+          .data
+          .snackbar('Erreur', 'Impossible de supprimer l\'option: ${e.toString()}', true);
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  Future<void> moveSubcategoryOption(String subcategoryId, String optionId, int direction) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // Obtenir toutes les options
+      final optionsQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('enterprise_subcategory_options')
+          .where('subcategory_id', isEqualTo: subcategoryId)
+          .get();
+
+      // Trier manuellement par index
+      final options = optionsQuery.docs.toList()
+        ..sort((a, b) {
+          final indexA = a.data()['index'] as int? ?? 0;
+          final indexB = b.data()['index'] as int? ?? 0;
+          return indexA.compareTo(indexB);
+        });
+      final currentIndex = options.indexWhere((doc) => doc.id == optionId);
+      
+      if (currentIndex == -1) return;
+
+      final newIndex = currentIndex + direction;
+      if (newIndex < 0 || newIndex >= options.length) return;
+
+      // Échanger les indices
+      final currentOption = options[currentIndex];
+      final targetOption = options[newIndex];
+      
+      final currentOptionIndex = currentOption.data()['index'] as int;
+      final targetOptionIndex = targetOption.data()['index'] as int;
+
+      final batch = UniquesControllers().data.firebaseFirestore.batch();
+
+      batch.update(
+        UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('enterprise_subcategory_options')
+            .doc(currentOption.id),
+        {'index': targetOptionIndex},
+      );
+
+      batch.update(
+        UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('enterprise_subcategory_options')
+            .doc(targetOption.id),
+        {'index': currentOptionIndex},
+      );
+
+      await batch.commit();
+
+      UniquesControllers()
+          .data
+          .snackbar('Succès', 'Ordre modifié avec succès', false);
+    } catch (e) {
+      UniquesControllers()
+          .data
+          .snackbar('Erreur', 'Impossible de modifier l\'ordre: ${e.toString()}', true);
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
   }
 }

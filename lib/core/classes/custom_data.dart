@@ -86,6 +86,12 @@ class CustomData extends GetxController {
       onPressed: () => Get.offNamed(Routes.shopEstablishment),
     ),
     CustomBottomAppBarIconButtonModel(
+      tag: Routes.pointsSummary,
+      iconData: Icons.account_balance_wallet,
+      text: 'Mon Portefeuille',
+      onPressed: () => Get.offNamed(Routes.pointsSummary),
+    ),
+    CustomBottomAppBarIconButtonModel(
       tag: Routes.quotes,
       iconData: Icons.description_outlined,
       text: 'Devis',
@@ -132,6 +138,12 @@ class CustomData extends GetxController {
       onPressed: () => Get.offNamed(Routes.shopEstablishment),
     ),
     CustomBottomAppBarIconButtonModel(
+      tag: Routes.pointsSummary,
+      iconData: Icons.account_balance_wallet,
+      text: 'Mon Portefeuille',
+      onPressed: () => Get.offNamed(Routes.pointsSummary),
+    ),
+    CustomBottomAppBarIconButtonModel(
       tag: Routes.quotes,
       iconData: Icons.description_outlined,
       text: 'Devis',
@@ -176,6 +188,12 @@ class CustomData extends GetxController {
       iconData: Icons.explore_outlined,
       text: 'Explorer',
       onPressed: () => Get.offNamed(Routes.shopEstablishment),
+    ),
+    CustomBottomAppBarIconButtonModel(
+      tag: Routes.pointsSummary,
+      iconData: Icons.account_balance_wallet,
+      text: 'Mon Portefeuille',
+      onPressed: () => Get.offNamed(Routes.pointsSummary),
     ),
     CustomBottomAppBarIconButtonModel(
       tag: Routes.quotes,

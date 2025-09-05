@@ -88,8 +88,8 @@ Article 2 : Inscription et Abonnement
 
 ENTREPRISES / BOUTIQUES
 - 1ère année :
-  - Option annuelle : 870€ HT (270€ adhésion + vidéo + 600€ cotisation annuelle)
-  - Option mensuelle : 930€ HT (270€ adhésion + vidéo + 55€/mois x 12)
+  - Option annuelle : 1080€ HT (270€ adhésion + 210€ vidéo + 600€ cotisation annuelle)
+  - Option mensuelle : 1140€ HT (270€ adhésion + 210€ vidéo + 55€/mois x 12)
   - Bon cadeau de bienvenue : 50€ TTC offert
 
 - À partir de la 2ème année :

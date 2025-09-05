@@ -249,6 +249,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         onSelected: (value) {
           switch (value) {
+            case 'wallet':
+              Get.toNamed(Routes.pointsSummary);
+              break;
             case 'transfer':
               Get.dialog(
                 const PointsTransferDialog(),
@@ -406,8 +409,41 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
           const PopupMenuDivider(),
 
+          // Mon Portefeuille (pour tous sauf admin)
+          if (!isAdmin)
+            PopupMenuItem<String>(
+              value: 'wallet',
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.account_balance_wallet,
+                      size: 18,
+                      color: CustomTheme.lightScheme().primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Mon Portefeuille',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey[400],
+                  ),
+                ],
+              ),
+            ),
+
           // Transfert de points (si l'utilisateur a des points)
-          if (!isAdmin && realPoints > 0)
+          if (!isAdmin && !isBoutique && realPoints > 0)
             PopupMenuItem<String>(
               value: 'transfer',
               child: Row(

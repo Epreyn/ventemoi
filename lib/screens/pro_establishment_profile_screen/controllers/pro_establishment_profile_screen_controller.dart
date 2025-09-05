@@ -32,6 +32,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   // Variables pour les catégories entreprise sélectionnées
   final RxList<String> selectedEnterpriseCategoryIds = <String>[].obs;
   final RxBool hasModifications = false.obs;
+  
+  // Options de sous-catégories (subcategoryId -> [optionIds])
+  final RxMap<String, List<String>> selectedSubcategoryOptions = <String, List<String>>{}.obs;
 
   // Champs du formulaire
   final nameCtrl = TextEditingController();
@@ -74,7 +77,10 @@ class ProEstablishmentProfileScreenController extends GetxController
   RxList<Rx<EnterpriseCategory?>> selectedEnterpriseCategories =
       <Rx<EnterpriseCategory?>>[].obs;
   RxInt enterpriseCategorySlots = 2.obs;
-  final int additionalSlotPrice = 500; // 5€ en centimes
+  final int additionalSlotPrice = 5000; // 50€ en centimes
+  
+  // Nombre maximum de bons achetables
+  RxInt maxVouchersPurchase = 1.obs;
 
   // Bannière / Logo
   RxString bannerUrl = ''.obs;
@@ -252,6 +258,8 @@ class ProEstablishmentProfileScreenController extends GetxController
 
   void removeEnterpriseCategory(String categoryId) {
     selectedEnterpriseCategoryIds.remove(categoryId);
+    // Supprimer aussi les options associées si c'est une sous-catégorie
+    selectedSubcategoryOptions.remove(categoryId);
     hasModifications.value = true;
   }
 
@@ -266,6 +274,16 @@ class ProEstablishmentProfileScreenController extends GetxController
         data['enterprise_categories'] as List<dynamic>?;
     final catIds = entCats?.map((e) => e.toString()).toList() ?? [];
 
+    // Charger les options de sous-catégories
+    final dynamic optionsData = data['enterprise_subcategory_options'];
+    if (optionsData != null && optionsData is Map) {
+      selectedSubcategoryOptions.clear();
+      optionsData.forEach((key, value) {
+        if (value is List) {
+          selectedSubcategoryOptions[key] = value.map((e) => e.toString()).toList();
+        }
+      });
+    }
 
     // Initialiser seulement si les valeurs ont changé
     if (!_listEquals(selectedEnterpriseCategoryIds, catIds)) {
@@ -284,6 +302,16 @@ class ProEstablishmentProfileScreenController extends GetxController
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+  
+  // Gérer les options de sous-catégories
+  void updateSubcategoryOptions(String subcategoryId, List<String> optionIds) {
+    if (optionIds.isEmpty) {
+      selectedSubcategoryOptions.remove(subcategoryId);
+    } else {
+      selectedSubcategoryOptions[subcategoryId] = optionIds;
+    }
+    hasModifications.value = true;
   }
 
   // Sauvegarder les changements de catégories entreprise
@@ -307,6 +335,9 @@ class ProEstablishmentProfileScreenController extends GetxController
           .doc(establishmentDocId)
           .update({
         'enterprise_categories': selectedEnterpriseCategoryIds,
+        'enterprise_subcategory_options': selectedSubcategoryOptions.isEmpty 
+            ? null 
+            : selectedSubcategoryOptions,
       });
 
       hasModifications.value = false;
@@ -351,6 +382,17 @@ class ProEstablishmentProfileScreenController extends GetxController
         // Réinitialiser les IDs sélectionnés
         selectedEnterpriseCategoryIds.clear();
         selectedEnterpriseCategoryIds.addAll(catIds);
+        
+        // Réinitialiser les options de sous-catégories
+        selectedSubcategoryOptions.clear();
+        final dynamic optionsData = data['enterprise_subcategory_options'];
+        if (optionsData != null && optionsData is Map) {
+          optionsData.forEach((key, value) {
+            if (value is List) {
+              selectedSubcategoryOptions[key] = value.map((e) => e.toString()).toList();
+            }
+          });
+        }
 
         // Si vous utilisez encore l'ancien système de dropdowns
         final slots = data['enterprise_category_slots'] ?? 2;
@@ -439,6 +481,10 @@ class ProEstablishmentProfileScreenController extends GetxController
       // Lire le nombre de slots
       final slots = data['enterprise_category_slots'] ?? 2;
       enterpriseCategorySlots.value = slots;
+      
+      // Lire le nombre max de bons achetables
+      final maxVouchers = data['max_vouchers_purchase'] ?? 1;
+      maxVouchersPurchase.value = maxVouchers;
 
       // Initialiser les dropdowns (ancien système)
       final List<dynamic>? entCats =
@@ -611,6 +657,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         'logo_url': newLogoUrl,
         'category_id': currentCategory.value?.id ?? '',
         'enterprise_categories': selectedEnterpriseCategoryIds,
+        'max_vouchers_purchase': maxVouchersPurchase.value,
       };
 
       // Sauvegarder
@@ -626,6 +673,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         dataToSave['user_id'] = uid;
         dataToSave['has_accepted_contract'] = false;
         dataToSave['enterprise_category_slots'] = 2;
+        dataToSave['max_vouchers_purchase'] = 1;
 
         await UniquesControllers()
             .data
@@ -799,7 +847,7 @@ class ProEstablishmentProfileScreenController extends GetxController
     // Implémenter l'ajout de slot supplémentaire
     openPaymentDialog(
       title: 'Slot supplémentaire',
-      description: 'Ajouter un slot de catégorie supplémentaire pour 5€',
+      description: 'Ajouter un slot de catégorie supplémentaire pour 50€',
       price: additionalSlotPrice,
       onPaymentSuccess: () {
         // Le PaymentListener gérera la mise à jour automatiquement

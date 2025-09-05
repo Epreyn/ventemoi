@@ -84,7 +84,7 @@ class EnterpriseCategorySlotsWidget extends StatelessWidget {
                     const CustomSpace(widthMultiplier: 1),
                     Expanded(
                       child: Text(
-                        'Vous disposez de 2 slots gratuits. Slots supplémentaires : 5€/slot.',
+                        'Vous disposez de 2 slots gratuits. Slots supplémentaires : 50€ HT/slot.',
                         style: TextStyle(
                           fontSize: UniquesControllers().data.baseSpace * 1.4,
                           color: Colors.grey.shade700,
@@ -154,7 +154,7 @@ class EnterpriseCategorySlotsWidget extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: controller.addCategorySlot,
                   icon: const Icon(Icons.add),
-                  label: const Text('Ajouter un slot (5€)'),
+                  label: const Text('Ajouter un slot (50€ HT)'),
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(
                       horizontal: UniquesControllers().data.baseSpace * 2,

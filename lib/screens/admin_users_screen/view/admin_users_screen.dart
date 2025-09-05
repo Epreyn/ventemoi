@@ -208,52 +208,134 @@ class AdminUsersScreen extends StatelessWidget {
   }
 
   Widget _buildSearchBar(AdminUsersScreenController cc) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
-      child: Row(
-        children: [
-          // Champ de recherche
-          Expanded(
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                onChanged: cc.onSearchChanged,
-                style: TextStyle(fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'Rechercher un utilisateur...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 15,
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.grey[500],
-                    size: 20,
-                  ),
-                  suffixIcon: cc.searchText.value.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            cc.searchText.value = '';
-                            cc.onSearchChanged('');
-                          },
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Column(
+      children: [
+        // Filtres par type d'utilisateur
+        Container(
+          padding: EdgeInsets.fromLTRB(24, 8, 24, 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Bouton "Tous"
+                _buildFilterChip(
+                  label: 'Tous',
+                  isSelected: cc.selectedFilterUserType.value == null,
+                  onPressed: () => cc.selectedFilterUserType.value = null,
+                  icon: Icons.groups,
+                  color: Colors.grey,
                 ),
-              ),
+                SizedBox(width: 8),
+                // Filtres pour chaque type d'utilisateur
+                ...cc.userTypes.map((type) => Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: _buildFilterChip(
+                    label: type['name'],
+                    isSelected: cc.selectedFilterUserType.value == type['id'],
+                    onPressed: () => cc.selectedFilterUserType.value = type['id'],
+                    icon: type['icon'] as IconData,
+                    color: type['color'] as Color,
+                  ),
+                )).toList(),
+              ],
             ),
           ),
-          SizedBox(width: 12),
-          // Menu de tri
-          _buildSortMenu(cc),
-        ],
+        ),
+        // Barre de recherche et tri
+        Container(
+          padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
+          child: Row(
+            children: [
+              // Champ de recherche
+              Expanded(
+                child: Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextField(
+                    onChanged: cc.onSearchChanged,
+                    style: TextStyle(fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un utilisateur...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 15,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey[500],
+                        size: 20,
+                      ),
+                      suffixIcon: cc.searchText.value.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                cc.searchText.value = '';
+                                cc.onSearchChanged('');
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 12),
+              // Menu de tri
+              _buildSortMenu(cc),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onPressed,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Material(
+      color: isSelected ? color.withOpacity(0.1) : Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onPressed,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey[300]!,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? color : Colors.grey[600],
+              ),
+              SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? color : Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1150,110 +1232,99 @@ class AdminUsersScreen extends StatelessWidget {
                       SizedBox(height: 16),
 
                       // Toggle accès gratuit
-                      StatefulBuilder(
-                        builder: (context, setState) {
-                          bool localFreeAccess = hasFreeAccess;
-                          String localSubscriptionType = subscriptionType;
-
-                          return Column(
-                            children: [
-                              _buildSwitchRow(
-                                'Accès gratuit',
-                                'Activer toutes les fonctionnalités premium gratuitement',
-                                localFreeAccess,
-                                (val) {
-                                  setState(() {
-                                    localFreeAccess = val;
-                                  });
-
-                                  if (val) {
-                                    // Afficher un dialog pour choisir le type
-                                    Get.dialog(
-                                      AlertDialog(
-                                        title: Text(
-                                            'Choisir le type d\'abonnement'),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            RadioListTile<String>(
-                                              title:
-                                                  Text('Basic (2 catégories)'),
-                                              value: 'basic',
-                                              groupValue: localSubscriptionType,
-                                              onChanged: (value) {
-                                                Get.back();
-                                                cc.toggleFreeAccess(
-                                                    user.id, true, value!);
-                                              },
-                                            ),
-                                            RadioListTile<String>(
-                                              title: Text(
-                                                  'Standard (3 catégories)'),
-                                              value: 'standard',
-                                              groupValue: localSubscriptionType,
-                                              onChanged: (value) {
-                                                Get.back();
-                                                cc.toggleFreeAccess(
-                                                    user.id, true, value!);
-                                              },
-                                            ),
-                                            RadioListTile<String>(
-                                              title: Text(
-                                                  'Premium (5 catégories)'),
-                                              value: 'premium',
-                                              groupValue: localSubscriptionType,
-                                              onChanged: (value) {
-                                                Get.back();
-                                                cc.toggleFreeAccess(
-                                                    user.id, true, value!);
-                                              },
-                                            ),
-                                          ],
+                      Column(
+                        children: [
+                          _buildSwitchRow(
+                            'Accès gratuit',
+                            'Activer toutes les fonctionnalités premium gratuitement',
+                            hasFreeAccess,
+                            (val) {
+                              if (val) {
+                                // Afficher un dialog pour choisir le type
+                                Get.dialog(
+                                  AlertDialog(
+                                    title: Text(
+                                        'Choisir le type d\'abonnement'),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        RadioListTile<String>(
+                                          title:
+                                              Text('Basic (2 catégories)'),
+                                          value: 'basic',
+                                          groupValue: subscriptionType,
+                                          onChanged: (value) {
+                                            Get.back();
+                                            cc.toggleFreeAccess(
+                                                user.id, true, value!);
+                                          },
                                         ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Get.back(),
-                                            child: Text('Annuler'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  } else {
-                                    // Confirmer la désactivation
-                                    Get.dialog(
-                                      AlertDialog(
-                                        title:
-                                            Text('Désactiver l\'accès gratuit'),
-                                        content: Text(
-                                          'Êtes-vous sûr de vouloir désactiver l\'accès gratuit ?\n\n'
-                                          'L\'utilisateur devra payer pour continuer à utiliser les fonctionnalités premium.',
+                                        RadioListTile<String>(
+                                          title: Text(
+                                              'Standard (3 catégories)'),
+                                          value: 'standard',
+                                          groupValue: subscriptionType,
+                                          onChanged: (value) {
+                                            Get.back();
+                                            cc.toggleFreeAccess(
+                                                user.id, true, value!);
+                                          },
                                         ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Get.back(),
-                                            child: Text('Annuler'),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              Get.back();
-                                              cc.toggleFreeAccess(
-                                                  user.id, false, '');
-                                            },
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                            ),
-                                            child: Text('Désactiver'),
-                                          ),
-                                        ],
+                                        RadioListTile<String>(
+                                          title: Text(
+                                              'Premium (5 catégories)'),
+                                          value: 'premium',
+                                          groupValue: subscriptionType,
+                                          onChanged: (value) {
+                                            Get.back();
+                                            cc.toggleFreeAccess(
+                                                user.id, true, value!);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Get.back(),
+                                        child: Text('Annuler'),
                                       ),
-                                    );
-                                  }
-                                },
-                                Colors.purple,
-                              ),
-                            ],
-                          );
-                        },
+                                    ],
+                                  ),
+                                );
+                              } else {
+                                // Confirmer la désactivation
+                                Get.dialog(
+                                  AlertDialog(
+                                    title:
+                                        Text('Désactiver l\'accès gratuit'),
+                                    content: Text(
+                                      'Êtes-vous sûr de vouloir désactiver l\'accès gratuit ?\n\n'
+                                      'L\'utilisateur devra payer pour continuer à utiliser les fonctionnalités premium.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Get.back(),
+                                        child: Text('Annuler'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Get.back();
+                                          cc.toggleFreeAccess(
+                                              user.id, false, '');
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        child: Text('Désactiver'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            },
+                            Colors.purple,
+                          ),
+                        ],
                       ),
                     ],
                   );

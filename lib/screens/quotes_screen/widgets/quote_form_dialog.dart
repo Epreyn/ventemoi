@@ -36,7 +36,7 @@ class _QuoteFormDialogState extends State<QuoteFormDialog> {
     final amount = double.tryParse(controller.estimatedBudgetController.text) ?? 0;
     setState(() {
       simulatedAmount = amount;
-      simulatedPoints = (amount * 0.01).round(); // 1% en points
+      simulatedPoints = (amount * 0.02).round(); // 2% en points
     });
   }
   
@@ -230,6 +230,114 @@ class _QuoteFormDialogState extends State<QuoteFormDialog> {
                               ),
                               onChanged: (_) => _simulatePoints(),
                             ),
+                            
+                            // Simulateur de points pour mobile
+                            if (!isDesktop) ...[
+                              const SizedBox(height: 20),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.orange[50]!,
+                                      Colors.orange[100]!,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.orange[300]!),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.calculate,
+                                          color: Colors.orange[700],
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Simulateur de points',
+                                          style: TextStyle(
+                                            color: Colors.orange[700],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    AnimatedSwitcher(
+                                      duration: const Duration(milliseconds: 300),
+                                      child: simulatedPoints > 0
+                                          ? Column(
+                                              key: ValueKey(simulatedPoints),
+                                              children: [
+                                                Text(
+                                                  '$simulatedPoints',
+                                                  style: TextStyle(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.orange[700],
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'points estimés',
+                                                  style: TextStyle(
+                                                    color: Colors.orange[600],
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orange[100],
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Text(
+                                                    '2% du montant',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.orange[700],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : Text(
+                                              'Entrez un budget pour\nvoir vos points',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.orange[600],
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextButton.icon(
+                                      onPressed: _showPointsInfoDialog,
+                                      icon: Icon(
+                                        Icons.info_outline,
+                                        size: 16,
+                                        color: Colors.orange[700],
+                                      ),
+                                      label: Text(
+                                        'Comment ça marche ?',
+                                        style: TextStyle(
+                                          color: Colors.orange[700],
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -442,74 +550,145 @@ class _QuoteFormDialogState extends State<QuoteFormDialog> {
   }
   
   void _showPointsInfoDialog() {
+    final isSmallScreen = MediaQuery.of(Get.context!).size.height < 700;
+    
     Get.dialog(
-      AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              Icons.info_outline,
-              color: Colors.orange[700],
-            ),
-            const SizedBox(width: 8),
-            const Text('Comment recevoir vos points ?'),
-          ],
+      Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Pour recevoir vos points, vous devez :',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildStep('1', 'Avoir demandé un devis'),
-            _buildStep('2', 'Avoir signé le devis avec l\'entreprise'),
-            _buildStep('3', 'Rendez-vous dans la page "Vos devis"'),
-            _buildStep('4', 'Cliquez sur "Réclamer mes points"'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange[200]!),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.stars, color: Colors.orange[700]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Vous recevrez 1% du montant du devis en points',
-                      style: TextStyle(
-                        color: Colors.orange[700],
-                        fontSize: 13,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: 400,
+            maxHeight: isSmallScreen 
+                ? MediaQuery.of(Get.context!).size.height * 0.75
+                : 600,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.orange[600]!, Colors.orange[700]!],
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Comment recevoir vos points ?',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Get.back(),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              
+              // Content scrollable
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pour recevoir vos points, vous devez :',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildStep('1', 'Avoir demandé un devis'),
+                      _buildStep('2', 'Avoir signé le devis avec l\'entreprise'),
+                      _buildStep('3', 'Rendez-vous dans la page "Vos devis"'),
+                      _buildStep('4', 'Cliquez sur "Réclamer mes points"'),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.stars, color: Colors.orange[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Vous recevrez 2% du montant du devis en points',
+                                style: TextStyle(
+                                  color: Colors.orange[700],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Actions en bas
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Fermer'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Get.back();
+                        Get.toNamed('/quotes');
+                      },
+                      icon: const Icon(Icons.description, color: Colors.white),
+                      label: const Text('Voir mes devis', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: CustomTheme.lightScheme().primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Fermer'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Get.back();
-              Get.toNamed('/quotes');
-            },
-            icon: const Icon(Icons.description),
-            label: const Text('Voir mes devis'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: CustomTheme.lightScheme().primary,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -132,6 +132,18 @@ class AdminEstablishmentsScreen extends StatelessWidget {
               value: statsByType['entreprise'] ?? 0,
               color: Colors.orange[600]!,
             ),
+            SizedBox(width: 16),
+            _buildStatChip(
+              label: 'Boutiques',
+              value: statsByType['boutique'] ?? 0,
+              color: Colors.purple[600]!,
+            ),
+            SizedBox(width: 16),
+            _buildStatChip(
+              label: 'Associations',
+              value: statsByType['association'] ?? 0,
+              color: Colors.teal[600]!,
+            ),
             Spacer(),
             // Indicateur de recherche
             if (cc.searchText.value.isNotEmpty)
@@ -394,20 +406,42 @@ class AdminEstablishmentsScreen extends StatelessWidget {
                 // En-tête
                 Row(
                   children: [
-                    // Icône établissement
+                    // Logo ou Icône établissement
                     Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: _getEstablishmentColor(est.name),
+                        color: est.logoUrl != null && est.logoUrl!.isNotEmpty
+                            ? Colors.transparent
+                            : _getEstablishmentColor(est.name),
                         borderRadius: BorderRadius.circular(12),
+                        border: est.logoUrl != null && est.logoUrl!.isNotEmpty
+                            ? Border.all(color: Colors.grey[200]!, width: 1)
+                            : null,
                       ),
-                      child: Center(
-                        child: Icon(
-                          Icons.store,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: est.logoUrl != null && est.logoUrl!.isNotEmpty
+                            ? Image.network(
+                                est.logoUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Center(
+                                    child: Icon(
+                                      Icons.store,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  );
+                                },
+                              )
+                            : Center(
+                                child: Icon(
+                                  Icons.store,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
                       ),
                     ),
                     SizedBox(width: 12),
@@ -552,7 +586,7 @@ class AdminEstablishmentsScreen extends StatelessWidget {
             padding: EdgeInsets.all(16),
             child: Row(
               children: [
-                // Icône
+                // Logo ou Icône
                 Container(
                   width: isTablet ? 56 : 48,
                   height: isTablet ? 56 : 48,
@@ -560,13 +594,28 @@ class AdminEstablishmentsScreen extends StatelessWidget {
                     color: _getEstablishmentColor(est.name),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.store,
-                      color: Colors.white,
-                      size: isTablet ? 28 : 24,
-                    ),
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: est.logoUrl != null && est.logoUrl!.isNotEmpty
+                      ? Image.network(
+                          est.logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Icon(
+                                Icons.store,
+                                color: Colors.white,
+                                size: isTablet ? 28 : 24,
+                              ),
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Icon(
+                            Icons.store,
+                            color: Colors.white,
+                            size: isTablet ? 28 : 24,
+                          ),
+                        ),
                 ),
                 SizedBox(width: 16),
 
@@ -725,6 +774,134 @@ class AdminEstablishmentsScreen extends StatelessWidget {
       Colors.indigo[600]!,
     ];
     return colors[name.hashCode % colors.length];
+  }
+
+  Widget _buildCashbackSection(Establishment est, AdminEstablishmentsScreenController cc) {
+    final TextEditingController cashbackController = TextEditingController(
+      text: est.cashbackPercentage.toStringAsFixed(0),
+    );
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.savings, size: 20, color: Colors.blue[700]),
+            SizedBox(width: 8),
+            Text(
+              'Cashback',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue[200]!, width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pourcentage de cashback',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          width: 80,
+                          child: TextField(
+                            controller: cashbackController,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                            decoration: InputDecoration(
+                              suffixText: '%',
+                              suffixStyle: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[700],
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.blue[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.blue[500]!, width: 2),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final newPercentage = double.tryParse(cashbackController.text);
+                            if (newPercentage != null && newPercentage >= 0 && newPercentage <= 100) {
+                              await cc.updateCashbackPercentage(est.id, newPercentage);
+                              Get.snackbar(
+                                'Succès',
+                                'Cashback mis à jour à ${newPercentage.toStringAsFixed(0)}%',
+                                backgroundColor: Colors.green[100],
+                                colorText: Colors.green[800],
+                                duration: Duration(seconds: 2),
+                              );
+                            } else {
+                              Get.snackbar(
+                                'Erreur',
+                                'Veuillez entrer un pourcentage valide (0-100)',
+                                backgroundColor: Colors.red[100],
+                                colorText: Colors.red[800],
+                              );
+                            }
+                          },
+                          icon: Icon(Icons.save, size: 18),
+                          label: Text('Sauvegarder'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[700],
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Les clients gagneront ${est.cashbackPercentage.toStringAsFixed(0)}% de leurs achats en points',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Color _getCategoryColor(String category) {
@@ -930,6 +1107,12 @@ class AdminEstablishmentsScreen extends StatelessWidget {
                       ],
 
                       SizedBox(height: 24),
+
+                      // Section Cashback (seulement pour les entreprises)
+                      if (est.enterpriseCategoryIds != null && est.enterpriseCategoryIds!.isNotEmpty) ...[
+                        _buildCashbackSection(est, cc),
+                        SizedBox(height: 24),
+                      ],
 
                       // Section Infos techniques
                       _buildSection(

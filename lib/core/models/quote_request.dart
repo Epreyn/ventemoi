@@ -53,7 +53,9 @@ class QuoteRequest {
       projectDescription: data['project_description'] ?? '',
       estimatedBudget: data['estimated_budget']?.toDouble(),
       status: data['status'] ?? 'pending',
-      createdAt: (data['created_at'] as Timestamp).toDate(),
+      createdAt: data['created_at'] != null 
+          ? (data['created_at'] as Timestamp).toDate()
+          : DateTime.now(),
       respondedAt: data['responded_at'] != null 
           ? (data['responded_at'] as Timestamp).toDate() 
           : null,

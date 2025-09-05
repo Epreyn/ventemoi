@@ -117,6 +117,8 @@ class ProEstablishmentEnterpriseCategoriesSection extends StatelessWidget {
                           onRemove: controller.removeEnterpriseCategory,
                           maxSelections:
                               controller.enterpriseCategorySlots.value,
+                          selectedOptions: controller.selectedSubcategoryOptions,
+                          onOptionsChanged: controller.updateSubcategoryOptions,
                         )),
 
                     // Message d'information selon l'abonnement

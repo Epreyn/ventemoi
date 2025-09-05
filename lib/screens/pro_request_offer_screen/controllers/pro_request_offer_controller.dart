@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ventemoi/core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
+import '../../../core/services/offer_email_service.dart';
 
 class ProRequestOfferController extends GetxController with ControllerMixin {
   static const tag = 'pro-request-offer';
@@ -72,39 +73,92 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
       final userId = UniquesControllers().getStorage.read('currentUserUID');
       if (userId == null) return;
 
-      // Charger les demandes en attente
-      final pendingSnap = await UniquesControllers()
+      // Charger toutes les demandes de l'utilisateur et filtrer côté client
+      final allRequestsSnap = await UniquesControllers()
           .data
           .firebaseFirestore
           .collection('offer_requests')
           .where('user_id', isEqualTo: userId)
-          .where('status', isEqualTo: 'pending')
-          .orderBy('created_at', descending: true)
           .get();
 
-      pendingRequests.value = pendingSnap.docs.map((doc) {
+      final allRequests = allRequestsSnap.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
 
-      // Charger les offres approuvées
-      final approvedSnap = await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('offer_requests')
-          .where('user_id', isEqualTo: userId)
-          .where('status', isEqualTo: 'approved')
-          .orderBy('created_at', descending: true)
-          .get();
+      // Filtrer et trier côté client pour éviter les index composites
+      pendingRequests.value = allRequests
+          .where((request) => request['status'] == 'pending')
+          .toList()
+        ..sort((a, b) {
+          final aDate = a['created_at'] as Timestamp?;
+          final bDate = b['created_at'] as Timestamp?;
+          if (aDate == null || bDate == null) return 0;
+          return bDate.compareTo(aDate);
+        });
 
-      approvedOffers.value = approvedSnap.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
+      approvedOffers.value = allRequests
+          .where((request) => request['status'] == 'approved')
+          .toList()
+        ..sort((a, b) {
+          final aDate = a['created_at'] as Timestamp?;
+          final bDate = b['created_at'] as Timestamp?;
+          if (aDate == null || bDate == null) return 0;
+          return bDate.compareTo(aDate);
+        });
     } catch (e) {
       print('Erreur chargement demandes: $e');
+      // En cas d'erreur, essayer une méthode encore plus simple
+      await _loadRequestsSimple();
+    }
+  }
+
+  Future<void> _loadRequestsSimple() async {
+    try {
+      final userId = UniquesControllers().getStorage.read('currentUserUID');
+      if (userId == null) return;
+
+      // Charger TOUTES les demandes et filtrer côté client
+      final allSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('offer_requests')
+          .get();
+
+      final userRequests = allSnap.docs
+          .where((doc) => doc.data()['user_id'] == userId)
+          .map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+
+      pendingRequests.value = userRequests
+          .where((request) => request['status'] == 'pending')
+          .toList()
+        ..sort((a, b) {
+          final aDate = a['created_at'] as Timestamp?;
+          final bDate = b['created_at'] as Timestamp?;
+          if (aDate == null || bDate == null) return 0;
+          return bDate.compareTo(aDate);
+        });
+
+      approvedOffers.value = userRequests
+          .where((request) => request['status'] == 'approved')
+          .toList()
+        ..sort((a, b) {
+          final aDate = a['created_at'] as Timestamp?;
+          final bDate = b['created_at'] as Timestamp?;
+          if (aDate == null || bDate == null) return 0;
+          return bDate.compareTo(aDate);
+        });
+
+      print('✅ Demandes chargées via méthode simple');
+    } catch (e) {
+      print('❌ Erreur finale chargement demandes: $e');
+      pendingRequests.value = [];
+      approvedOffers.value = [];
     }
   }
 
@@ -136,6 +190,11 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
           .firebaseFirestore
           .collection('offer_requests')
           .add(requestData);
+
+      // Envoyer un email aux admins pour les notifier de la nouvelle demande
+      await OfferEmailService.sendNewOfferRequestToAdmins(
+        requestData: requestData,
+      );
 
       UniquesControllers().data.snackbar(
         'Demande envoyée',

@@ -72,15 +72,40 @@ class EnterpriseEstablishmentCard extends StatelessWidget {
                         ),
                       ),
                       // Bouton vidéo si disponible
-                      if (establishment.videoUrl.isNotEmpty)
-                        IconButton(
-                          onPressed: () => _launchVideo(establishment.videoUrl),
-                          icon: Icon(
-                            Icons.play_circle_filled,
-                            color: CustomTheme.lightScheme().primary,
-                            size: 32 * widthScale,
+                      // Icône de cashback en haut à droite
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.blue[200]!,
+                            width: 1,
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.savings,
+                              color: Colors.blue[700],
+                              size: 16 * widthScale,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              '${establishment.cashbackPercentage.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: Colors.blue[700],
+                                fontSize: 12 * widthScale,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -164,24 +189,28 @@ class EnterpriseEstablishmentCard extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            establishment.description,
-                            style: TextStyle(
-                              fontSize: 14 * widthScale,
-                              color: Colors.white,
-                              height: 1.4,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(1, 1),
-                                  blurRadius: 3,
-                                  color: Colors.black.withOpacity(0.5),
-                                ),
-                              ],
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Text(
+                              establishment.description,
+                              style: TextStyle(
+                                fontSize: 14 * widthScale,
+                                color: Colors.white,
+                                height: 1.3,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(1, 1),
+                                    blurRadius: 3,
+                                    color: Colors.black.withOpacity(0.5),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.justify,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            textAlign: TextAlign.justify,
-                            maxLines: 5,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -229,6 +258,13 @@ class EnterpriseEstablishmentCard extends StatelessWidget {
                             icon: Icons.directions,
                             label: 'Itinéraire',
                             onTap: () => _launchMaps(establishment.address),
+                            scale: widthScale,
+                          ),
+                        if (establishment.videoUrl.isNotEmpty)
+                          _buildContactButton(
+                            icon: Icons.play_circle_outline,
+                            label: 'Vidéo',
+                            onTap: () => _launchVideo(establishment.videoUrl),
                             scale: widthScale,
                           ),
                       ],

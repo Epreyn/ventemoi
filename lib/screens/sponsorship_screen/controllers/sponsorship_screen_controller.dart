@@ -197,7 +197,27 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
           if (userQuery.docs.isNotEmpty) {
             final userData = userQuery.docs.first.data();
             final userId = userQuery.docs.first.id;
-            final isActive = userData['isEnable'] ?? false;
+            
+            // Vérifier si l'utilisateur a payé ou a un accès gratuit
+            final estabQuery = await UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('establishments')
+                .where('user_id', isEqualTo: userId)
+                .limit(1)
+                .get();
+            
+            bool hasPaid = false;
+            bool hasAcceptedCGU = false;
+            
+            if (estabQuery.docs.isNotEmpty) {
+              final estabData = estabQuery.docs.first.data();
+              hasPaid = (estabData['has_active_subscription'] ?? false) || 
+                       (estabData['is_free_access'] ?? false);
+              hasAcceptedCGU = estabData['has_accepted_contract'] ?? false;
+            }
+            
+            final isActive = hasPaid && hasAcceptedCGU;
 
             referralDetails[email] = {
               'isActive': isActive,
@@ -205,8 +225,8 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
               'joinDate': _formatDate(userData['created_at']),
               'name': userData['name'] ?? '',
               'userType': await _getUserTypeNameById(userData['user_type_id']),
-              'hasPaid': false,
-              'hasAcceptedCGU': false,
+              'hasPaid': hasPaid,
+              'hasAcceptedCGU': hasAcceptedCGU,
               'userId': userId,
             };
 

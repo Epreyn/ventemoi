@@ -17,6 +17,12 @@ class QuotesScreen extends StatelessWidget {
     return ScreenLayout(
       noFAB: true,
       body: Obx(() {
+        // Debug info
+        print('QuotesScreen - isAdmin: ${controller.isAdmin.value}');
+        print('QuotesScreen - userQuotes: ${controller.userQuotes.length}');
+        print('QuotesScreen - enterpriseQuotes: ${controller.enterpriseQuotes.length}');
+        print('QuotesScreen - allQuotes: ${controller.allQuotes.length}');
+        
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -29,7 +35,9 @@ class QuotesScreen extends StatelessWidget {
             // Contenu principal
             Expanded(
               child: DefaultTabController(
-                length: controller.enterpriseQuotes.isNotEmpty ? 3 : 2,
+                length: controller.isAdmin.value 
+                    ? 2 
+                    : (controller.enterpriseQuotes.isNotEmpty ? 3 : 2),
                 child: Column(
                   children: [
                     // Tabs
@@ -40,10 +48,13 @@ class QuotesScreen extends StatelessWidget {
                         unselectedLabelColor: Colors.grey,
                         indicatorColor: CustomTheme.lightScheme().primary,
                         tabs: [
-                          const Tab(text: 'Mes demandes'),
-                          if (controller.enterpriseQuotes.isNotEmpty)
+                          Tab(text: controller.isAdmin.value 
+                              ? 'Tous les devis' 
+                              : 'Mes demandes'),
+                          if (!controller.isAdmin.value && controller.enterpriseQuotes.isNotEmpty)
                             const Tab(text: 'Demandes reçues'),
-                          const Tab(text: 'Nouveau devis'),
+                          if (!controller.isAdmin.value)
+                            const Tab(text: 'Nouveau devis'),
                         ],
                       ),
                     ),
@@ -52,15 +63,18 @@ class QuotesScreen extends StatelessWidget {
                     Expanded(
                       child: TabBarView(
                         children: [
-                          // Mes demandes de devis
-                          _buildMyQuotes(controller),
+                          // Mes demandes de devis ou tous les devis (admin)
+                          controller.isAdmin.value 
+                              ? _buildAllQuotes(controller)
+                              : _buildMyQuotes(controller),
                           
                           // Demandes reçues (si entreprise)
-                          if (controller.enterpriseQuotes.isNotEmpty)
+                          if (!controller.isAdmin.value && controller.enterpriseQuotes.isNotEmpty)
                             _buildReceivedQuotes(controller),
                           
-                          // Formulaire général
-                          GeneralQuoteForm(controller: controller),
+                          // Formulaire général (sauf pour admin)
+                          if (!controller.isAdmin.value)
+                            GeneralQuoteForm(controller: controller),
                         ],
                       ),
                     ),
@@ -107,16 +121,20 @@ class QuotesScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${controller.totalQuotesCount.value}',
+                  controller.isAdmin.value 
+                      ? '${controller.allQuotes.length}'
+                      : '${controller.userQuotes.length + controller.enterpriseQuotes.length}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Text(
-                  'Devis total',
-                  style: TextStyle(
+                Text(
+                  controller.isAdmin.value 
+                      ? 'Total système'
+                      : 'Mes devis',
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
                   ),
@@ -237,6 +255,176 @@ class QuotesScreen extends StatelessWidget {
         );
       },
     );
+  }
+  
+  Widget _buildAllQuotes(QuotesScreenController controller) {
+    final quotes = controller.getFilteredQuotes(controller.allQuotes);
+    
+    if (quotes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun devis',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Il n\'y a aucun devis dans le système',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: quotes.length,
+      itemBuilder: (context, index) {
+        final quote = quotes[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            quote.projectType,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Client: ${quote.userName}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          if (quote.enterpriseName != null)
+                            Text(
+                              'Entreprise: ${quote.enterpriseName}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    _buildStatusBadge(quote.status),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  quote.projectDescription,
+                  style: const TextStyle(fontSize: 14),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Budget: ${quote.estimatedBudget?.toStringAsFixed(2) ?? 'N/A'} €',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Text(
+                      _formatDate(quote.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildStatusBadge(String status) {
+    final colors = {
+      'pending': Colors.orange,
+      'responded': Colors.blue,
+      'accepted': Colors.green,
+      'rejected': Colors.red,
+      'completed': Colors.purple,
+    };
+    
+    final labels = {
+      'pending': 'En attente',
+      'responded': 'Répondu',
+      'accepted': 'Accepté',
+      'rejected': 'Rejeté',
+      'completed': 'Terminé',
+    };
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors[status]?.withOpacity(0.1) ?? Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colors[status]?.withOpacity(0.3) ?? Colors.grey.withOpacity(0.3),
+        ),
+      ),
+      child: Text(
+        labels[status] ?? status,
+        style: TextStyle(
+          fontSize: 12,
+          color: colors[status] ?? Colors.grey,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+  
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        return 'Il y a ${difference.inMinutes} min';
+      }
+      return 'Il y a ${difference.inHours} h';
+    } else if (difference.inDays < 7) {
+      return 'Il y a ${difference.inDays} jour${difference.inDays > 1 ? 's' : ''}';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
   
   void _showResponseDialog(QuotesScreenController controller, quote) {

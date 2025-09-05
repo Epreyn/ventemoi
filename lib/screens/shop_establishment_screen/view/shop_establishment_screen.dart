@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
 import '../../../core/classes/unique_controllers.dart';
@@ -10,11 +11,72 @@ import '../controllers/shop_establishment_screen_controller.dart';
 import '../widgets/shop_establishment_card.dart';
 import '../widgets/enterprise_establishment_card.dart';
 import '../widgets/shop_establishment_mobile_card.dart';
+import '../widgets/sponsor_establishment_card.dart';
 import '../widgets/empty_state_widget.dart';
 import '../widgets/special_offers_banner.dart';
 
-class ShopEstablishmentScreen extends StatelessWidget {
+class ShopEstablishmentScreen extends StatefulWidget {
   const ShopEstablishmentScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ShopEstablishmentScreen> createState() => _ShopEstablishmentScreenState();
+}
+
+class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
+    with SingleTickerProviderStateMixin {
+  late ScrollController _scrollController;
+  late AnimationController _animationController;
+  double _bannerHeight = 1.0; // 1.0 = fully visible, 0.0 = hidden
+  double _lastScrollPosition = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    
+    final currentPosition = _scrollController.position.pixels;
+    
+    // Calculer la nouvelle hauteur basée sur le scroll
+    // La bannière se cache sur les 150 premiers pixels de scroll
+    const double maxScroll = 150.0;
+    
+    double newHeight;
+    if (currentPosition <= 0) {
+      // Tout en haut, bannière complètement visible
+      newHeight = 1.0;
+    } else if (currentPosition >= maxScroll) {
+      // Après 150 pixels de scroll, bannière complètement cachée
+      newHeight = 0.0;
+    } else {
+      // Entre les deux, cacher progressivement de façon linéaire
+      newHeight = 1.0 - (currentPosition / maxScroll);
+    }
+    
+    // Ne mettre à jour que si la valeur a changé significativement
+    if ((newHeight - _bannerHeight).abs() > 0.01) {
+      setState(() {
+        _bannerHeight = newHeight.clamp(0.0, 1.0);
+      });
+    }
+    
+    _lastScrollPosition = currentPosition;
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +93,20 @@ class ShopEstablishmentScreen extends StatelessWidget {
       noFAB: true,
       body: Column(
         children: [
-          const SpecialOffersBanner(), // Bandeau des offres du moment
+          // Bannière avec hauteur progressive et masquage fluide
+          SizeTransition(
+            sizeFactor: AlwaysStoppedAnimation(_bannerHeight),
+            axisAlignment: -1.0,
+            child: FadeTransition(
+              opacity: AlwaysStoppedAnimation(_bannerHeight > 0.2 ? 1.0 : _bannerHeight * 5),
+              child: const SpecialOffersBanner(),
+            ),
+          ),
           _buildSearchBar(cc),
           _buildModernTabs(cc),
           _buildTabDescription(cc),
           Expanded(
-            child: _buildContent(cc),
+            child: _buildContent(cc, _scrollController),
           ),
         ],
       ),
@@ -71,15 +141,21 @@ class ShopEstablishmentScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Rechercher un établissement...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onChanged: cc.setSearchText,
-            ),
+            child: Obx(() {
+              String hintText = 'Rechercher un établissement...';
+              if (cc.selectedTabIndex.value == 0) {
+                hintText = 'Rechercher (nom, description, catégories)...';
+              }
+              return TextField(
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onChanged: cc.setSearchText,
+              );
+            }),
           ),
           Obx(() {
             final filterCount = cc.selectedTabIndex.value == 0
@@ -525,7 +601,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(ShopEstablishmentScreenController cc) {
+  Widget _buildContent(ShopEstablishmentScreenController cc, ScrollController scrollController) {
     return Obx(() {
       final establishments = cc.displayedEstablishments;
 
@@ -535,13 +611,13 @@ class ShopEstablishmentScreen extends StatelessWidget {
 
       return AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
-        child: _buildGrid(establishments, cc),
+        child: _buildGrid(establishments, cc, scrollController),
       );
     });
   }
 
   Widget _buildGrid(List<Establishment> establishments,
-      ShopEstablishmentScreenController cc) {
+      ShopEstablishmentScreenController cc, ScrollController scrollController) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Définir les breakpoints et tailles de cartes
@@ -553,6 +629,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
         if (isMobile) {
           // Format liste horizontale condensée sur mobile
           return ListView.builder(
+            controller: scrollController,
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
             itemCount: establishments.length,
             itemBuilder: (context, index) {
@@ -596,6 +673,7 @@ class ShopEstablishmentScreen extends StatelessWidget {
           }
 
           return GridView.builder(
+            controller: scrollController,
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: maxCardWidth,
@@ -611,8 +689,78 @@ class ShopEstablishmentScreen extends StatelessWidget {
               final isOwnEstablishment =
                   cc.isOwnEstablishment(establishment.userId);
 
-              // Utiliser la bonne carte selon le type
-              if (tName == 'Entreprise') {
+              // Utiliser la bonne carte selon le type et l'onglet
+              if (cc.selectedTabIndex.value == 3) {
+                // Onglet Sponsors - utiliser la carte simplifiée
+                // TODO: Déterminer si c'est un sponsor premium selon un champ dans Firestore
+                bool isPremium = establishment.isPremiumSponsor ?? false;
+                return SponsorEstablishmentCard(
+                  establishment: establishment,
+                  index: index,
+                  isPremium: isPremium,
+                  onTap: () {
+                    // Simple affichage d'infos pour les sponsors
+                    Get.dialog(
+                      AlertDialog(
+                        title: Text(establishment.name),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (establishment.description.isNotEmpty)
+                              Text(establishment.description),
+                            SizedBox(height: 16),
+                            if (establishment.website != null && establishment.website!.isNotEmpty)
+                              Row(
+                                children: [
+                                  Icon(Icons.language, size: 16),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      establishment.website ?? '',
+                                      style: TextStyle(
+                                        color: CustomTheme.lightScheme().primary,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (establishment.email.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.email_outlined, size: 16),
+                                    SizedBox(width: 8),
+                                    Text(establishment.email),
+                                  ],
+                                ),
+                              ),
+                            if (establishment.telephone.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.phone_outlined, size: 16),
+                                    SizedBox(width: 8),
+                                    Text(establishment.telephone),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Get.back(),
+                            child: Text('Fermer'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              } else if (tName == 'Entreprise') {
                 return EnterpriseEstablishmentCard(
                   establishment: establishment,
                   index: index,

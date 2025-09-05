@@ -120,6 +120,8 @@ class AdminEstablishmentsScreenController extends GetxController
       'particulier': 0,
       'partenaire': 0,
       'entreprise': 0,
+      'boutique': 0,
+      'association': 0,
       'professionnel': 0,
       'inconnu': 0,
     };
@@ -142,6 +144,33 @@ class AdminEstablishmentsScreenController extends GetxController
     }
 
     statsByType.value = stats;
+    
+    // Calculer les statistiques spécifiques aux associations
+    _updateAssociationStats(establishments);
+  }
+  
+  // Nouvelle méthode pour calculer les stats des associations
+  void _updateAssociationStats(List<Establishment> establishments) async {
+    int associationsVisibles = 0;
+    int associationsEnAttente = 0;
+    int associationsSansAffilies = 0;
+    
+    for (final est in establishments) {
+      final ownerType = _ownerTypesCache[est.userId]?.toLowerCase() ?? '';
+      
+      if (ownerType == 'association') {
+        if (est.isVisible) {
+          associationsVisibles++;
+        } else if (est.affiliatesCount >= 15) {
+          associationsEnAttente++;
+        } else {
+          associationsSansAffilies++;
+        }
+      }
+    }
+    
+    // Stocker ces stats pour les afficher si besoin
+    // (vous pouvez créer des observables supplémentaires si nécessaire)
   }
 
   // --------------------------------------------------------------------------------
@@ -426,5 +455,43 @@ class AdminEstablishmentsScreenController extends GetxController
         ],
       );
     });
+  }
+  
+  // Mettre à jour le pourcentage de cashback
+  Future<void> updateCashbackPercentage(String establishmentId, double percentage) async {
+    try {
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .doc(establishmentId)
+          .update({
+        'cashback_percentage': percentage,
+      });
+      
+      // Rafraîchir la liste localement
+      final index = allEstablishments.indexWhere((e) => e.id == establishmentId);
+      if (index != -1) {
+        // Forcer un rafraîchissement en récupérant le document mis à jour
+        final updatedDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(establishmentId)
+            .get();
+        
+        if (updatedDoc.exists) {
+          allEstablishments[index] = Establishment.fromDocument(updatedDoc);
+          allEstablishments.refresh();
+        }
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Erreur',
+        'Impossible de mettre à jour le cashback: $e',
+        backgroundColor: Colors.red[100],
+        colorText: Colors.red[800],
+      );
+    }
   }
 }

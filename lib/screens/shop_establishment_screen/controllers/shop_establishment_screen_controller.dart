@@ -32,6 +32,8 @@ class ShopEstablishmentScreenController extends GetxController
   RxMap<String, String> categoriesMap = <String, String>{}.obs;
   // Catégories d'entreprises
   RxMap<String, String> enterpriseCategoriesMap = <String, String>{}.obs;
+  // Catégories de sponsors
+  RxMap<String, String> sponsorCategoriesMap = <String, String>{}.obs;
 
   // Filtre multi-catégories (pour commerces/assos)
   RxString searchText = ''.obs;
@@ -344,12 +346,25 @@ class ShopEstablishmentScreenController extends GetxController
       if (tab == 2 && !isAsso) continue; // Associations
       if (tab == 3 && !isSponsor) continue; // Sponsors
 
-      // Filtre par recherche
+      // Filtre par recherche (inclure les catégories pour les entreprises)
       if (lowerSearch.isNotEmpty) {
         final nameLower = e.name.toLowerCase();
         final descLower = e.description.toLowerCase();
-        if (!nameLower.contains(lowerSearch) &&
-            !descLower.contains(lowerSearch)) {
+        bool matchesSearch = nameLower.contains(lowerSearch) || 
+                             descLower.contains(lowerSearch);
+        
+        // Pour les entreprises, rechercher aussi dans les noms de catégories
+        if (isEnt && !matchesSearch && e.enterpriseCategoryIds != null) {
+          for (final catId in e.enterpriseCategoryIds!) {
+            final catName = enterpriseCategoriesMap[catId]?.toLowerCase() ?? '';
+            if (catName.contains(lowerSearch)) {
+              matchesSearch = true;
+              break;
+            }
+          }
+        }
+        
+        if (!matchesSearch) {
           continue;
         }
       }
@@ -535,6 +550,23 @@ class ShopEstablishmentScreenController extends GetxController
         'points': FieldValue.increment(-totalCost),
       });
       
+      // Mettre à jour le wallet de l'acheteur
+      final buyerWalletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: buyerId)
+          .limit(1)
+          .get();
+      
+      if (buyerWalletQuery.docs.isNotEmpty) {
+        final walletRef = buyerWalletQuery.docs.first.reference;
+        batch.update(walletRef, {
+          'points': FieldValue.increment(-totalCost),
+          'last_updated': FieldValue.serverTimestamp(),
+        });
+      }
+      
       // Ajouter les points au commerce
       final estabRef = UniquesControllers()
           .data
@@ -556,9 +588,12 @@ class ShopEstablishmentScreenController extends GetxController
       batch.set(transactionRef, {
         'from_user_id': buyerId,
         'to_establishment_id': selectedEstab.value!.id,
+        'to_establishment_name': selectedEstab.value!.name,
         'points': totalCost,
-        'type': 'purchase',
+        'type': 'voucher_purchase',
         'voucher_count': couponsToBuy.value,
+        'description': 'Achat de ${couponsToBuy.value} bon(s) chez ${selectedEstab.value!.name}',
+        'status': 'completed',
         'created_at': FieldValue.serverTimestamp(),
       });
       
@@ -626,6 +661,23 @@ class ShopEstablishmentScreenController extends GetxController
         'points': FieldValue.increment(-amount),
       });
       
+      // Mettre à jour le wallet du donateur
+      final donatorWalletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: buyerId)
+          .limit(1)
+          .get();
+      
+      if (donatorWalletQuery.docs.isNotEmpty) {
+        final walletRef = donatorWalletQuery.docs.first.reference;
+        batch.update(walletRef, {
+          'points': FieldValue.increment(-amount),
+          'last_updated': FieldValue.serverTimestamp(),
+        });
+      }
+      
       // Ajouter les points à l'association
       final estabRef = UniquesControllers()
           .data
@@ -635,6 +687,7 @@ class ShopEstablishmentScreenController extends GetxController
       
       batch.update(estabRef, {
         'points_received': FieldValue.increment(amount),
+        'donations_received': FieldValue.increment(1),
       });
       
       // Créer une transaction
@@ -647,8 +700,11 @@ class ShopEstablishmentScreenController extends GetxController
       batch.set(transactionRef, {
         'from_user_id': buyerId,
         'to_establishment_id': selectedEstab.value!.id,
+        'to_establishment_name': selectedEstab.value!.name,
         'points': amount,
         'type': 'donation',
+        'description': 'Don à l\'association ${selectedEstab.value!.name}',
+        'status': 'completed',
         'created_at': FieldValue.serverTimestamp(),
       });
       
@@ -675,7 +731,10 @@ class ShopEstablishmentScreenController extends GetxController
 
   @override
   List<Widget> bottomSheetChildren() {
-    if (selectedEstab.value == null) return [];
+    // Si on est dans le contexte du filtre (pas d'établissement sélectionné)
+    if (selectedEstab.value == null) {
+      return _buildFilterWidgets();
+    }
     
     final tName = userTypeNameCache[selectedEstab.value!.userId] ?? '';
     
@@ -913,6 +972,120 @@ class ShopEstablishmentScreenController extends GetxController
     }
     
     return [];
+  }
+  
+  List<Widget> _buildFilterWidgets() {
+    switch (selectedTabIndex.value) {
+      case 0: // Partenaires
+        return _buildCategoryChips(
+          enterpriseCategoriesMap,
+          localSelectedEnterpriseCatIds,
+          'Catégories d\'entreprises',
+        );
+      case 1: // Commerces
+        return _buildCategoryChips(
+          categoriesMap,
+          localSelectedCatIds,
+          'Catégories de commerces',
+        );
+      case 2: // Associations
+        return _buildCategoryChips(
+          categoriesMap,
+          localSelectedCatIds,
+          'Catégories d\'associations',
+        );
+      case 3: // Sponsors
+        return _buildCategoryChips(
+          sponsorCategoriesMap,
+          localSelectedSponsorCatIds,
+          'Catégories de sponsors',
+        );
+      default:
+        return [];
+    }
+  }
+  
+  List<Widget> _buildCategoryChips(
+    Map<String, String> categories,
+    RxSet<String> selectedIds,
+    String title,
+  ) {
+    if (categories.isEmpty) {
+      return [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: Column(
+            children: [
+              Icon(
+                Icons.category_outlined,
+                size: 48,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Aucune catégorie disponible',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
+    }
+
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey,
+          ),
+        ),
+      ),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: categories.entries.map((entry) {
+          final isSelected = selectedIds.contains(entry.key);
+          return Obx(() => AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            child: FilterChip(
+              label: Text(entry.value),
+              selected: selectedIds.contains(entry.key),
+              onSelected: (selected) {
+                if (selected) {
+                  selectedIds.add(entry.key);
+                } else {
+                  selectedIds.remove(entry.key);
+                }
+              },
+              avatar: selectedIds.contains(entry.key)
+                  ? const Icon(Icons.check_circle, size: 18)
+                  : Icon(
+                      Icons.circle_outlined,
+                      size: 18,
+                      color: Colors.grey[400],
+                    ),
+              selectedColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
+              checkmarkColor: CustomTheme.lightScheme().primary,
+              backgroundColor: Colors.grey[100],
+              side: BorderSide(
+                color: selectedIds.contains(entry.key)
+                    ? CustomTheme.lightScheme().primary
+                    : Colors.grey[300]!,
+                width: selectedIds.contains(entry.key) ? 2 : 1,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ));
+        }).toList(),
+      ),
+    ];
   }
 
   // Le reste des méthodes restent inchangées...

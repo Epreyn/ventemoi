@@ -6,6 +6,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/quote_request.dart';
 import '../../../core/models/establishement.dart';
+import '../../../core/services/quote_email_service.dart';
 
 class QuotesScreenController extends GetxController with ControllerMixin {
   // Liste des devis
@@ -36,17 +37,92 @@ class QuotesScreenController extends GetxController with ControllerMixin {
   StreamSubscription? _userQuotesSub;
   StreamSubscription? _enterpriseQuotesSub;
   
+  // Admin flag
+  RxBool isAdmin = false.obs;
+  RxList<QuoteRequest> allQuotes = <QuoteRequest>[].obs;
+  StreamSubscription? _allQuotesSub;
+  
   @override
   void onInit() {
     super.onInit();
+    _checkIfAdmin();
     _loadQuotes();
     _loadStatistics();
+  }
+  
+  Future<void> _checkIfAdmin() async {
+    final currentUser = UniquesControllers().data.firebaseAuth.currentUser;
+    if (currentUser == null) return;
+    
+    try {
+      final userDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      if (userDoc.exists) {
+        final userTypeId = userDoc.data()?['user_type_id'];
+        if (userTypeId != null) {
+          final userTypeDoc = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('user_types')
+              .doc(userTypeId)
+              .get();
+          
+          if (userTypeDoc.exists) {
+            final userTypeName = userTypeDoc.data()?['name'];
+            isAdmin.value = userTypeName == 'Admin';
+            
+            if (isAdmin.value) {
+              _loadAllQuotes();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Erreur vérification admin: $e');
+    }
+  }
+  
+  void _loadAllQuotes() {
+    // Charger tous les devis pour l'admin
+    _allQuotesSub = UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('quote_requests')
+        .snapshots()
+        .listen((snapshot) {
+      try {
+        allQuotes.value = snapshot.docs
+            .map((doc) {
+              try {
+                return QuoteRequest.fromFirestore(doc);
+              } catch (e) {
+                print('Erreur parsing devis admin ${doc.id}: $e');
+                return null;
+              }
+            })
+            .where((quote) => quote != null)
+            .cast<QuoteRequest>()
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        print('Admin: Chargé ${allQuotes.length} devis au total');
+      } catch (e) {
+        print('Erreur chargement tous les devis: $e');
+      }
+    }, onError: (error) {
+      print('Erreur stream tous les devis: $error');
+    });
   }
   
   @override
   void onClose() {
     _userQuotesSub?.cancel();
     _enterpriseQuotesSub?.cancel();
+    _allQuotesSub?.cancel();
     projectTypeController.dispose();
     projectDescriptionController.dispose();
     estimatedBudgetController.dispose();
@@ -66,12 +142,28 @@ class QuotesScreenController extends GetxController with ControllerMixin {
         .firebaseFirestore
         .collection('quote_requests')
         .where('user_id', isEqualTo: currentUser.uid)
-        .orderBy('created_at', descending: true)
         .snapshots()
         .listen((snapshot) {
-      userQuotes.value = snapshot.docs
-          .map((doc) => QuoteRequest.fromFirestore(doc))
-          .toList();
+      try {
+        userQuotes.value = snapshot.docs
+            .map((doc) {
+              try {
+                return QuoteRequest.fromFirestore(doc);
+              } catch (e) {
+                print('Erreur parsing devis ${doc.id}: $e');
+                return null;
+              }
+            })
+            .where((quote) => quote != null)
+            .cast<QuoteRequest>()
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        print('Chargé ${userQuotes.length} devis utilisateur pour uid: ${currentUser.uid}');
+      } catch (e) {
+        print('Erreur chargement devis utilisateur: $e');
+      }
+    }, onError: (error) {
+      print('Erreur stream devis utilisateur: $error');
     });
     
     // Si l'utilisateur est une entreprise, charger aussi les devis reçus
@@ -99,18 +191,41 @@ class QuotesScreenController extends GetxController with ControllerMixin {
           .firebaseFirestore
           .collection('quote_requests')
           .where('enterprise_id', isEqualTo: establishmentId)
-          .orderBy('created_at', descending: true)
           .snapshots()
           .listen((snapshot) {
-        enterpriseQuotes.value = snapshot.docs
-            .map((doc) => QuoteRequest.fromFirestore(doc))
-            .toList();
+        try {
+          enterpriseQuotes.value = snapshot.docs
+              .map((doc) {
+                try {
+                  return QuoteRequest.fromFirestore(doc);
+                } catch (e) {
+                  print('Erreur parsing devis entreprise ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .where((quote) => quote != null)
+              .cast<QuoteRequest>()
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          print('Chargé ${enterpriseQuotes.length} devis entreprise');
+        } catch (e) {
+          print('Erreur chargement devis entreprise: $e');
+        }
+      }, onError: (error) {
+        print('Erreur stream devis entreprise: $error');
       });
     }
   }
   
   void _loadStatistics() async {
-    // Charger les statistiques de demandes par entreprise
+    // Ne charger les stats globales que pour les admins
+    if (!isAdmin.value) {
+      // Pour les utilisateurs normaux, juste compter leurs propres devis
+      totalQuotesCount.value = userQuotes.length + enterpriseQuotes.length;
+      return;
+    }
+    
+    // Pour les admins, charger toutes les stats
     final quotesSnapshot = await UniquesControllers()
         .data
         .firebaseFirestore
@@ -253,6 +368,12 @@ class QuotesScreenController extends GetxController with ControllerMixin {
       'created_at': FieldValue.serverTimestamp(),
       'read': false,
     });
+    
+    // Envoyer un email à l'entreprise
+    await QuoteEmailService.sendNewQuoteRequestEmail(
+      quoteData: quoteData,
+      enterprise: enterprise,
+    );
   }
   
   // Répondre à un devis (pour les entreprises)
@@ -262,6 +383,21 @@ class QuotesScreenController extends GetxController with ControllerMixin {
     double quotedAmount,
   ) async {
     try {
+      // Récupérer les infos du devis pour l'email
+      final quoteDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .get();
+      
+      if (!quoteDoc.exists) {
+        throw Exception('Devis introuvable');
+      }
+      
+      final quoteData = quoteDoc.data()!;
+      
+      // Mettre à jour le devis
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -274,6 +410,16 @@ class QuotesScreenController extends GetxController with ControllerMixin {
         'responded_at': FieldValue.serverTimestamp(),
         'points_generated': _calculatePoints(quotedAmount),
       });
+      
+      // Envoyer un email au client
+      await QuoteEmailService.sendQuoteResponseEmail(
+        userEmail: quoteData['user_email'],
+        userName: quoteData['user_name'],
+        enterpriseName: quoteData['enterprise_name'] ?? 'L\'entreprise',
+        projectType: quoteData['project_type'],
+        response: response,
+        quotedAmount: quotedAmount,
+      );
       
       UniquesControllers().data.snackbar(
         'Succès',
@@ -291,8 +437,8 @@ class QuotesScreenController extends GetxController with ControllerMixin {
   
   // Calculer les points générés par un devis
   int _calculatePoints(double amount) {
-    // 1% du montant en points
-    return (amount * 0.01).round();
+    // 2% du montant en points
+    return (amount * 0.02).round();
   }
   
   // Réclamer les points (après signature du devis)
@@ -373,5 +519,142 @@ class QuotesScreenController extends GetxController with ControllerMixin {
   List<QuoteRequest> getFilteredQuotes(List<QuoteRequest> quotes) {
     if (selectedStatus.value == 'all') return quotes;
     return quotes.where((q) => q.status == selectedStatus.value).toList();
+  }
+  
+  // Accepter un devis (pour le client)
+  Future<void> acceptQuote(String quoteId) async {
+    try {
+      // Récupérer les infos du devis
+      final quoteDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .get();
+      
+      if (!quoteDoc.exists) {
+        throw Exception('Devis introuvable');
+      }
+      
+      final quoteData = quoteDoc.data()!;
+      final enterpriseId = quoteData['enterprise_id'];
+      
+      // Récupérer les infos de l'entreprise
+      Establishment? enterprise;
+      if (enterpriseId != null) {
+        final estabDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(enterpriseId)
+            .get();
+        
+        if (estabDoc.exists) {
+          enterprise = Establishment.fromDocument(estabDoc);
+        }
+      }
+      
+      // Mettre à jour le statut du devis
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .update({
+        'status': 'accepted',
+        'accepted_at': FieldValue.serverTimestamp(),
+      });
+      
+      // Envoyer un email à l'entreprise si elle existe
+      if (enterprise != null) {
+        await QuoteEmailService.sendQuoteAcceptedEmail(
+          enterpriseEmail: enterprise.email,
+          enterpriseName: enterprise.name,
+          userName: quoteData['user_name'],
+          projectType: quoteData['project_type'],
+          quotedAmount: quoteData['quoted_amount'] ?? 0,
+        );
+      }
+      
+      UniquesControllers().data.snackbar(
+        'Succès',
+        'Devis accepté avec succès',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible d\'accepter le devis: $e',
+        true,
+      );
+    }
+  }
+  
+  // Refuser un devis (pour le client)
+  Future<void> rejectQuote(String quoteId) async {
+    try {
+      // Récupérer les infos du devis
+      final quoteDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .get();
+      
+      if (!quoteDoc.exists) {
+        throw Exception('Devis introuvable');
+      }
+      
+      final quoteData = quoteDoc.data()!;
+      final enterpriseId = quoteData['enterprise_id'];
+      
+      // Récupérer les infos de l'entreprise
+      Establishment? enterprise;
+      if (enterpriseId != null) {
+        final estabDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(enterpriseId)
+            .get();
+        
+        if (estabDoc.exists) {
+          enterprise = Establishment.fromDocument(estabDoc);
+        }
+      }
+      
+      // Mettre à jour le statut du devis
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .update({
+        'status': 'rejected',
+        'rejected_at': FieldValue.serverTimestamp(),
+      });
+      
+      // Envoyer un email à l'entreprise si elle existe
+      if (enterprise != null) {
+        await QuoteEmailService.sendQuoteRejectedEmail(
+          enterpriseEmail: enterprise.email,
+          enterpriseName: enterprise.name,
+          userName: quoteData['user_name'],
+          projectType: quoteData['project_type'],
+        );
+      }
+      
+      UniquesControllers().data.snackbar(
+        'Info',
+        'Devis refusé',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible de refuser le devis: $e',
+        true,
+      );
+    }
   }
 }

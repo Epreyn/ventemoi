@@ -8,10 +8,10 @@ import 'package:ventemoi/features/custom_space/view/custom_space.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
+import '../../../core/models/enterprise_subcategory_option.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 // import '../../../features/custom_app_bar/widgets/custom_app_bar_actions.dart'; // Non nécessaire
 import '../../../features/custom_bottom_app_bar/view/custom_bottom_app_bar.dart';
-import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_profile_leading/view/custom_profile_leading.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/admin_enterprise_categories_screen_controller.dart';
@@ -55,8 +55,16 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
     return Obx(() {
       final list = cc.filteredCategories;
 
-      return CustomScrollView(
-        slivers: [
+      return NotificationListener<ScrollNotification>(
+        onNotification: (ScrollNotification scrollInfo) {
+          if (!cc.isLoadingMore.value &&
+              scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
+            cc.loadMoreItems();
+          }
+          return false;
+        },
+        child: CustomScrollView(
+          slivers: [
           // Header avec stats et recherche
           SliverToBoxAdapter(
             child: Column(
@@ -72,7 +80,7 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
             SliverFillRemaining(
               child: _buildEmptyState(cc),
             )
-          else
+          else ...[
             SliverPadding(
               padding: EdgeInsets.all(isDesktop
                   ? 24
@@ -83,13 +91,52 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final category = list[index];
-                    return _buildCategoryItem(context, cc, category, index);
+                    return _buildCategoryItem(context, cc, category, index, list: list);
                   },
                   childCount: list.length,
                 ),
               ),
             ),
+            // Bouton pour charger plus d'éléments
+            SliverToBoxAdapter(
+              child: Obx(() {
+                final allCategories = cc.categories.where((category) {
+                  if (cc.searchText.value.isEmpty) return true;
+                  final search = cc.searchText.value.toLowerCase();
+                  return category.name.toLowerCase().contains(search) ||
+                      category.getFullName(cc.categories).toLowerCase().contains(search);
+                }).toList();
+                
+                final hasMore = allCategories.length > cc.itemsToShow.value;
+                
+                if (!hasMore) {
+                  return SizedBox.shrink();
+                }
+                
+                return Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: cc.isLoadingMore.value
+                        ? CircularProgressIndicator()
+                        : ElevatedButton.icon(
+                            onPressed: cc.loadMoreItems,
+                            icon: Icon(Icons.expand_more),
+                            label: Text('Charger plus (${allCategories.length - list.length} restants)'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            ),
+                          ),
+                  ),
+                );
+              }),
+            ),
+          ],
         ],
+        ),
       );
     });
   }
@@ -197,17 +244,15 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
       BuildContext context,
       AdminEnterpriseCategoriesScreenController cc,
       EnterpriseCategory category,
-      int index) {
+      int index, {List<EnterpriseCategory>? list}) {
     final isSubcategory = category.isSubCategory;
 
-    return CustomCardAnimation(
-      index: index,
-      child: Container(
-        margin: EdgeInsets.only(
-          left: isSubcategory ? 32 : 0,
-          bottom: 8,
-        ),
-        decoration: BoxDecoration(
+    return Container(
+      margin: EdgeInsets.only(
+        left: isSubcategory ? 32 : 0,
+        bottom: 8,
+      ),
+      decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -250,12 +295,34 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Boutons de réorganisation
+              IconButton(
+                icon: Icon(Icons.arrow_upward, color: Colors.grey),
+                onPressed: index > 0
+                    ? () => cc.moveCategory(category, -1)
+                    : null,
+                tooltip: 'Déplacer vers le haut',
+              ),
+              IconButton(
+                icon: Icon(Icons.arrow_downward, color: Colors.grey),
+                onPressed: list != null && index < list.length - 1
+                    ? () => cc.moveCategory(category, 1)
+                    : null,
+                tooltip: 'Déplacer vers le bas',
+              ),
               if (category.isMainCategory)
                 IconButton(
                   icon: Icon(Icons.add_circle_outline, color: Colors.green),
                   onPressed: () =>
                       _showCreateEditDialog(context, cc, null, category.id),
                   tooltip: 'Ajouter une sous-catégorie',
+                ),
+              if (category.isSubCategory)
+                IconButton(
+                  icon: Icon(Icons.list_alt, color: Colors.purple),
+                  onPressed: () =>
+                      _showManageOptionsDialog(context, cc, category),
+                  tooltip: 'Gérer les options',
                 ),
               IconButton(
                 icon: Icon(Icons.edit_outlined, color: Colors.blue),
@@ -271,7 +338,6 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -392,6 +458,7 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
                       // Dropdown pour la catégorie parente
                       Obx(() => DropdownButtonFormField<String?>(
                             value: cc.selectedParentId.value,
+                            isExpanded: true,
                             decoration: InputDecoration(
                               labelText: 'Catégorie parente (optionnel)',
                               prefixIcon: Icon(Icons.account_tree_outlined),
@@ -402,12 +469,18 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
                             items: [
                               DropdownMenuItem<String?>(
                                 value: null,
-                                child: Text('Aucune (catégorie principale)'),
+                                child: Text(
+                                  'Aucune (catégorie principale)',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               ...cc.mainCategories
                                   .map((cat) => DropdownMenuItem<String?>(
                                         value: cat.id,
-                                        child: Text(cat.name),
+                                        child: Text(
+                                          cat.name,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       )),
                             ],
                             onChanged: (value) {
@@ -491,6 +564,303 @@ class AdminEnterpriseCategoriesScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // Nouvelle méthode pour gérer les options des sous-catégories
+  void _showManageOptionsDialog(BuildContext context,
+      AdminEnterpriseCategoriesScreenController cc, EnterpriseCategory subcategory) {
+    
+    final TextEditingController optionController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 500,
+            constraints: BoxConstraints(maxHeight: 600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.purple[600]!, Colors.purple[700]!],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.list_alt, color: Colors.white, size: 28),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Gérer les options',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              subcategory.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Content
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Champ pour ajouter une nouvelle option
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: optionController,
+                                decoration: InputDecoration(
+                                  labelText: 'Nouvelle option',
+                                  hintText: 'Ex: Piscine coque, Piscine projetée...',
+                                  prefixIcon: Icon(Icons.add_box),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onSubmitted: (value) {
+                                  if (value.isNotEmpty) {
+                                    cc.addSubcategoryOption(subcategory.id, value);
+                                    optionController.clear();
+                                  }
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                if (optionController.text.isNotEmpty) {
+                                  cc.addSubcategoryOption(subcategory.id, optionController.text);
+                                  optionController.clear();
+                                }
+                              },
+                              icon: Icon(Icons.add),
+                              label: Text('Ajouter'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple[600],
+                                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        SizedBox(height: 20),
+                        
+                        // Liste des options existantes
+                        Expanded(
+                          child: StreamBuilder<List<Map<String, dynamic>>>(
+                            stream: cc.getSubcategoryOptions(subcategory.id),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) {
+                                return Center(child: CircularProgressIndicator());
+                              }
+                              
+                              final options = snapshot.data!;
+                              
+                              if (options.isEmpty) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[400]),
+                                      SizedBox(height: 12),
+                                      Text(
+                                        'Aucune option pour le moment',
+                                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Ajoutez des options pour permettre\nla sélection multiple',
+                                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              
+                              return ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final option = options[index];
+                                  return Card(
+                                    margin: EdgeInsets.only(bottom: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: Colors.purple[100],
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: TextStyle(
+                                            color: Colors.purple[700],
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      title: Text(option['name'] as String),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Boutons de réorganisation
+                                          IconButton(
+                                            icon: Icon(Icons.arrow_upward, size: 20),
+                                            onPressed: index > 0
+                                                ? () => cc.moveSubcategoryOption(subcategory.id, option['id'] as String, -1)
+                                                : null,
+                                            tooltip: 'Monter',
+                                          ),
+                                          IconButton(
+                                            icon: Icon(Icons.arrow_downward, size: 20),
+                                            onPressed: index < options.length - 1
+                                                ? () => cc.moveSubcategoryOption(subcategory.id, option['id'] as String, 1)
+                                                : null,
+                                            tooltip: 'Descendre',
+                                          ),
+                                          IconButton(
+                                            icon: Icon(Icons.delete_outline, color: Colors.red),
+                                            onPressed: () => _confirmDeleteOption(context, cc, subcategory.id, option),
+                                            tooltip: 'Supprimer',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                        
+                        SizedBox(height: 16),
+                        
+                        // Info
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Les entreprises pourront sélectionner plusieurs options pour cette sous-catégorie',
+                                  style: TextStyle(fontSize: 13, color: Colors.blue[900]),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Actions
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Fermer'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[600],
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+  
+  void _confirmDeleteOption(BuildContext context,
+      AdminEnterpriseCategoriesScreenController cc,
+      String subcategoryId,
+      Map<String, dynamic> option) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Supprimer l\'option'),
+          content: Text('Êtes-vous sûr de vouloir supprimer l\'option "${option['name']}" ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                cc.deleteSubcategoryOption(subcategoryId, option['id'] as String);
+                Navigator.of(context).pop();
+              },
+              child: Text('Supprimer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

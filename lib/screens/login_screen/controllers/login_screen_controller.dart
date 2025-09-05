@@ -223,20 +223,48 @@ class LoginScreenController extends GetxController {
       
       // Redirection selon le type d'utilisateur
       String targetRoute;
+      
+      // Pour les établissements, vérifier s'ils sont visibles
+      bool shouldGoToExplorer = false;
+      
       if (userType == 'Administrateur') {
         targetRoute = Routes.adminUsers;
       } else if (userType == 'Particulier') {
         targetRoute = Routes.shopEstablishment;
-      } else if (userType == 'Boutique') {
-        targetRoute = Routes.proEstablishmentProfile;
-      } else if (userType == 'Entreprise') {
-        targetRoute = Routes.proEstablishmentProfile;
-      } else if (userType == 'Sponsor' || userType == 'Cine7com') {
-        // Les sponsors sont redirigés vers la page établissement professionnel
-        targetRoute = Routes.proEstablishmentProfile;
-      } else if (userType == 'Association') {
-        // Les associations sont redirigées vers la page établissement professionnel
-        targetRoute = Routes.proEstablishmentProfile;
+      } else if (userType == 'Boutique' || userType == 'Entreprise' || 
+                 userType == 'Sponsor' || userType == 'Cine7com' || 
+                 userType == 'Association') {
+        // Vérifier si l'établissement existe et est visible
+        try {
+          final establishmentQuery = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('establishments')
+              .where('user_id', isEqualTo: uid)
+              .limit(1)
+              .get();
+          
+          if (establishmentQuery.docs.isNotEmpty) {
+            final estabData = establishmentQuery.docs.first.data();
+            final hasAcceptedContract = estabData['has_accepted_contract'] ?? false;
+            final isVisibleOverride = estabData['is_visible_override'] ?? false;
+            
+            // Pour les associations, vérifier aussi le nombre d'affiliés
+            if (userType == 'Association') {
+              final affiliatesCount = estabData['affiliates_count'] ?? 0;
+              shouldGoToExplorer = hasAcceptedContract && 
+                                  (affiliatesCount >= 15 || isVisibleOverride);
+            } else {
+              // Pour les autres types d'établissements
+              shouldGoToExplorer = hasAcceptedContract;
+            }
+          }
+        } catch (e) {
+          print('Erreur lors de la vérification de l\'établissement: $e');
+        }
+        
+        // Rediriger vers Explorer si l'établissement est visible, sinon vers le profil
+        targetRoute = shouldGoToExplorer ? Routes.shopEstablishment : Routes.proEstablishmentProfile;
       } else {
         UniquesControllers()
             .data

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -814,40 +815,152 @@ class ProfileScreenController extends GetxController with ControllerMixin {
       final user = UniquesControllers().data.firebaseAuth.currentUser;
       if (user == null) return;
       final uid = user.uid;
+      final userEmail = user.email;
 
-      // 1) Supprime le doc 'users/{uid}'
-      await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('users')
-          .doc(uid)
-          .delete();
-
-      // 2) Supprime le(s) doc(s) 'wallets' qui référencent user_id=uid
-      final snap = await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('wallets')
-          .where('user_id', isEqualTo: uid)
-          .get();
-
-      for (var d in snap.docs) {
-        await d.reference.delete();
+      // IMPORTANT: Essayer de supprimer d'abord le compte Firebase Auth
+      // Cela peut échouer si l'utilisateur n'est pas réauthentifié récemment
+      try {
+        await user.delete();
+      } catch (authError) {
+        // Si la suppression échoue (besoin de ré-authentification), 
+        // on demande le mot de passe
+        if (authError.toString().contains('requires-recent-login')) {
+          UniquesControllers().data.isInAsyncCall.value = false;
+          
+          // Demander le mot de passe pour ré-authentifier
+          Get.dialog(
+            AlertDialog(
+              title: Text('Confirmation requise'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Pour des raisons de sécurité, veuillez entrer votre mot de passe pour confirmer la suppression.'),
+                  SizedBox(height: 16),
+                  TextField(
+                    obscureText: true,
+                    controller: TextEditingController(),
+                    decoration: InputDecoration(
+                      labelText: 'Mot de passe',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (password) async {
+                      Get.back();
+                      await _deleteAccountWithReauth(userEmail!, password);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(),
+                  child: Text('Annuler'),
+                ),
+              ],
+            ),
+          );
+          return;
+        } else {
+          throw authError;
+        }
       }
 
-      // 3) Supprime le compte authentifié
-      await user.delete();
+      // Si on arrive ici, le compte Auth a été supprimé avec succès
+      // Maintenant supprimer toutes les données Firestore
+      await _deleteUserData(uid);
 
       UniquesControllers().data.isInAsyncCall.value = false;
 
       UniquesControllers().data.snackbar(
           'Compte supprimé', 'Votre compte a été supprimé avec succès.', false);
 
-      // 4) Redirection (ex: vers l'écran de login)
+      // Redirection vers l'écran de login
       Get.offAllNamed(Routes.login);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
+    }
+  }
+
+  // Méthode pour supprimer le compte avec ré-authentification
+  Future<void> _deleteAccountWithReauth(String email, String password) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+      
+      // Ré-authentifier l'utilisateur
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+      
+      final user = UniquesControllers().data.firebaseAuth.currentUser;
+      if (user == null) return;
+      
+      await user.reauthenticateWithCredential(credential);
+      final uid = user.uid;
+      
+      // Maintenant supprimer le compte Auth
+      await user.delete();
+      
+      // Supprimer toutes les données Firestore
+      await _deleteUserData(uid);
+      
+      UniquesControllers().data.isInAsyncCall.value = false;
+      
+      UniquesControllers().data.snackbar(
+          'Compte supprimé', 'Votre compte a été supprimé avec succès.', false);
+      
+      // Redirection vers l'écran de login
+      Get.offAllNamed(Routes.login);
+    } catch (e) {
+      UniquesControllers().data.isInAsyncCall.value = false;
+      UniquesControllers().data.snackbar('Erreur', 'Mot de passe incorrect ou erreur lors de la suppression.', true);
+    }
+  }
+
+  // Méthode pour supprimer toutes les données utilisateur de Firestore
+  Future<void> _deleteUserData(String uid) async {
+    // 1) Supprime le doc 'users/{uid}'
+    await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('users')
+        .doc(uid)
+        .delete();
+
+    // 2) Supprime le(s) doc(s) 'wallets'
+    final walletSnap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('wallets')
+        .where('user_id', isEqualTo: uid)
+        .get();
+
+    for (var d in walletSnap.docs) {
+      await d.reference.delete();
+    }
+
+    // 3) Supprime les établissements
+    final estabSnap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('establishments')
+        .where('user_id', isEqualTo: uid)
+        .get();
+
+    for (var d in estabSnap.docs) {
+      await d.reference.delete();
+    }
+
+    // 4) Supprime les sponsorships
+    final sponsorSnap = await UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('sponsorships')
+        .where('user_id', isEqualTo: uid)
+        .get();
+
+    for (var d in sponsorSnap.docs) {
+      await d.reference.delete();
     }
   }
 

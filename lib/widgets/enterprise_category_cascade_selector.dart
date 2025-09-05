@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../core/models/enterprise_category.dart';
+import '../screens/pro_establishment_profile_screen/widgets/subcategory_options_selector.dart';
 
 class EnterpriseCategoryCascadingSelector extends StatelessWidget {
   final List<EnterpriseCategory> categories;
@@ -11,6 +12,8 @@ class EnterpriseCategoryCascadingSelector extends StatelessWidget {
   final Function(String) onRemove;
   final int maxSelections;
   final String? labelText;
+  final RxMap<String, List<String>>? selectedOptions;
+  final Function(String, List<String>)? onOptionsChanged;
 
   const EnterpriseCategoryCascadingSelector({
     Key? key,
@@ -20,6 +23,8 @@ class EnterpriseCategoryCascadingSelector extends StatelessWidget {
     required this.onRemove,
     this.maxSelections = 5,
     this.labelText,
+    this.selectedOptions,
+    this.onOptionsChanged,
   }) : super(key: key);
 
   List<EnterpriseCategory> get mainCategories {
@@ -183,32 +188,59 @@ class EnterpriseCategoryCascadingSelector extends StatelessWidget {
                     ),
                     ...entry.value
                         .where((c) => c.isSubCategory)
-                        .map((subcat) => Padding(
-                              padding: EdgeInsets.only(left: 16, top: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.subdirectory_arrow_right,
-                                    size: 14,
-                                    color: Colors.grey,
+                        .map((subcat) => Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.only(left: 16, top: 4),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.subdirectory_arrow_right,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              subcat.name,
+                                              style: TextStyle(fontSize: 13),
+                                            ),
+                                            if (selectedOptions != null && 
+                                                selectedOptions![subcat.id] != null &&
+                                                selectedOptions![subcat.id]!.isNotEmpty)
+                                              Obx(() => SubcategoryOptionsDisplay(
+                                                subcategoryId: subcat.id,
+                                                optionIds: selectedOptions![subcat.id] ?? [],
+                                              )),
+                                          ],
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () => onRemove(subcat.id),
+                                        child: Container(
+                                          padding: EdgeInsets.all(4),
+                                          child: Icon(Icons.close,
+                                              size: 16, color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      subcat.name,
-                                      style: TextStyle(fontSize: 13),
+                                ),
+                                // Afficher le sélecteur d'options
+                                if (onOptionsChanged != null && selectedOptions != null)
+                                  Padding(
+                                    padding: EdgeInsets.only(left: 48, right: 16, top: 4),
+                                    child: SubcategoryOptionsSelector(
+                                      subcategoryId: subcat.id,
+                                      selectedOptionIds: selectedOptions![subcat.id],
+                                      onOptionsChanged: (options) => 
+                                        onOptionsChanged!(subcat.id, options),
                                     ),
                                   ),
-                                  InkWell(
-                                    onTap: () => onRemove(subcat.id),
-                                    child: Container(
-                                      padding: EdgeInsets.all(4),
-                                      child: Icon(Icons.close,
-                                          size: 16, color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              ],
                             )),
                   ],
                 ),

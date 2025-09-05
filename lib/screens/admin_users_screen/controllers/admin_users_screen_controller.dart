@@ -31,6 +31,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
 
   final selectedUserType = Rx<String?>(null);
   final userTypes = <Map<String, dynamic>>[].obs;
+  final selectedFilterUserType = Rx<String?>(null); // Pour le filtre par type
 
   // Listener
   StreamSubscription<List<u.User>>? _usersSub;
@@ -77,6 +78,7 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
     _loadUserTypeNames();
     _loadUserTypes();
     ever(searchText, (_) => _sortUsers());
+    ever(selectedFilterUserType, (_) => _sortUsers());
   }
 
   @override
@@ -207,18 +209,25 @@ class AdminUsersScreenController extends GetxController with ControllerMixin {
   }
 
   List<u.User> get filteredUsers {
-    final nonAdmins =
+    var filtered =
         allUsers.where((u) => u.userTypeID != adminTypeDocId).toList();
+    
+    // Filtrage par type d'utilisateur
+    if (selectedFilterUserType.value != null && selectedFilterUserType.value!.isNotEmpty) {
+      filtered = filtered.where((u) => u.userTypeID == selectedFilterUserType.value).toList();
+    }
+    
+    // Filtrage par recherche
     final st = searchText.value;
-    if (st.isEmpty) {
-      return nonAdmins;
-    } else {
-      return nonAdmins.where((u) {
+    if (st.isNotEmpty) {
+      filtered = filtered.where((u) {
         final lName = u.name.toLowerCase();
         final lMail = u.email.toLowerCase();
         return lName.contains(st) || lMail.contains(st);
       }).toList();
     }
+    
+    return filtered;
   }
 
   // ------------------------------------------------

@@ -597,7 +597,7 @@ class ProRequestOfferScreen extends StatelessWidget {
       initialDate: isStartDate 
           ? (controller.startDate.value ?? DateTime.now())
           : (controller.endDate.value ?? DateTime.now().add(Duration(days: 7))),
-      firstDate: DateTime.now(),
+      firstDate: DateTime(2020),
       lastDate: DateTime.now().add(Duration(days: 365)),
       locale: const Locale('fr', 'FR'),
     );

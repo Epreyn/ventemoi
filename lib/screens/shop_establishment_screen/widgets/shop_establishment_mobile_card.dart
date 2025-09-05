@@ -249,70 +249,47 @@ class _ShopEstablishmentMobileCardState
                                 );
                               },
                             ),
-                          // Pour les entreprises, afficher un indicateur de cashback
-                          if (widget.isEnterprise)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.savings,
-                                    size: 14,
-                                    color: Colors.blue[700],
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Cashback disponible',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                               ],
                             ),
                           ),
-                          // Actions rapides (vidéo et expand)
+                          // Actions rapides (cashback et expand)
                           Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              if (widget.establishment.videoUrl.isNotEmpty)
-                                GestureDetector(
-                                  onTap: () {
-                                    _launchVideo(widget.establishment.videoUrl);
-                                  },
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: CustomTheme.lightScheme().primary,
-                                      borderRadius: BorderRadius.circular(20),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: CustomTheme.lightScheme()
-                                              .primary
-                                              .withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
+                              // Icône de cashback pour les entreprises
+                              if (widget.isEnterprise)
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.blue[200]!,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.savings,
+                                        color: Colors.blue[700],
+                                        size: 14,
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        '${widget.establishment.cashbackPercentage.toStringAsFixed(0)}%',
+                                        style: TextStyle(
+                                          color: Colors.blue[700],
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.play_circle_filled,
-                                      color: Colors.white,
-                                      size: 28,
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               Container(
@@ -384,6 +361,12 @@ class _ShopEstablishmentMobileCardState
                                 Icons.location_on,
                                 'Localiser',
                                 () => _launchMaps(widget.establishment.address),
+                              ),
+                            if (widget.establishment.videoUrl.isNotEmpty)
+                              _buildContactChip(
+                                Icons.play_circle_outline,
+                                'Vidéo',
+                                () => _launchVideo(widget.establishment.videoUrl),
                               ),
                           ],
                         ),

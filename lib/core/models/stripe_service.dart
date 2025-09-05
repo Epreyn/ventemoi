@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../classes/unique_controllers.dart';
 
 class StripeService extends GetxService {
   static StripeService get to => Get.find();
@@ -25,7 +26,6 @@ class StripeService extends GetxService {
   Future<String> _ensureStripeCustomer() async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Utilisateur non connecté');
-
 
     // Essayer de synchroniser avec Stripe
     final stripeId = await syncStripeCustomer();
@@ -79,7 +79,8 @@ class StripeService extends GetxService {
           },
           // 2. Abonnement mensuel
           {
-            'price': PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
+            'price':
+                PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
             'quantity': 1,
           }
         ],
@@ -101,13 +102,11 @@ class StripeService extends GetxService {
         'allow_promotion_codes': true,
       };
 
-
       final sessionRef = await _firestore
           .collection('customers')
           .doc(user.uid)
           .collection('checkout_sessions')
           .add(checkoutData);
-
 
       return await _waitForCheckoutUrl(user.uid, sessionRef.id);
     } catch (e) {
@@ -155,7 +154,8 @@ class StripeService extends GetxService {
           },
           // Abonnement mensuel
           {
-            'price': PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
+            'price':
+                PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
             'quantity': 1,
           }
         ],
@@ -348,8 +348,7 @@ class StripeService extends GetxService {
           'created': FieldValue.serverTimestamp(),
         });
       }
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Le reste du code reste identique...
@@ -358,7 +357,6 @@ class StripeService extends GetxService {
   // Attendre que l'URL de checkout soit générée par l'extension Stripe
   Future<String?> _waitForCheckoutUrl(
       String customerId, String sessionId) async {
-
     const maxAttempts = 20;
     const delayBetweenAttempts = Duration(seconds: 2);
 
@@ -465,8 +463,7 @@ Vérifiez que:
           return subscriptions.docs.first.data();
         }
       }
-    } catch (e) {
-    }
+    } catch (e) {}
 
     return null;
   }
@@ -499,11 +496,9 @@ Vérifiez que:
       final purchaseType = metadata['purchase_type'] as String?;
       final paymentType = metadata['type'] as String?;
 
-
       // Vérifier si c'est un paiement de slot
       if (purchaseType == 'category_slot' ||
           paymentType == 'additional_category_slot') {
-
         // Trouver l'établissement
         final estabQuery = await _firestore
             .collection('establishments')
@@ -520,7 +515,6 @@ Vérifiez que:
         final currentData = establishmentDoc.data();
         final currentSlots = currentData['enterprise_category_slots'] ?? 2;
 
-
         // Incrémenter les slots
         await _firestore
             .collection('establishments')
@@ -529,7 +523,6 @@ Vérifiez que:
           'enterprise_category_slots': currentSlots + 1,
           'last_slot_purchase': FieldValue.serverTimestamp(),
         });
-
       }
 
       // Marquer la session comme traitée
@@ -556,9 +549,7 @@ Vérifiez que:
             Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
         'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
       });
-
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 
   // Créer une session de paiement pour un slot additionnel
@@ -604,14 +595,82 @@ Vérifiez que:
     }
   }
 
+  // Méthode générique pour créer une session de paiement unique personnalisée
+  Future<Map<String, String>?> createGenericOneTimeCheckout({
+    required String establishmentId,
+    required int amount,
+    required String productName,
+    required String description,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
+
+      await _ensureCustomerDocument(user.uid, user.email!);
+
+      final successUrl = 'https://app.ventemoi.fr/stripe-success.html';
+      final cancelUrl = 'https://app.ventemoi.fr/stripe-cancel.html';
+
+      final tempSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      final checkoutData = {
+        'mode': 'payment',
+        'customer_email': user.email,
+        'success_url': successUrl,
+        'cancel_url': cancelUrl,
+        'line_items': [
+          {
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': productName,
+                'description': description,
+              },
+              'unit_amount': amount,
+            },
+            'quantity': 1,
+          }
+        ],
+        'metadata': metadata ?? {
+          'establishment_id': establishmentId,
+          'user_id': user.uid,
+          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
+        'client_reference_id': tempSessionId,
+        'allow_promotion_codes': true,
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final url = await _waitForCheckoutUrl(user.uid, sessionRef.id);
+      if (url != null) {
+        return {
+          'url': url,
+          'sessionId': tempSessionId,
+        };
+      }
+      return null;
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Erreur lors de la création du paiement: $e',
+        true,
+      );
+      return null;
+    }
+  }
+
   // Méthode de debug pour vérifier la configuration
   Future<void> debugStripeSetup() async {
-
     final user = _auth.currentUser;
     if (user == null) {
       return;
     }
-
 
     // Vérifier le customer
     final customerDoc =
@@ -620,18 +679,14 @@ Vérifiez que:
     if (customerDoc.exists) {
       final data = customerDoc.data()!;
 
-      if (data['stripeId'] == null) {
-      }
-    } else {
-    }
-
+      if (data['stripeId'] == null) {}
+    } else {}
   }
 
   // Méthode de diagnostic pour tester les Cloud Functions
   Future<void> testCloudFunction() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
 
     // Supprimer l'ancien document s'il existe
     final ref =
@@ -644,7 +699,6 @@ Vérifiez que:
       'email': user.email!,
       'created': FieldValue.serverTimestamp(),
     });
-
 
     // Attendre et vérifier
     for (int i = 0; i < 10; i++) {
@@ -661,14 +715,12 @@ Vérifiez que:
         }
       }
     }
-
   }
 
   // Ajouter ces méthodes dans la classe StripeService (lib/core/models/stripe_service.dart)
 
   // Méthode pour forcer la mise à jour du statut (en cas d'urgence)
   Future<void> forceCheckSessionStatus(String sessionId) async {
-
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -689,25 +741,20 @@ Vérifiez que:
 
       // Si la session a un payment_intent mais pas de payment_status
       if (data['payment_intent'] != null && data['payment_status'] == null) {
-
         await sessionRef.update({
           'payment_status': 'paid',
           'status': 'complete',
           'force_updated': true,
           'force_updated_at': FieldValue.serverTimestamp(),
         });
-
-      } else {
-      }
-    } catch (e) {
-    }
+      } else {}
+    } catch (e) {}
   }
 
   // Méthode pour vérifier via Cloud Function (optionnelle)
   // Note: Cette méthode nécessite le déploiement d'une Cloud Function
   Future<bool> verifyPaymentViaCloudFunction(String sessionId) async {
     try {
-
       // Si vous n'avez pas de Cloud Function déployée, retournez false
       // Cette méthode est un placeholder pour une future implémentation
 
@@ -834,7 +881,6 @@ Vérifiez que:
               estabQuery.docs.first.data()['has_active_subscription'] ?? false;
 
           if (hasActiveSubscription) {
-
             // Mettre à jour la session pour cohérence
             try {
               await sessionDoc.reference.update({
@@ -842,8 +888,7 @@ Vérifiez que:
                 'updated_by_app': true,
                 'updated_at': FieldValue.serverTimestamp(),
               });
-            } catch (e) {
-            }
+            } catch (e) {}
 
             return true;
           }
@@ -860,8 +905,7 @@ Vérifiez que:
         }
 
         await Future.delayed(Duration(seconds: 2));
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
     return false;
@@ -871,7 +915,6 @@ Vérifiez que:
   Future<void> forceUpdatePaymentStatus(String sessionId) async {
     final user = _auth.currentUser;
     if (user == null) return;
-
 
     try {
       // 1. Récupérer la session
@@ -907,7 +950,6 @@ Vérifiez que:
       // 4. Forcer la mise à jour si nécessaire
       if ((hasPaymentIndicators || hasActiveSubscription) &&
           data['payment_status'] != 'paid') {
-
         await sessionRef.update({
           'payment_status': 'paid',
           'status': 'complete',
@@ -917,17 +959,13 @@ Vérifiez que:
               ? 'Active subscription detected'
               : 'Payment indicators present',
         });
-
       } else if (!hasPaymentIndicators && !hasActiveSubscription) {
-      } else {
-      }
-    } catch (e) {
-    }
+      } else {}
+    } catch (e) {}
   }
 
   // Méthode de debug améliorée
   Future<void> debugCheckoutSession(String sessionId) async {
-
     final user = _auth.currentUser;
     if (user == null) {
       return;
@@ -951,12 +989,10 @@ Vérifiez que:
       // 2. Afficher tous les champs
       data.forEach((key, value) {
         if (value is Map) {
-          value.forEach((k, v) {
-          });
+          value.forEach((k, v) {});
         } else if (value is Timestamp) {
         } else if (value is List) {
-        } else {
-        }
+        } else {}
       });
 
       // 3. Analyse des champs critiques
@@ -989,8 +1025,7 @@ Vérifiez que:
         // print('   has_active_subscription: défini');
         // print('   subscription_type: défini');
         // print('   subscription_end_date: défini');
-      } else {
-      }
+      } else {}
 
       // 5. Diagnostic
 
@@ -999,19 +1034,14 @@ Vérifiez que:
         // print('   ⚠️ Indicateurs de paiement présents mais statut non mis à jour');
       } else if (hasError) {
       } else if (!hasUrl) {
-      } else {
-      }
+      } else {}
 
       // 6. Recommandations
 
-      if (!hasPaymentStatus && (hasPaymentIntent || hasSubscription)) {
-      }
+      if (!hasPaymentStatus && (hasPaymentIntent || hasSubscription)) {}
 
-      if (hasError) {
-      }
-    } catch (e) {
-    }
-
+      if (hasError) {}
+    } catch (e) {}
   }
 
   // Dans lib/core/models/stripe_service.dart
@@ -1022,7 +1052,6 @@ Vérifiez que:
     required String establishmentId,
   }) async {
     try {
-
       final customerId = await _ensureStripeCustomer();
 
       // URLs de redirection
@@ -1073,7 +1102,6 @@ Vérifiez que:
 
       final sessionId = sessionRef.id;
 
-
       // Attendre que l'URL soit générée
       final url = await _waitForCheckoutUrl(customerId, sessionId);
 
@@ -1094,7 +1122,6 @@ Vérifiez que:
     try {
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
-
 
       // Appeler la Cloud Function
       final HttpsCallable callable =

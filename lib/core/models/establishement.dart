@@ -17,6 +17,7 @@ class Establishment implements Nameable {
   final String categoryId;
   final List<String>? enterpriseCategoryIds;
   final int enterpriseCategorySlots;
+  final Map<String, List<String>>? enterpriseSubcategoryOptions; // subcategoryId -> [optionIds]
 
   final String videoUrl;
   final bool hasAcceptedContract;
@@ -24,6 +25,11 @@ class Establishment implements Nameable {
   final int affiliatesCount;
   final bool isVisibleOverride;
   final bool isAssociation;
+  final int maxVouchersPurchase;
+  final double cashbackPercentage;
+  final String? website;
+  final bool? isPremiumSponsor;
+  final bool isVisible;
 
   Establishment({
     required this.id,
@@ -38,11 +44,17 @@ class Establishment implements Nameable {
     required this.categoryId,
     required this.enterpriseCategoryIds,
     required this.enterpriseCategorySlots, // NOUVEAU
+    this.enterpriseSubcategoryOptions,
     required this.videoUrl,
     required this.hasAcceptedContract,
     this.affiliatesCount = 0,
     this.isVisibleOverride = false,
     this.isAssociation = false,
+    this.maxVouchersPurchase = 1,
+    this.cashbackPercentage = 2.0,
+    this.website,
+    this.isPremiumSponsor,
+    this.isVisible = false,
   });
 
   factory Establishment.fromDocument(DocumentSnapshot doc) {
@@ -62,11 +74,31 @@ class Establishment implements Nameable {
       categoryId: data['category_id'] ?? '',
       enterpriseCategoryIds: rawECats?.map((e) => e.toString()).toList(),
       enterpriseCategorySlots: data['enterprise_category_slots'] ?? 2,
+      enterpriseSubcategoryOptions: _parseSubcategoryOptions(data['enterprise_subcategory_options']),
       videoUrl: data['video_url'] ?? '',
       hasAcceptedContract: data['has_accepted_contract'] ?? false,
       affiliatesCount: data['affiliatesCount'] ?? 0,
       isVisibleOverride: data['isVisibleOverride'] ?? false,
       isAssociation: data['isAssociation'] ?? false,
+      maxVouchersPurchase: data['max_vouchers_purchase'] ?? 1,
+      cashbackPercentage: (data['cashback_percentage'] ?? 2.0).toDouble(),
+      website: data['website'] ?? '',
+      isPremiumSponsor: data['is_premium_sponsor'] ?? false,
+      isVisible: data['is_visible'] ?? false,
     );
+  }
+  
+  static Map<String, List<String>>? _parseSubcategoryOptions(dynamic data) {
+    if (data == null) return null;
+    if (data is Map<String, dynamic>) {
+      final result = <String, List<String>>{};
+      data.forEach((key, value) {
+        if (value is List) {
+          result[key] = value.map((e) => e.toString()).toList();
+        }
+      });
+      return result.isNotEmpty ? result : null;
+    }
+    return null;
   }
 }

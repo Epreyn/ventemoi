@@ -9,6 +9,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:ventemoi/core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/special_offer.dart';
+import '../../../core/services/offer_email_service.dart';
 import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
 
 class AdminOffersScreenController extends GetxController with ControllerMixin {
@@ -187,21 +188,67 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
   }
 
   void _loadPendingRequests() {
+    // Version simplifiée sans orderBy pour éviter le besoin d'index composite
     UniquesControllers()
         .data
         .firebaseFirestore
         .collection('offer_requests')
         .where('status', isEqualTo: 'pending')
-        .orderBy('created_at', descending: true)
         .snapshots()
         .listen((snap) {
-          pendingRequests.value = snap.docs.map((doc) {
+          // Trier manuellement côté client
+          final requests = snap.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return data;
           }).toList();
+          
+          // Trier par date de création (décroissant)
+          requests.sort((a, b) {
+            final aDate = a['created_at'] as Timestamp?;
+            final bDate = b['created_at'] as Timestamp?;
+            if (aDate == null || bDate == null) return 0;
+            return bDate.compareTo(aDate);
+          });
+          
+          pendingRequests.value = requests;
         }, onError: (error) {
           print('Erreur chargement demandes: $error');
+          // Essayer sans le where si erreur d'index
+          _loadAllRequestsAndFilter();
+        });
+  }
+
+  void _loadAllRequestsAndFilter() {
+    print('⚠️ Chargement sans filtre (fallback)...');
+    UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('offer_requests')
+        .snapshots()
+        .listen((snap) {
+          // Filtrer manuellement côté client
+          final requests = snap.docs
+              .map((doc) {
+                final data = doc.data();
+                data['id'] = doc.id;
+                return data;
+              })
+              .where((request) => request['status'] == 'pending')
+              .toList();
+          
+          // Trier par date de création (décroissant)
+          requests.sort((a, b) {
+            final aDate = a['created_at'] as Timestamp?;
+            final bDate = b['created_at'] as Timestamp?;
+            if (aDate == null || bDate == null) return 0;
+            return bDate.compareTo(aDate);
+          });
+          
+          pendingRequests.value = requests;
+          print('✅ ${requests.length} demandes en attente chargées (fallback)');
+        }, onError: (error) {
+          print('❌ Erreur finale chargement demandes: $error');
           pendingRequests.value = [];
         });
   }
@@ -809,9 +856,12 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
         'approved_by': UniquesControllers().getStorage.read('currentUserUID'),
       });
       
+      // Envoyer l'email d'approbation
+      await OfferEmailService.sendOfferApprovedEmail(request: request);
+      
       UniquesControllers().data.snackbar(
         'Succès',
-        'La demande d\'offre a été approuvée',
+        'La demande d\'offre a été approuvée et un email a été envoyé',
         false,
       );
     } catch (e) {
@@ -827,6 +877,22 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
 
   Future<void> rejectRequest(String requestId, String reason) async {
     try {
+      // Récupérer les données de la demande avant de la mettre à jour
+      final requestDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('offer_requests')
+          .doc(requestId)
+          .get();
+      
+      if (!requestDoc.exists) {
+        throw 'Demande non trouvée';
+      }
+      
+      final requestData = requestDoc.data()!;
+      final userId = requestData['user_id'];
+      
+      // Mettre à jour le statut
       await UniquesControllers()
           .data
           .firebaseFirestore
@@ -839,9 +905,17 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
         'rejection_reason': reason,
       });
       
+      // Envoyer l'email de rejet avec la raison
+      await OfferEmailService.sendOfferRejectedEmail(
+        requestId: requestId,
+        userId: userId,
+        requestData: requestData,
+        rejectionReason: reason,
+      );
+      
       UniquesControllers().data.snackbar(
         'Succès',
-        'La demande a été rejetée',
+        'La demande a été rejetée et un email a été envoyé',
         false,
       );
     } catch (e) {

@@ -76,6 +76,10 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
 
             final slots = data['enterprise_category_slots'] ?? 2;
             ec.enterpriseCategorySlots.value = slots;
+            
+            // Lire le nombre max de bons
+            final maxVouchers = data['max_vouchers_purchase'] ?? 1;
+            ec.maxVouchersPurchase.value = maxVouchers;
 
             ec.initializeEnterpriseCategoriesFromStream(data);
           }
@@ -954,6 +958,193 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                                     );
                                   }
                                 }),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        // Section Paramètres de vente
+                        const CustomSpace(heightMultiplier: 3),
+                        CustomCardAnimation(
+                          index: 5,
+                          child: Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(
+                              UniquesControllers().data.baseSpace * 2.5,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0.35),
+                                  Colors.white.withOpacity(0.25),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.5),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: CustomTheme.lightScheme()
+                                      .primary
+                                      .withOpacity(0.15),
+                                  blurRadius: 30,
+                                  spreadRadius: 5,
+                                ),
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: CustomTheme.lightScheme()
+                                            .primary
+                                            .withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        Icons.shopping_cart_rounded,
+                                        color: CustomTheme.lightScheme().primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Paramètres de vente',
+                                      style: TextStyle(
+                                        fontSize: UniquesControllers()
+                                                .data
+                                                .baseSpace *
+                                            2,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.grey[800],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                
+                                // Slider pour le nombre de bons achetables
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Nombre maximum de bons achetables par client',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Définissez combien de bons un client peut acheter en une seule fois',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Obx(() => Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: SliderTheme(
+                                                data: SliderThemeData(
+                                                  activeTrackColor: CustomTheme.lightScheme().primary,
+                                                  inactiveTrackColor: Colors.grey[300],
+                                                  thumbColor: CustomTheme.lightScheme().primary,
+                                                  overlayColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
+                                                  trackHeight: 6,
+                                                  thumbShape: RoundSliderThumbShape(enabledThumbRadius: 12),
+                                                  overlayShape: RoundSliderOverlayShape(overlayRadius: 24),
+                                                ),
+                                                child: Slider(
+                                                  value: ec.maxVouchersPurchase.value.toDouble(),
+                                                  min: 1,
+                                                  max: 4,
+                                                  divisions: 3,
+                                                  label: '${ec.maxVouchersPurchase.value}',
+                                                  onChanged: (value) {
+                                                    ec.maxVouchersPurchase.value = value.toInt();
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Container(
+                                              width: 60,
+                                              height: 60,
+                                              decoration: BoxDecoration(
+                                                color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  '${ec.maxVouchersPurchase.value}',
+                                                  style: TextStyle(
+                                                    fontSize: 24,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: CustomTheme.lightScheme().primary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            for (int i = 1; i <= 4; i++)
+                                              Column(
+                                                children: [
+                                                  Text(
+                                                    '$i',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: ec.maxVouchersPurchase.value == i
+                                                          ? FontWeight.bold
+                                                          : FontWeight.normal,
+                                                      color: ec.maxVouchersPurchase.value == i
+                                                          ? CustomTheme.lightScheme().primary
+                                                          : Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    i == 1 ? 'bon' : 'bons',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: ec.maxVouchersPurchase.value == i
+                                                          ? CustomTheme.lightScheme().primary
+                                                          : Colors.grey[500],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    )),
+                                  ],
+                                ),
                               ],
                             ),
                           ),

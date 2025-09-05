@@ -30,10 +30,11 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
     final isBusinessUser = userType == 'Boutique' || userType == 'Entreprise' || 
                           userType == 'Sponsor' || userType == 'Association';
     
-    // Pour le moment, on affiche toujours le bouton pour tous les utilisateurs
-    final showRequestButton = true; // isBusinessUser;
+    // N'afficher le bouton que pour les utilisateurs business
+    final showRequestButton = isBusinessUser;
     
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         StreamBuilder<QuerySnapshot>(
           stream: UniquesControllers()
@@ -69,56 +70,59 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
             }
 
             // Si plusieurs offres, carrousel avec contrôles
-            return Column(
-          children: [
-            const SizedBox(height: 12), // Espace en haut
-            Stack(
-              children: [
-                CarouselSlider.builder(
-                  carouselController: _carouselController,
-                  itemCount: offers.length,
-                  options: CarouselOptions(
-                    height: 140,
-                    autoPlay: true,
-                    autoPlayInterval: const Duration(seconds: 6),
-                    autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                    autoPlayCurve: Curves.easeInOutCubic,
-                    enlargeCenterPage: true,
-                    viewportFraction: 0.92,
-                    enableInfiniteScroll: offers.length > 1,
-                    onPageChanged: (index, reason) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    children: [
+                      CarouselSlider.builder(
+                        carouselController: _carouselController,
+                        itemCount: offers.length,
+                        options: CarouselOptions(
+                          height: 140,
+                          autoPlay: true,
+                          autoPlayInterval: const Duration(seconds: 6),
+                          autoPlayAnimationDuration: const Duration(milliseconds: 800),
+                          autoPlayCurve: Curves.easeInOutCubic,
+                          enlargeCenterPage: true,
+                          viewportFraction: 0.92,
+                          enableInfiniteScroll: offers.length > 1,
+                          onPageChanged: (index, reason) {
+                            setState(() {
+                              _currentIndex = index;
+                            });
+                          },
+                        ),
+                        itemBuilder: (context, index, realIndex) {
+                          return _buildModernBanner(offers[index]);
+                        },
+                      ),
+                      // Flèches de navigation
+                      Positioned(
+                        left: 8,
+                        top: 55,
+                        child: _buildNavigationButton(
+                          Icons.arrow_back_ios_rounded,
+                          () => _carouselController.previousPage(),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 55,
+                        child: _buildNavigationButton(
+                          Icons.arrow_forward_ios_rounded,
+                          () => _carouselController.nextPage(),
+                        ),
+                      ),
+                    ],
                   ),
-                  itemBuilder: (context, index, realIndex) {
-                    return _buildModernBanner(offers[index]);
-                  },
-                ),
-                // Flèches de navigation
-                Positioned(
-                  left: 8,
-                  top: 55,
-                  child: _buildNavigationButton(
-                    Icons.arrow_back_ios_rounded,
-                    () => _carouselController.previousPage(),
-                  ),
-                ),
-                Positioned(
-                  right: 8,
-                  top: 55,
-                  child: _buildNavigationButton(
-                    Icons.arrow_forward_ios_rounded,
-                    () => _carouselController.nextPage(),
-                  ),
-                ),
-              ],
-            ),
-            // Indicateurs de pagination
-            const SizedBox(height: 8),
-            _buildPaginationIndicator(offers.length),
-              ],
+                  // Indicateurs de pagination
+                  const SizedBox(height: 8),
+                  _buildPaginationIndicator(offers.length),
+                ],
+              ),
             );
           },
         ),

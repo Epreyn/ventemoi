@@ -12,6 +12,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/association_visibility_service.dart';
+import '../../../core/services/association_waitlist_service.dart';
 
 class RegisterScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Inscription'.toUpperCase();
@@ -590,6 +591,15 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         'updated_at': FieldValue.serverTimestamp(),
       });
 
+      // Envoyer une notification aux admins pour le nouvel inscrit
+      await _notifyAdminsOfNewRegistration({
+        'user_id': user.uid,
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'user_type': currentUserType.value?.name ?? '',
+        'created_at': DateTime.now(),
+      });
+
       // Si parrainé, mettre à jour le parrain
       if (actualSponsorInfo != null) {
         // Déterminer le nombre de points selon le type d'utilisateur
@@ -686,6 +696,68 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         }
       }
 
+      // Si c'est une boutique qui s'inscrit, traiter la liste d'attente des associations
+      // et attribuer un bon à une association visible aléatoire
+      final userTypeName = currentUserType.value?.name ?? '';
+      if (userTypeName == 'Boutique' || userTypeName == 'Commerçant') {
+        // Traiter la liste d'attente (voir si une association peut devenir visible)
+        await AssociationWaitlistService.processWaitlistOnNewBoutique();
+        
+        // Attribuer un bon de 50 points à une association visible aléatoire
+        final randomAssociation = await AssociationWaitlistService.getRandomVisibleAssociation();
+        
+        if (randomAssociation != null) {
+          // Créer un bon pour l'association sélectionnée
+          await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('vouchers')
+              .add({
+            'association_id': randomAssociation['id'],
+            'association_user_id': randomAssociation['user_id'],
+            'association_name': randomAssociation['name'],
+            'boutique_id': user.uid,
+            'boutique_name': nameController.text.trim(),
+            'boutique_email': emailController.text.trim(),
+            'points': 50,
+            'status': 'active',
+            'created_at': FieldValue.serverTimestamp(),
+            'type': 'welcome_bonus',
+            'description': 'Bon de bienvenue suite à l\'inscription d\'une boutique',
+          });
+          
+          // Créer aussi une attribution de points
+          await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('points_attributions')
+              .add({
+            'giver_id': 'system',
+            'target_id': randomAssociation['user_id'],
+            'target_email': randomAssociation['email'] ?? '',
+            'date': DateTime.now(),
+            'cost': 0,
+            'points': 50,
+            'commission_percent': 0,
+            'commission_cost': 0,
+            'validated': true,
+            'reason': 'Bon aléatoire pour inscription boutique',
+            'boutique_id': user.uid,
+          });
+          
+        } else {
+          // Aucune association visible disponible, créer un bon en attente
+          await AssociationWaitlistService.createPendingVoucher({
+            'boutique_id': user.uid,
+            'boutique_name': nameController.text.trim(),
+            'boutique_email': emailController.text.trim(),
+            'points': 50,
+            'type': 'welcome_bonus',
+            'description': 'Bon de bienvenue en attente d\'attribution',
+          });
+        }
+      }
+
       UniquesControllers().getStorage.write('email', emailController.text);
       UniquesControllers()
           .getStorage
@@ -778,6 +850,115 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     return List.generate(6, (index) => chars[random.nextInt(chars.length)])
         .join();
+  }
+
+  Future<void> _notifyAdminsOfNewRegistration(Map<String, dynamic> userData) async {
+    try {
+      // Récupérer tous les admins
+      final adminsQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .where('user_type_id', isEqualTo: '3YxzCA7BewiMswi8FDSt') // ID du type Admin
+          .get();
+      
+      if (adminsQuery.docs.isEmpty) {
+        print('Aucun admin trouvé pour l\'envoi de notification');
+        return;
+      }
+
+      // Créer une notification pour chaque admin
+      for (var adminDoc in adminsQuery.docs) {
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('notifications')
+            .add({
+          'user_id': adminDoc.id,
+          'type': 'new_registration',
+          'title': 'Nouvel inscrit',
+          'message': '${userData['name']} (${userData['user_type']}) vient de s\'inscrire',
+          'data': userData,
+          'is_read': false,
+          'created_at': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Optionnel : Envoyer aussi un email aux admins
+      for (var adminDoc in adminsQuery.docs) {
+        final adminEmail = adminDoc.data()['email'];
+        if (adminEmail != null && adminEmail.toString().isNotEmpty) {
+          // Utiliser le service d'email existant pour envoyer la notification
+          await _sendNewRegistrationEmailToAdmin(adminEmail, userData);
+        }
+      }
+    } catch (e) {
+      print('Erreur envoi notification admins: $e');
+    }
+  }
+
+  Future<void> _sendNewRegistrationEmailToAdmin(String adminEmail, Map<String, dynamic> userData) async {
+    try {
+      // Ajouter à la collection mail pour envoi
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('mail')
+          .add({
+        'to': [adminEmail],
+        'message': {
+          'subject': '🆕 Nouvel inscrit sur VenteMoi - ${userData['user_type']}',
+          'html': '''
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; padding: 30px; text-align: center; color: white;">
+                <h1 style="margin: 0; font-size: 48px;">👤</h1>
+                <h2 style="margin: 10px 0; font-size: 28px;">Nouvel inscrit</h2>
+              </div>
+              
+              <div style="background: white; border-radius: 15px; padding: 30px; margin-top: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                <p style="font-size: 18px; color: #333; margin-bottom: 20px;">
+                  Bonjour Administrateur,
+                </p>
+                
+                <p style="font-size: 16px; color: #555; line-height: 1.6;">
+                  Un nouvel utilisateur vient de s'inscrire sur la plateforme.
+                </p>
+                
+                <div style="background: #f5f5f5; border-radius: 10px; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea;">
+                  <h3 style="color: #667eea; margin-top: 0;">📋 Informations de l'inscrit :</h3>
+                  <p style="font-size: 15px; color: #333; margin: 8px 0;">
+                    <strong>👤 Nom :</strong> ${userData['name']}
+                  </p>
+                  <p style="font-size: 15px; color: #333; margin: 8px 0;">
+                    <strong>📧 Email :</strong> ${userData['email']}
+                  </p>
+                  <p style="font-size: 15px; color: #333; margin: 8px 0;">
+                    <strong>🏷️ Type :</strong> ${userData['user_type']}
+                  </p>
+                  <p style="font-size: 15px; color: #333; margin: 8px 0;">
+                    <strong>📅 Date :</strong> ${DateTime.now().toString().split('.')[0]}
+                  </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                  <a href="https://ventemoi.com/admin-users" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 16px;">
+                    Voir les utilisateurs
+                  </a>
+                </div>
+              </div>
+              
+              <div style="text-align: center; margin-top: 30px; color: #999; font-size: 14px;">
+                <p>© ${DateTime.now().year} VenteMoi - Panneau d'administration</p>
+              </div>
+            </div>
+          ''',
+        },
+        'createdAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+    } catch (e) {
+      print('Erreur envoi email admin: $e');
+    }
   }
 
   Future<void> _addReferralPointsToSponsor(String sponsorId, int points) async {

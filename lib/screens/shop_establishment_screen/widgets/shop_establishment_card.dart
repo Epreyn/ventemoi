@@ -166,17 +166,40 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                           ],
                         ),
                       ),
-                      // Bouton vidéo si disponible
-                      if (widget.establishment.videoUrl.isNotEmpty)
-                        IconButton(
-                          onPressed: () =>
-                              _launchVideoLink(widget.establishment.videoUrl),
-                          icon: Icon(
-                            Icons.play_circle_filled,
-                            color: CustomTheme.lightScheme().primary,
-                            size: 32 * widthScale,
+                      // Icône de cashback en haut à droite
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.blue[200]!,
+                            width: 1,
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.savings,
+                              color: Colors.blue[700],
+                              size: 16 * widthScale,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              '${widget.establishment.cashbackPercentage.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: Colors.blue[700],
+                                fontSize: 12 * widthScale,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -317,6 +340,14 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                             label: 'Itinéraire',
                             onTap: () =>
                                 _launchMaps(widget.establishment.address),
+                            scale: widthScale,
+                          ),
+                        if (widget.establishment.videoUrl.isNotEmpty)
+                          _buildContactButton(
+                            icon: Icons.play_circle_outline,
+                            label: 'Vidéo',
+                            onTap: () =>
+                                _launchVideoLink(widget.establishment.videoUrl),
                             scale: widthScale,
                           ),
                       ],
