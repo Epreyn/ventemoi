@@ -262,7 +262,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               Get.toNamed(Routes.profile);
               break;
             case 'history':
-              Get.toNamed(Routes.clientHistory);
+              Get.toNamed(Routes.pointsSummary);
               break;
             case 'logout':
               cc.logout();
@@ -771,7 +771,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     barrierDismissible: false,
                   );
                 }
-              : () => Get.toNamed(Routes.clientHistory),
+              : () => Get.toNamed(Routes.pointsSummary),
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

@@ -110,12 +110,6 @@ class CustomData extends GetxController {
       onPressed: () => Get.offNamed(Routes.proSells),
     ),
     CustomBottomAppBarIconButtonModel(
-      tag: Routes.clientHistory,
-      iconData: Icons.history,
-      text: 'Historique',
-      onPressed: () => Get.offNamed(Routes.clientHistory),
-    ),
-    CustomBottomAppBarIconButtonModel(
       tag: Routes.profile,
       iconData: Icons.person_outline,
       text: 'Profil',
@@ -162,12 +156,6 @@ class CustomData extends GetxController {
       onPressed: () => Get.offNamed(Routes.proPoints),
     ),
     CustomBottomAppBarIconButtonModel(
-      tag: Routes.clientHistory,
-      iconData: Icons.history,
-      text: 'Historique',
-      onPressed: () => Get.offNamed(Routes.clientHistory),
-    ),
-    CustomBottomAppBarIconButtonModel(
       tag: Routes.profile,
       iconData: Icons.person_outline,
       text: 'Profil',
@@ -200,12 +188,6 @@ class CustomData extends GetxController {
       iconData: Icons.description_outlined,
       text: 'Devis',
       onPressed: () => Get.offNamed(Routes.quotes),
-    ),
-    CustomBottomAppBarIconButtonModel(
-      tag: Routes.clientHistory,
-      iconData: Icons.history,
-      text: 'Historique',
-      onPressed: () => Get.offNamed(Routes.clientHistory),
     ),
     CustomBottomAppBarIconButtonModel(
       tag: Routes.profile,

@@ -50,21 +50,9 @@ Price ID : price_slot_supplementaire_50
 Montant : 50.00 € HT
 Type : Paiement unique
 Description : Permet d'ajouter une catégorie métier supplémentaire
-Metadata : 
+Metadata :
   - type: "slot_category"
   - quantity_unit: "1"
-```
-
-#### 2.2 Commission Visibilité (Variable)
-```
-Nom : Commission Visibilité Augmentée
-Product ID : prod_commission_visibilite
-Description : Commission variable à partir de 1% pour augmenter la visibilité
-Note : À implémenter via API avec montant dynamique
-Metadata :
-  - type: "visibility_boost"
-  - commission_rate: "variable"
-  - cashback_bonus: "0.5%" (50% redistribué au client)
 ```
 
 ### 3. OFFRES SPONSORS
@@ -76,7 +64,7 @@ Product ID : prod_sponsor_bronze
 Price ID : price_sponsor_bronze_300
 Montant : 300.00 € HT
 Type : Paiement unique
-Description : 
+Description :
   • 1 bon cadeau de 50€ TTC offert
   • Mise en avant réseaux sociaux
   • Logo sur l'application et le site
@@ -276,27 +264,27 @@ class StripePrices {
   static const String adhesionProPrice = 'price_adhesion_pro_270';
   static const String cotisationAnnuellePrice = 'price_cotisation_annuelle_600';
   static const String cotisationMensuellePrice = 'price_cotisation_mensuelle_55';
-  
+
   // Options
   static const String slotSupplementairePrice = 'price_slot_supplementaire_50';
-  
+
   // Sponsors
   static const String sponsorBronzePrice = 'price_sponsor_bronze_300';
   static const String sponsorSilverPrice = 'price_sponsor_silver_800';
-  
+
   // Vidéos Membres
   static const String videoStandardMembrePrice = 'price_video_standard_membre_210';
   static const String videoPremiumMembrePrice = 'price_video_premium_membre_420';
   static const String videoSignatureMembrePrice = 'price_video_signature_membre_840';
-  
+
   // Vidéos Public
   static const String videoStandardPublicPrice = 'price_video_standard_public_300';
   static const String videoPremiumPublicPrice = 'price_video_premium_public_900';
   static const String videoSignaturePublicPrice = 'price_video_signature_public_1500';
-  
+
   // Publicité
   static const String bandeauHebdoPrice = 'price_bandeau_hebdo_50';
-  
+
   // Montants en centimes
   static const int adhesionAmount = 27000; // 270€
   static const int cotisationAnnuelleAmount = 60000; // 600€
@@ -322,10 +310,10 @@ Remplacer les anciens prix par les nouveaux :
 #### A. Gestion des Sponsors
 ```dart
 Future<bool> purchaseSponsorPackage(String userId, String level) async {
-  final priceId = level == 'bronze' 
-    ? StripePrices.sponsorBronzePrice 
+  final priceId = level == 'bronze'
+    ? StripePrices.sponsorBronzePrice
     : StripePrices.sponsorSilverPrice;
-    
+
   // Créer le paiement
   // Si succès, ajouter les bons cadeaux et activer la visibilité sponsor
 }

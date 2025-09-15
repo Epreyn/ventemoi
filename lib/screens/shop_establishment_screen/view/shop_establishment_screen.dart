@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
@@ -12,6 +13,8 @@ import '../widgets/shop_establishment_card.dart';
 import '../widgets/enterprise_establishment_card.dart';
 import '../widgets/shop_establishment_mobile_card.dart';
 import '../widgets/sponsor_establishment_card.dart';
+import '../widgets/sponsor_card_styled.dart';
+import '../widgets/sponsor_mobile_card.dart';
 import '../widgets/empty_state_widget.dart';
 import '../widgets/special_offers_banner.dart';
 
@@ -22,59 +25,83 @@ class ShopEstablishmentScreen extends StatefulWidget {
   State<ShopEstablishmentScreen> createState() => _ShopEstablishmentScreenState();
 }
 
-class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
-    with SingleTickerProviderStateMixin {
+class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
   late ScrollController _scrollController;
-  late AnimationController _animationController;
-  double _bannerHeight = 1.0; // 1.0 = fully visible, 0.0 = hidden
-  double _lastScrollPosition = 0;
+  double _bannerHeight = 150.0; // Hauteur initiale de la bannière
+  static const double _maxBannerHeight = 150.0;
+  bool _bannerIsHidden = false;
+  bool _isScrolling = false;
+  Timer? _scrollEndTimer;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
     _scrollController.addListener(_onScroll);
   }
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    
+
     final currentPosition = _scrollController.position.pixels;
-    
-    // Calculer la nouvelle hauteur basée sur le scroll
-    // La bannière se cache sur les 150 premiers pixels de scroll
-    const double maxScroll = 150.0;
-    
-    double newHeight;
+    double targetHeight;
+
+    // Phase 1: Cacher la bannière (0 à 150 pixels de scroll)
     if (currentPosition <= 0) {
-      // Tout en haut, bannière complètement visible
-      newHeight = 1.0;
-    } else if (currentPosition >= maxScroll) {
-      // Après 150 pixels de scroll, bannière complètement cachée
-      newHeight = 0.0;
+      targetHeight = _maxBannerHeight;
+    } else if (currentPosition >= _maxBannerHeight) {
+      targetHeight = 0;
     } else {
-      // Entre les deux, cacher progressivement de façon linéaire
-      newHeight = 1.0 - (currentPosition / maxScroll);
+      targetHeight = _maxBannerHeight - currentPosition;
     }
-    
-    // Ne mettre à jour que si la valeur a changé significativement
-    if ((newHeight - _bannerHeight).abs() > 0.01) {
+
+    // Ne mettre à jour que si la différence est significative
+    if ((targetHeight - _bannerHeight).abs() > 3.0) {
       setState(() {
-        _bannerHeight = newHeight.clamp(0.0, 1.0);
+        _bannerHeight = targetHeight.clamp(0.0, _maxBannerHeight);
+        _bannerIsHidden = _bannerHeight < 1.0;
       });
     }
-    
-    _lastScrollPosition = currentPosition;
+
+    // Détecter la fin du scroll pour snap
+    _isScrolling = true;
+    _scrollEndTimer?.cancel();
+    _scrollEndTimer = Timer(const Duration(milliseconds: 150), () {
+      _snapBanner();
+    });
+  }
+
+  void _snapBanner() {
+    if (!_scrollController.hasClients) return;
+
+    final currentPosition = _scrollController.position.pixels;
+
+    // Si on est dans la zone de la bannière, on snap
+    if (currentPosition > 10 && currentPosition < _maxBannerHeight - 10) {
+      // Si on est plus proche du haut (< 75px), on remonte
+      if (currentPosition < 75) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      } else {
+        // Sinon on cache la bannière mais on s'arrête là
+        // pour que la barre de recherche reste visible
+        _scrollController.animateTo(
+          _maxBannerHeight,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+    _isScrolling = false;
   }
 
   @override
   void dispose() {
+    _scrollEndTimer?.cancel();
     _scrollController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -84,6 +111,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
 
     return ScreenLayout(
       appBar: CustomAppBar(
+        key: const ValueKey('shop_establishment_app_bar'),
         showUserInfo: true,
         showPoints: true,
         showDrawerButton: true,
@@ -91,24 +119,53 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
         showGreeting: true,
       ),
       noFAB: true,
-      body: Column(
-        children: [
-          // Bannière avec hauteur progressive et masquage fluide
-          SizeTransition(
-            sizeFactor: AlwaysStoppedAnimation(_bannerHeight),
-            axisAlignment: -1.0,
-            child: FadeTransition(
-              opacity: AlwaysStoppedAnimation(_bannerHeight > 0.2 ? 1.0 : _bannerHeight * 5),
-              child: const SpecialOffersBanner(),
+      body: NestedScrollView(
+        controller: _scrollController,
+        physics: const BouncingScrollPhysics(),
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            // Bannière avec animation de hauteur
+            SliverToBoxAdapter(
+              child: AnimatedContainer(
+                duration: _isScrolling
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                height: _bannerHeight,
+                child: _bannerHeight > 0
+                    ? ClipRect(
+                        child: OverflowBox(
+                          alignment: Alignment.topCenter,
+                          minHeight: 0,
+                          maxHeight: _maxBannerHeight,
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 150),
+                            opacity: _bannerHeight > 20 ? 1.0 : _bannerHeight / 20,
+                            child: const SpecialOffersBanner(),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
-          ),
-          _buildSearchBar(cc),
-          _buildModernTabs(cc),
-          _buildTabDescription(cc),
-          Expanded(
-            child: _buildContent(cc, _scrollController),
-          ),
-        ],
+            // Section épinglée contenant barre de recherche, onglets et description
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _StickyHeaderDelegate(
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Column(
+                    children: [
+                      _buildSearchBar(cc),
+                      _buildModernTabs(cc),
+                      _buildTabDescription(cc),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ];
+        },
+        body: _buildContent(cc),
       ),
     );
   }
@@ -601,7 +658,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
     );
   }
 
-  Widget _buildContent(ShopEstablishmentScreenController cc, ScrollController scrollController) {
+  Widget _buildContent(ShopEstablishmentScreenController cc) {
     return Obx(() {
       final establishments = cc.displayedEstablishments;
 
@@ -611,13 +668,13 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
 
       return AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
-        child: _buildGrid(establishments, cc, scrollController),
+        child: _buildGrid(establishments, cc),
       );
     });
   }
 
   Widget _buildGrid(List<Establishment> establishments,
-      ShopEstablishmentScreenController cc, ScrollController scrollController) {
+      ShopEstablishmentScreenController cc) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Définir les breakpoints et tailles de cartes
@@ -629,7 +686,6 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
         if (isMobile) {
           // Format liste horizontale condensée sur mobile
           return ListView.builder(
-            controller: scrollController,
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
             itemCount: establishments.length,
             itemBuilder: (context, index) {
@@ -638,6 +694,20 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
                   cc.userTypeNameCache[establishment.userId] ?? 'INVISIBLE';
               final isOwnEstablishment =
                   cc.isOwnEstablishment(establishment.userId);
+
+              // Pour les sponsors sur mobile, utiliser la carte mobile dédiée
+              if (tName == 'Sponsor') {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: UniquesControllers().data.baseSpace * 2,
+                  ),
+                  child: SponsorMobileCard(
+                    establishment: establishment,
+                    index: index,
+                    isOwnEstablishment: isOwnEstablishment,
+                  ),
+                );
+              }
 
               return Padding(
                 padding: EdgeInsets.only(
@@ -673,7 +743,6 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
           }
 
           return GridView.builder(
-            controller: scrollController,
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: maxCardWidth,
@@ -691,80 +760,24 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
 
               // Utiliser la bonne carte selon le type et l'onglet
               if (cc.selectedTabIndex.value == 3) {
-                // Onglet Sponsors - utiliser la carte simplifiée
-                // TODO: Déterminer si c'est un sponsor premium selon un champ dans Firestore
-                bool isPremium = establishment.isPremiumSponsor ?? false;
-                return SponsorEstablishmentCard(
+                // Onglet Sponsors - utiliser la carte stylisée
+                return SponsorCardStyled(
                   establishment: establishment,
                   index: index,
-                  isPremium: isPremium,
-                  onTap: () {
-                    // Simple affichage d'infos pour les sponsors
-                    Get.dialog(
-                      AlertDialog(
-                        title: Text(establishment.name),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (establishment.description.isNotEmpty)
-                              Text(establishment.description),
-                            SizedBox(height: 16),
-                            if (establishment.website != null && establishment.website!.isNotEmpty)
-                              Row(
-                                children: [
-                                  Icon(Icons.language, size: 16),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      establishment.website ?? '',
-                                      style: TextStyle(
-                                        color: CustomTheme.lightScheme().primary,
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            if (establishment.email.isNotEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(top: 8),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.email_outlined, size: 16),
-                                    SizedBox(width: 8),
-                                    Text(establishment.email),
-                                  ],
-                                ),
-                              ),
-                            if (establishment.telephone.isNotEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(top: 8),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.phone_outlined, size: 16),
-                                    SizedBox(width: 8),
-                                    Text(establishment.telephone),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Get.back(),
-                            child: Text('Fermer'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                  isOwnEstablishment: isOwnEstablishment,
                 );
               } else if (tName == 'Entreprise') {
                 return EnterpriseEstablishmentCard(
                   establishment: establishment,
                   index: index,
                   enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+                );
+              } else if (tName == 'Sponsor') {
+                // Les sponsors utilisent la carte stylisée même en dehors de l'onglet 3
+                return SponsorCardStyled(
+                  establishment: establishment,
+                  index: index,
+                  isOwnEstablishment: isOwnEstablishment,
                 );
               } else {
                 return ShopEstablishmentCard(
@@ -850,5 +863,53 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen>
         ),
       );
     }).toList();
+  }
+}
+
+// Delegate pour la section épinglée (recherche + onglets + description)
+class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent {
+    // Calcul précis des hauteurs :
+    // Barre de recherche: 56 + marges (16*2) = 72
+    // Onglets: 48 + marge bottom (8) = 56
+    // Description: variable mais environ 60-80
+    return 210.0;
+  }
+
+  @override
+  double get maxExtent => minExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    // Ajouter une ombre quand le header est épinglé
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        boxShadow: shrinkOffset > 0
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) {
+    return child != oldDelegate.child;
   }
 }

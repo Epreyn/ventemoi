@@ -191,64 +191,204 @@ class _ShopEstablishmentMobileCardState
                             ],
                           ),
                           const SizedBox(height: 6),
-                          // Stock de bons ou points pour entreprises
-                          if (!widget.isEnterprise)
-                            StreamBuilder<QuerySnapshot>(
-                              stream: UniquesControllers()
-                                  .data
-                                  .firebaseFirestore
-                                  .collection('wallets')
-                                  .where('user_id',
-                                      isEqualTo: widget.establishment.userId)
-                                  .limit(1)
-                                  .snapshots(),
-                              builder: (context, walletSnap) {
-                                if (!walletSnap.hasData ||
-                                    walletSnap.data!.docs.isEmpty) {
-                                  return const SizedBox();
-                                }
+                          // Stock de bons pour les commerces uniquement (pas pour entreprises, sponsors ou associations)
+                          FutureBuilder<String>(
+                            future: _getUserTypeName(),
+                            builder: (context, typeSnapshot) {
+                              final typeName = typeSnapshot.data ?? '';
 
-                                final data = walletSnap.data!.docs.first.data()
-                                    as Map<String, dynamic>;
-                                final coupons = data['coupons'] ?? 0;
+                              // Afficher les bons disponibles seulement pour Boutique et Commerçant
+                              if (typeName == 'Boutique' || typeName == 'Commerçant') {
+                                return StreamBuilder<QuerySnapshot>(
+                                  stream: UniquesControllers()
+                                      .data
+                                      .firebaseFirestore
+                                      .collection('wallets')
+                                      .where('user_id',
+                                          isEqualTo: widget.establishment.userId)
+                                      .limit(1)
+                                      .snapshots(),
+                                  builder: (context, walletSnap) {
+                                    if (!walletSnap.hasData ||
+                                        walletSnap.data!.docs.isEmpty) {
+                                      return const SizedBox();
+                                    }
 
+                                    final data = walletSnap.data!.docs.first.data()
+                                        as Map<String, dynamic>;
+                                    final coupons = data['coupons'] ?? 0;
+
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: coupons > 0
+                                            ? Colors.green.withOpacity(0.1)
+                                            : Colors.red.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.confirmation_number,
+                                            size: 14,
+                                            color: coupons > 0
+                                                ? Colors.green
+                                                : Colors.red,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '$coupons bons disponibles',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: coupons > 0
+                                                  ? Colors.green
+                                                  : Colors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              } else if (typeName == 'Sponsor') {
+                                // Pour les sponsors, afficher leur niveau avec un design premium
+                                return FutureBuilder<DocumentSnapshot>(
+                                  future: UniquesControllers()
+                                      .data
+                                      .firebaseFirestore
+                                      .collection('establishments')
+                                      .where('user_id', isEqualTo: widget.establishment.userId)
+                                      .limit(1)
+                                      .get()
+                                      .then((snap) => snap.docs.isNotEmpty ? snap.docs.first.reference.get() : Future.value(null)),
+                                  builder: (context, estabSnap) {
+                                    String sponsorLevel = 'bronze'; // Par défaut bronze
+                                    if (estabSnap.hasData && estabSnap.data != null) {
+                                      final estabData = estabSnap.data!.data() as Map<String, dynamic>?;
+                                      sponsorLevel = estabData?['sponsor_level'] ?? 'bronze';
+                                    }
+
+                                    final isSilver = sponsorLevel == 'silver';
+
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: isSilver
+                                              ? [
+                                                  Color(0xFFB8B8B8), // Argent clair
+                                                  Color(0xFF7D7D7D), // Argent foncé
+                                                ]
+                                              : [
+                                                  Color(0xFFCD7F32), // Bronze clair
+                                                  Color(0xFF8B4513), // Bronze foncé
+                                                ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isSilver
+                                                ? Colors.grey.withOpacity(0.4)
+                                                : Colors.brown.withOpacity(0.4),
+                                            blurRadius: 4,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.workspace_premium,
+                                            size: 16,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'SPONSOR',
+                                                style: TextStyle(
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.white.withOpacity(0.85),
+                                                  letterSpacing: 0.8,
+                                                  height: 1,
+                                                ),
+                                              ),
+                                              Text(
+                                                isSilver ? 'SILVER' : 'BRONZE',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                  letterSpacing: 0.3,
+                                                  height: 1.1,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (isSilver) ...[
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.stars,
+                                              size: 14,
+                                              color: Colors.white,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              } else if (typeName == 'Association') {
+                                // Pour les associations, afficher qu'elles acceptent les dons
                                 return Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: coupons > 0
-                                        ? Colors.green.withOpacity(0.1)
-                                        : Colors.red.withOpacity(0.1),
+                                    color: Colors.purple.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        Icons.confirmation_number,
+                                        Icons.volunteer_activism,
                                         size: 14,
-                                        color: coupons > 0
-                                            ? Colors.green
-                                            : Colors.red,
+                                        color: Colors.purple,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '$coupons bons disponibles',
+                                        'Accepte les dons',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: coupons > 0
-                                              ? Colors.green
-                                              : Colors.red,
+                                          color: Colors.purple,
                                         ),
                                       ),
                                     ],
                                   ),
                                 );
-                              },
-                            ),
+                              }
+
+                              return const SizedBox();
+                            },
+                          ),
                               ],
                             ),
                           ),
@@ -439,18 +579,42 @@ class _ShopEstablishmentMobileCardState
   IconData _getCategoryIcon() {
     // Icônes par défaut selon le type
     if (widget.isEnterprise) return Icons.business_center;
-
-    // Pour les associations
-    final userTypeName = _getUserTypeName();
-    if (userTypeName == 'Association') return Icons.volunteer_activism;
-
-    // Pour les boutiques, on peut personnaliser selon la catégorie
+    // Pour les boutiques et autres types
     return Icons.shopping_bag;
   }
 
-  String _getUserTypeName() {
-    // Cette méthode pourrait être améliorée pour récupérer le vrai nom
-    // Pour l'instant on se base sur isEnterprise
+  Future<String> _getUserTypeName() async {
+    // Récupérer le type d'utilisateur depuis Firestore
+    try {
+      final userDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(widget.establishment.userId)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>?;
+        final userTypeId = userData?['user_type'];
+
+        if (userTypeId != null) {
+          final typeDoc = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('user_types')
+              .doc(userTypeId)
+              .get();
+
+          if (typeDoc.exists) {
+            return typeDoc.data()?['name'] ?? 'Boutique';
+          }
+        }
+      }
+    } catch (e) {
+      // En cas d'erreur, on retourne une valeur par défaut
+    }
+
+    // Valeurs par défaut basées sur isEnterprise
     if (widget.isEnterprise) return 'Entreprise';
     return 'Boutique';
   }
@@ -516,7 +680,7 @@ class _ShopEstablishmentMobileCardState
 
   Widget _buildActionButton() {
     return FutureBuilder<String>(
-      future: _fetchUserTypeName(widget.establishment.userId),
+      future: _getUserTypeName(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const SizedBox(height: 40);
@@ -524,62 +688,191 @@ class _ShopEstablishmentMobileCardState
 
         final typeName = snap.data ?? '';
         final isAssociation = typeName == 'Association';
+        final isSponsor = typeName == 'Sponsor';
+        final isBoutique = typeName == 'Boutique' || typeName == 'Commerçant';
 
-        return StreamBuilder<QuerySnapshot>(
-          stream: UniquesControllers()
-              .data
-              .firebaseFirestore
-              .collection('wallets')
-              .where('user_id', isEqualTo: widget.establishment.userId)
-              .limit(1)
-              .snapshots(),
-          builder: (context, walletSnap) {
-            if (!walletSnap.hasData || walletSnap.data!.docs.isEmpty) {
-              return const SizedBox();
-            }
-
-            final data =
-                walletSnap.data!.docs.first.data() as Map<String, dynamic>;
-            final coupons = data['coupons'] ?? 0;
-            final isDisabled =
-                widget.isOwnEstablishment || (!isAssociation && coupons == 0);
-
-            return SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: isDisabled ? null : widget.onBuy,
-                icon: Icon(
-                  isAssociation
-                      ? Icons.volunteer_activism
-                      : Icons.shopping_cart,
-                  size: 18,
+        // Pour les associations, afficher le bouton de don
+        if (isAssociation) {
+          return SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: widget.isOwnEstablishment ? null : widget.onBuy,
+              icon: const Icon(
+                Icons.volunteer_activism,
+                size: 18,
+              ),
+              label: Text(
+                widget.isOwnEstablishment ? 'Votre association' : 'Faire un don',
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.isOwnEstablishment
+                    ? Colors.grey
+                    : Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
                 ),
-                label: Text(
-                  widget.isOwnEstablishment
-                      ? 'Votre établissement'
-                      : (isAssociation ? 'Faire un don' : 'Acheter des bons'),
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.isOwnEstablishment
-                      ? Colors.grey
-                      : (isAssociation
-                          ? Colors.green
-                          : CustomTheme.lightScheme().primary),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
-            );
-          },
-        );
+            ),
+          );
+        }
+
+        // Pour les sponsors, afficher un bouton d'information
+        if (isSponsor) {
+          return SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: widget.isOwnEstablishment ? null : () {
+                // Afficher les informations du sponsor
+                Get.dialog(
+                  AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    title: Row(
+                      children: [
+                        Icon(
+                          Icons.workspace_premium,
+                          color: CustomTheme.lightScheme().primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.establishment.name,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sponsor de l\'application',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: CustomTheme.lightScheme().primary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.establishment.description,
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
+                        if (widget.establishment.website != null &&
+                            widget.establishment.website!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          InkWell(
+                            onTap: () => _launchUrl(widget.establishment.website!),
+                            child: Text(
+                              widget.establishment.website!,
+                              style: TextStyle(
+                                color: CustomTheme.lightScheme().primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        child: const Text('Fermer'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.info_outline,
+                size: 18,
+              ),
+              label: Text(
+                widget.isOwnEstablishment ? 'Votre sponsor' : 'En savoir plus',
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.isOwnEstablishment
+                    ? Colors.grey
+                    : CustomTheme.lightScheme().primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Pour les boutiques/commerçants, vérifier les bons disponibles
+        if (isBoutique) {
+          return StreamBuilder<QuerySnapshot>(
+            stream: UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('wallets')
+                .where('user_id', isEqualTo: widget.establishment.userId)
+                .limit(1)
+                .snapshots(),
+            builder: (context, walletSnap) {
+              if (!walletSnap.hasData || walletSnap.data!.docs.isEmpty) {
+                return const SizedBox();
+              }
+
+              final data =
+                  walletSnap.data!.docs.first.data() as Map<String, dynamic>;
+              final coupons = data['coupons'] ?? 0;
+              final isDisabled = widget.isOwnEstablishment || coupons == 0;
+
+              return SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: isDisabled ? null : widget.onBuy,
+                  icon: const Icon(
+                    Icons.shopping_cart,
+                    size: 18,
+                  ),
+                  label: Text(
+                    widget.isOwnEstablishment
+                        ? 'Votre établissement'
+                        : 'Acheter des bons',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.isOwnEstablishment
+                        ? Colors.grey
+                        : CustomTheme.lightScheme().primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }
+
+        // Par défaut (ne devrait pas arriver)
+        return const SizedBox();
       },
     );
   }
@@ -624,6 +917,13 @@ class _ShopEstablishmentMobileCardState
 
   void _launchEmail(String email) async {
     final uri = Uri.parse('mailto:$email');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  void _launchUrl(String url) async {
+    final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }

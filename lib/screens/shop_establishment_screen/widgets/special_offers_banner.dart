@@ -20,134 +20,135 @@ class SpecialOffersBanner extends StatefulWidget {
 }
 
 class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
-  final carousel_ctrl.CarouselSliderController _carouselController = carousel_ctrl.CarouselSliderController();
+  final carousel_ctrl.CarouselSliderController _carouselController =
+      carousel_ctrl.CarouselSliderController();
   int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     // Vérifier si l'utilisateur est une entreprise/boutique
     final userType = UniquesControllers().getStorage.read('currentUserType');
-    final isBusinessUser = userType == 'Boutique' || userType == 'Entreprise' || 
-                          userType == 'Sponsor' || userType == 'Association';
-    
+    final isBusinessUser = userType == 'Boutique' ||
+        userType == 'Entreprise' ||
+        userType == 'Sponsor' ||
+        userType == 'Association';
+
     // N'afficher le bouton que pour les utilisateurs business
     final showRequestButton = isBusinessUser;
-    
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        StreamBuilder<QuerySnapshot>(
-          stream: UniquesControllers()
-              .data
-              .firebaseFirestore
-              .collection('special_offers')
-              .orderBy('priority', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              // Si pas d'offres mais on veut montrer le bouton, montrer quand même le bouton
-              if (showRequestButton) {
-                return _buildRequestBannerButton();
-              }
-              return const SizedBox.shrink();
-            }
 
-            final offers = snapshot.data!.docs
-                .map((doc) => SpecialOffer.fromDocument(doc))
-                .where((offer) => offer.isActive && offer.isCurrentlyActive)
-                .toList();
+    return StreamBuilder<QuerySnapshot>(
+      stream: UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('special_offers')
+          .orderBy('priority', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          // Si pas d'offres mais on veut montrer le bouton, montrer quand même le bouton
+          if (showRequestButton) {
+            return _buildRequestBannerButton();
+          }
+          return const SizedBox.shrink();
+        }
 
-            if (offers.isEmpty && !showRequestButton) {
-              return const SizedBox.shrink();
-            }
+        final offers = snapshot.data!.docs
+            .map((doc) => SpecialOffer.fromDocument(doc))
+            .where((offer) => offer.isActive && offer.isCurrentlyActive)
+            .toList();
 
-            // Si une seule offre, affichage simple
-            if (offers.length == 1) {
-              return Container(
-                margin: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 8),
+        if (offers.isEmpty && !showRequestButton) {
+          return const SizedBox.shrink();
+        }
+
+        // Si une seule offre, affichage simple
+        if (offers.length == 1) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 120,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: _buildModernBanner(offers.first),
-              );
-            }
+              ),
+              if (showRequestButton) _buildRequestBannerButton(),
+            ],
+          );
+        }
 
-            // Si plusieurs offres, carrousel avec contrôles
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        // Si plusieurs offres, carrousel avec contrôles
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 120,
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              child: Stack(
                 children: [
-                  Stack(
-                    children: [
-                      CarouselSlider.builder(
-                        carouselController: _carouselController,
-                        itemCount: offers.length,
-                        options: CarouselOptions(
-                          height: 140,
-                          autoPlay: true,
-                          autoPlayInterval: const Duration(seconds: 6),
-                          autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                          autoPlayCurve: Curves.easeInOutCubic,
-                          enlargeCenterPage: true,
-                          viewportFraction: 0.92,
-                          enableInfiniteScroll: offers.length > 1,
-                          onPageChanged: (index, reason) {
-                            setState(() {
-                              _currentIndex = index;
-                            });
-                          },
-                        ),
-                        itemBuilder: (context, index, realIndex) {
-                          return _buildModernBanner(offers[index]);
-                        },
-                      ),
-                      // Flèches de navigation
-                      Positioned(
-                        left: 8,
-                        top: 55,
-                        child: _buildNavigationButton(
-                          Icons.arrow_back_ios_rounded,
-                          () => _carouselController.previousPage(),
-                        ),
-                      ),
-                      Positioned(
-                        right: 8,
-                        top: 55,
-                        child: _buildNavigationButton(
-                          Icons.arrow_forward_ios_rounded,
-                          () => _carouselController.nextPage(),
-                        ),
-                      ),
-                    ],
+                  CarouselSlider.builder(
+                    carouselController: _carouselController,
+                    itemCount: offers.length,
+                    options: CarouselOptions(
+                      height: 120,
+                      autoPlay: true,
+                      autoPlayInterval: const Duration(seconds: 6),
+                      autoPlayAnimationDuration:
+                          const Duration(milliseconds: 800),
+                      autoPlayCurve: Curves.easeInOutCubic,
+                      enlargeCenterPage: true,
+                      viewportFraction: 0.92,
+                      enableInfiniteScroll: offers.length > 1,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                      },
+                    ),
+                    itemBuilder: (context, index, realIndex) {
+                      return _buildModernBanner(offers[index]);
+                    },
                   ),
-                  // Indicateurs de pagination
-                  const SizedBox(height: 8),
-                  _buildPaginationIndicator(offers.length),
+                  // Flèches de navigation
+                  Positioned(
+                    left: 8,
+                    top: 45,
+                    child: _buildNavigationButton(
+                      Icons.arrow_back_ios_rounded,
+                      () => _carouselController.previousPage(),
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 45,
+                    child: _buildNavigationButton(
+                      Icons.arrow_forward_ios_rounded,
+                      () => _carouselController.nextPage(),
+                    ),
+                  ),
                 ],
               ),
-            );
-          },
-        ),
-        // Bouton pour demander une bannière
-        if (showRequestButton) _buildRequestBannerButton(),
-      ],
+            ),
+            // Indicateurs de pagination
+            const SizedBox(height: 4),
+            _buildPaginationIndicator(offers.length),
+            if (showRequestButton) _buildRequestBannerButton(),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildModernBanner(SpecialOffer offer) {
     final bgColor = _parseHexColor(offer.backgroundColor ?? '#FF6B35');
     final textColor = _parseHexColor(offer.textColor ?? '#FFFFFF');
-    final hasImage = offer.imageUrl != null && offer.imageUrl!.trim().isNotEmpty;
-
-    // Debug pour voir l'URL
-    if (hasImage) {
-      print('🖼️ Tentative de chargement image: ${offer.imageUrl}');
-    }
+    final hasImage =
+        offer.imageUrl != null && offer.imageUrl!.trim().isNotEmpty;
 
     return GestureDetector(
       onTap: offer.linkUrl != null && offer.linkUrl!.isNotEmpty
           ? () => _openLink(offer.linkUrl!)
           : null,
       child: Container(
-        height: 140,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
@@ -180,9 +181,9 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                   ),
                 ),
               ),
-              
+
               // Image de fond si disponible
-              if (hasImage) 
+              if (hasImage)
                 Positioned.fill(
                   child: Image.network(
                     offer.imageUrl!,
@@ -222,7 +223,7 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                     },
                   ),
                 ),
-              
+
               // Dégradé pour assurer la lisibilité du texte
               if (hasImage)
                 Positioned.fill(
@@ -241,7 +242,7 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                     ),
                   ),
                 ),
-              
+
               // Contenu
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -250,10 +251,11 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                     // Partie gauche - Textes
                     Expanded(
                       flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                           // Badges sur la même ligne
                           Wrap(
                             spacing: 8,
@@ -293,9 +295,10 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                                   ],
                                 ),
                               ),
-                              
+
                               // Badge période si dates définies
-                              if (offer.startDate != null || offer.endDate != null)
+                              if (offer.startDate != null ||
+                                  offer.endDate != null)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -320,58 +323,56 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                                 ),
                             ],
                           ),
-                          
+
                           const SizedBox(height: 8),
-                          
+
                           // Titre
-                          Flexible(
-                            child: Text(
-                              offer.title,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    offset: const Offset(0, 1),
-                                    blurRadius: 3,
-                                  ),
-                                ],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            offer.title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 3,
+                                ),
+                              ],
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          
+
                           const SizedBox(height: 4),
-                          
+
                           // Description
-                          Flexible(
-                            child: Text(
-                              offer.description,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: textColor.withOpacity(0.95),
-                                height: 1.2,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    offset: const Offset(0, 1),
-                                    blurRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            offer.description,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textColor.withOpacity(0.95),
+                              height: 1.2,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    
+                  ),
+
                     // Partie droite - Bouton d'action
-                    if (offer.buttonText != null && offer.buttonText!.isNotEmpty) ...[
+                    if (offer.buttonText != null &&
+                        offer.buttonText!.isNotEmpty) ...[
                       const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -400,7 +401,8 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (offer.linkUrl != null && offer.linkUrl!.isNotEmpty) ...[
+                            if (offer.linkUrl != null &&
+                                offer.linkUrl!.isNotEmpty) ...[
                               const SizedBox(width: 4),
                               Icon(
                                 Icons.arrow_forward_rounded,
@@ -415,7 +417,7 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                   ],
                 ),
               ),
-              
+
               // Effet de brillance
               Positioned(
                 top: -50,
@@ -487,7 +489,7 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
 
   String _getDateRangeText(SpecialOffer offer) {
     final formatter = DateFormat('d MMM', 'fr_FR');
-    
+
     if (offer.startDate != null && offer.endDate != null) {
       return 'Du ${formatter.format(offer.startDate!)} au ${formatter.format(offer.endDate!)}';
     } else if (offer.startDate != null) {
@@ -546,7 +548,8 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),

@@ -31,6 +31,9 @@ class Establishment implements Nameable {
   final bool? isPremiumSponsor;
   final bool isVisible;
 
+  // Alias pour la compatibilité
+  int get maxVouchersPerPurchase => maxVouchersPurchase;
+
   Establishment({
     required this.id,
     required this.name,

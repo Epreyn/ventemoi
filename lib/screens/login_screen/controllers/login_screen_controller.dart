@@ -56,7 +56,7 @@ class LoginScreenController extends GetxController {
   
   // Se souvenir de moi
   RxBool rememberMe = false.obs;
-  final GetStorage storage = GetStorage();
+  final GetStorage storage = GetStorage('Storage');
 
   @override
   void onInit() {
@@ -86,25 +86,37 @@ class LoginScreenController extends GetxController {
       final savedPassword = storage.read('saved_password');
       final savedRememberMe = storage.read('remember_me') ?? false;
       
+      print('🔐 Loading saved credentials:');
+      print('  - Email: ${savedEmail != null ? '***' : 'null'}');
+      print('  - Password: ${savedPassword != null ? '***' : 'null'}');
+      print('  - Remember Me: $savedRememberMe');
+      
       if (savedRememberMe && savedEmail != null && savedPassword != null) {
         emailController.text = savedEmail;
         passwordController.text = savedPassword;
         rememberMe.value = true;
+        print('✅ Credentials loaded successfully');
+      } else {
+        print('ℹ️ No saved credentials to load');
       }
     } catch (e) {
+      print('❌ Error loading credentials: $e');
     }
   }
   
   // Sauvegarder ou supprimer les identifiants selon le choix
   void saveCredentials() {
+    print('💾 Saving credentials - Remember Me: ${rememberMe.value}');
     if (rememberMe.value) {
       storage.write('saved_email', emailController.text);
       storage.write('saved_password', passwordController.text);
       storage.write('remember_me', true);
+      print('✅ Credentials saved to storage');
     } else {
       storage.remove('saved_email');
       storage.remove('saved_password');
       storage.write('remember_me', false);
+      print('🗑️ Credentials removed from storage');
     }
   }
   

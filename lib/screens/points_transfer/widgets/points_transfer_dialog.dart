@@ -28,13 +28,6 @@ class PointsTransferDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: CustomTheme.lightScheme().surface,
           borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 30,
-              spreadRadius: 5,
-            ),
-          ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(30),
@@ -64,17 +57,10 @@ class PointsTransferDialog extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        padding: EdgeInsets.all(UniquesControllers().data.baseSpace),
-                        decoration: BoxDecoration(
-                          color: CustomTheme.lightScheme().primary.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.swap_horiz_rounded,
-                          color: CustomTheme.lightScheme().primary,
-                          size: 24,
-                        ),
+                      Icon(
+                        Icons.swap_horiz_rounded,
+                        color: CustomTheme.lightScheme().primary,
+                        size: 32,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -145,7 +131,7 @@ class PointsTransferDialog extends StatelessWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: '0',
+                                  hintText: '',
                                   suffixText: 'points',
                                   suffixStyle: TextStyle(
                                     fontSize: 18,
@@ -153,9 +139,19 @@ class PointsTransferDialog extends StatelessWidget {
                                   ),
                                   filled: true,
                                   fillColor: Colors.white,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.black54,
+                                      width: 1.5,
+                                    ),
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
+                                    borderSide: BorderSide(
+                                      color: Colors.black54,
+                                      width: 1.5,
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -290,6 +286,11 @@ class PointsTransferDialog extends StatelessWidget {
                           return const SizedBox.shrink();
                         }),
 
+                        // Espace entre l'utilisateur sélectionné et la liste
+                        Obx(() => controller.selectedUser.value != null
+                          ? const SizedBox(height: 16)
+                          : const SizedBox.shrink()),
+
                         // Liste des résultats de recherche
                         Obx(() {
                           if (controller.searchQuery.value.length < 2) {
@@ -326,34 +327,47 @@ class PointsTransferDialog extends StatelessWidget {
                                 );
                               }
 
+                              // Utiliser Obx pour que le filtre soit réactif
+                              return Obx(() {
+                                // Filtrer l'utilisateur sélectionné de la liste
+                                final selectedId = controller.selectedUser.value?['id'];
+                                final filteredUsers = users.where((user) {
+                                  // Exclure l'utilisateur sélectionné
+                                  return user['id'] != selectedId;
+                                }).toList();
+
+                              if (filteredUsers.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Center(
+                                    child: Text(
+                                      'Aucun autre utilisateur trouvé',
+                                      style: TextStyle(color: Colors.grey[600]),
+                                    ),
+                                  ),
+                                );
+                              }
+
                               return Column(
-                                children: users.map((user) {
-                                  final isSelected = controller.selectedUser.value?['id'] == user['id'];
-                                  
+                                children: filteredUsers.map((user) {
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 8),
                                     decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? CustomTheme.lightScheme().primary.withOpacity(0.05)
-                                          : Colors.white,
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: isSelected
-                                            ? CustomTheme.lightScheme().primary
-                                            : Colors.grey[300]!,
-                                        width: isSelected ? 2 : 1,
+                                        color: Colors.grey[300]!,
+                                        width: 1,
                                       ),
                                     ),
                                     child: ListTile(
                                       onTap: () => controller.selectUser(user),
                                       leading: CircleAvatar(
-                                        backgroundColor: isSelected
-                                            ? CustomTheme.lightScheme().primary
-                                            : Colors.grey[300],
+                                        backgroundColor: Colors.grey[300],
                                         child: Text(
                                           controller.getInitials(user),
                                           style: TextStyle(
-                                            color: isSelected ? Colors.white : Colors.grey[700],
+                                            color: Colors.grey[700],
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
@@ -374,16 +388,12 @@ class PointsTransferDialog extends StatelessWidget {
                                               ),
                                             )
                                           : null,
-                                      trailing: isSelected
-                                          ? Icon(
-                                              Icons.check_circle,
-                                              color: CustomTheme.lightScheme().primary,
-                                            )
-                                          : null,
+                                      trailing: null,
                                     ),
                                   );
                                 }).toList(),
                               );
+                              }); // Fin du Obx
                             },
                           );
                         }),

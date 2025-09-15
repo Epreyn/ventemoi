@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../classes/unique_controllers.dart';
+import '../constants/stripe_prices.dart';
 
 class StripeService extends GetxService {
   static StripeService get to => Get.find();
@@ -11,16 +12,14 @@ class StripeService extends GetxService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  static const String PRICE_ID_MONTHLY_FIRST_YEAR =
-      'price_1RnEnpAOsm6ulZWoaL9qF82e'; // ADHESION + VIDEO
-  static const String PRICE_ID_MONTHLY_RECURRING =
-      'price_1RnEnmAOsm6ulZWoEjr61X2l';
-  static const String PRICE_ID_ANNUAL_FIRST_YEAR =
-      'price_1RnEnxAOsm6ulZWoklEwYoXm'; // Pack Première Année - Annuel
-  static const String PRICE_ID_ANNUAL_RECURRING =
-      'price_1RnEnxAOsm6ulZWoklEwYoXm';
-  static const String PRICE_ID_ADDITIONAL_SLOT =
-      'price_1RnEnjAOsm6ulZWoSj3PQQe6';
+  // Import des IDs depuis StripePrices
+  static const String PRICE_ID_ADHESION = StripePrices.adhesionProPriceId;
+  static const String PRICE_ID_MONTHLY_RECURRING = StripePrices.cotisationMensuellePriceId;
+  static const String PRICE_ID_ANNUAL_RECURRING = StripePrices.cotisationAnnuellePriceId;
+  static const String PRICE_ID_ADDITIONAL_SLOT = StripePrices.slotSupplementairePriceId;
+  static const String PRICE_ID_VIDEO_STANDARD = StripePrices.videoStandardMembrePriceId;
+  static const String PRICE_ID_VIDEO_PREMIUM = StripePrices.videoPremiumMembrePriceId;
+  static const String PRICE_ID_VIDEO_SIGNATURE = StripePrices.videoSignatureMembrePriceId;
 
   // Modifier _ensureStripeCustomer pour utiliser la synchronisation
   Future<String> _ensureStripeCustomer() async {
@@ -60,27 +59,35 @@ class StripeService extends GetxService {
       // IMPORTANT : Utiliser customer_email au lieu d'un customer ID
       final checkoutData = {
         'mode': 'subscription',
-        'customer_email': user.email, // ← CHANGEMENT CLÉ
+        'customer_email': user.email,
         'success_url': successUrlWithAutoClose,
         'cancel_url': cancelUrlWithAutoClose,
         'line_items': [
-          // 1. Frais d'adhésion (visible sur la page de checkout)
+          // 1. Adhésion uniquement (la vidéo est offerte)
           {
             'price_data': {
               'currency': 'eur',
               'product_data': {
-                'name': 'Frais d\'adhésion VenteMoi (unique)',
-                'description': 'Accès à la plateforme pour votre établissement',
+                'name': 'Adhésion VenteMoi - Pack Première Année',
+                'description': 'Accès à la plateforme + Vidéo standard OFFERTE',
               },
-              'unit_amount': 32400, // 324€ TTC (270€ HT + TVA 20%)
-              'recurring': null, // Pas récurrent
+              'unit_amount': StripePrices.adhesionAmountTTC, // 324€ TTC (vidéo offerte)
             },
             'quantity': 1,
           },
-          // 2. Abonnement mensuel
+          // 2. Abonnement mensuel récurrent
           {
-            'price':
-                PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Cotisation Mensuelle VenteMoi Pro',
+                'description': 'Cotisation mensuelle incluant toutes les fonctionnalités',
+              },
+              'unit_amount': StripePrices.cotisationMensuelleAmountTTC, // 66€ TTC
+              'recurring': {
+                'interval': 'month',
+              },
+            },
             'quantity': 1,
           }
         ],
@@ -96,8 +103,9 @@ class StripeService extends GetxService {
           'purchase_type': 'first_year_monthly',
           'user_type': userType,
           'user_id': user.uid,
-          'includes_setup_fee': 'true',
-          'setup_fee_amount': '324', // TTC
+          'includes_adhesion': 'true',
+          'includes_video_free': 'standard', // Vidéo offerte
+          'adhesion_amount': '324', // TTC
         },
         'allow_promotion_codes': true,
       };
@@ -134,28 +142,38 @@ class StripeService extends GetxService {
       final cancelUrlWithAutoClose =
           'https://app.ventemoi.fr/stripe-cancel.html';
 
+      // Pack première année mensuel = Adhésion + Vidéo + Abonnement mensuel
       final checkoutData = {
         'mode': 'subscription',
-        'customer_email': user.email, // ← Utiliser email au lieu de customer ID
+        'customer_email': user.email,
         'success_url': successUrlWithAutoClose,
         'cancel_url': cancelUrlWithAutoClose,
         'line_items': [
-          // Frais d'adhésion visibles
+          // 1. Adhésion uniquement (la vidéo est offerte)
           {
             'price_data': {
               'currency': 'eur',
               'product_data': {
-                'name': 'Frais d\'adhésion VenteMoi (unique)',
-                'description': 'Accès à la plateforme pour votre établissement',
+                'name': 'Adhésion VenteMoi - Pack Première Année',
+                'description': 'Accès à la plateforme + Vidéo standard OFFERTE',
               },
-              'unit_amount': 32400, // 324€ TTC (270€ HT + TVA 20%)
+              'unit_amount': StripePrices.adhesionAmountTTC, // 324€ TTC (vidéo offerte)
             },
             'quantity': 1,
           },
-          // Abonnement mensuel
+          // 2. Abonnement mensuel récurrent
           {
-            'price':
-                PRICE_ID_MONTHLY_RECURRING, // 66€ TTC/mois (55€ HT + TVA 20%)
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Cotisation Mensuelle VenteMoi Pro',
+                'description': 'Cotisation mensuelle incluant toutes les fonctionnalités',
+              },
+              'unit_amount': StripePrices.cotisationMensuelleAmountTTC, // 66€ TTC
+              'recurring': {
+                'interval': 'month',
+              },
+            },
             'quantity': 1,
           }
         ],
@@ -170,7 +188,8 @@ class StripeService extends GetxService {
           'purchase_type': 'first_year_monthly',
           'user_type': userType,
           'user_id': user.uid,
-          'includes_setup_fee': 'true',
+          'includes_adhesion': 'true',
+          'includes_video_free': 'standard', // Vidéo offerte
         },
         'allow_promotion_codes': true,
         'created': FieldValue.serverTimestamp(),
@@ -219,23 +238,35 @@ class StripeService extends GetxService {
       final cancelUrlWithAutoClose =
           'https://app.ventemoi.fr/stripe-cancel.html';
 
+      // Pack première année = Adhésion + Cotisation annuelle (vidéo OFFERTE)
       final checkoutData = {
         'mode': 'payment',
-        'customer_email': user.email, // ← Utiliser email
+        'customer_email': user.email,
         'success_url': successUrlWithAutoClose,
         'cancel_url': cancelUrlWithAutoClose,
         'line_items': [
+          // Pack complet première année en un seul paiement
           {
-            'price': PRICE_ID_ANNUAL_FIRST_YEAR,
+            'price_data': {
+              'currency': 'eur',
+              'product_data': {
+                'name': 'Pack Première Année VenteMoi - Formule Annuelle',
+                'description': 'Adhésion + Cotisation annuelle + Vidéo standard OFFERTE',
+              },
+              'unit_amount': StripePrices.adhesionAmountTTC + StripePrices.cotisationAnnuelleAmountTTC, // 324€ + 720€ = 1044€ TTC
+            },
             'quantity': 1,
           }
         ],
         'metadata': {
-          'purchase_type': 'first_year_annual',
+          'purchase_type': 'first_year_annual_pack',
           'user_type': userType,
           'user_id': user.uid,
-          'needs_future_subscription': 'true',
-          'future_price_id': PRICE_ID_ANNUAL_RECURRING,
+          'includes_adhesion': 'true',
+          'includes_video_free': 'standard', // Vidéo offerte
+          'includes_annual_subscription': 'true',
+          'total_ht': '870', // 270 + 600 (vidéo offerte)
+          'total_ttc': '1044', // 870 * 1.2
         },
         'allow_promotion_codes': true,
         'created': FieldValue.serverTimestamp(),
@@ -297,7 +328,7 @@ class StripeService extends GetxService {
                 'description':
                     'Permet d\'ajouter une catégorie d\'entreprise supplémentaire',
               },
-              'unit_amount': 5000, // 50€ en centimes
+              'unit_amount': StripePrices.slotSupplementaireAmountTTC, // 60€ TTC
             },
             'quantity': 1,
           }
@@ -632,11 +663,12 @@ Vérifiez que:
             'quantity': 1,
           }
         ],
-        'metadata': metadata ?? {
-          'establishment_id': establishmentId,
-          'user_id': user.uid,
-          'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-        },
+        'metadata': metadata ??
+            {
+              'establishment_id': establishmentId,
+              'user_id': user.uid,
+              'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+            },
         'client_reference_id': tempSessionId,
         'allow_promotion_codes': true,
       };
@@ -657,10 +689,10 @@ Vérifiez que:
       return null;
     } catch (e) {
       UniquesControllers().data.snackbar(
-        'Erreur',
-        'Erreur lors de la création du paiement: $e',
-        true,
-      );
+            'Erreur',
+            'Erreur lors de la création du paiement: $e',
+            true,
+          );
       return null;
     }
   }
@@ -1075,7 +1107,7 @@ Vérifiez que:
                 'description':
                     'Permet d\'ajouter une catégorie d\'entreprise supplémentaire',
               },
-              'unit_amount': 5000, // 50€ en centimes
+              'unit_amount': StripePrices.slotSupplementaireAmountTTC, // 60€ TTC
             },
             'quantity': 1,
           }
@@ -1138,6 +1170,252 @@ Vérifiez que:
       throw Exception('Échec de la synchronisation');
     } catch (e) {
       // Fallback : utiliser l'email
+      return null;
+    }
+  }
+
+  // ========== NOUVELLES MÉTHODES POUR LES PRODUITS STRIPE ==========
+
+  // Créer une session pour un sponsor Bronze
+  Future<Map<String, String>?> createSponsorBronzeCheckout({
+    required String establishmentId,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
+
+      await _ensureCustomerDocument(user.uid, user.email!);
+
+      final checkoutData = {
+        'mode': 'payment',
+        'customer_email': user.email,
+        'success_url': 'https://app.ventemoi.fr/stripe-success.html',
+        'cancel_url': 'https://app.ventemoi.fr/stripe-cancel.html',
+        'line_items': [
+          {
+            'price': StripePrices.sponsorBronzePriceId,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'sponsor',
+          'level': 'bronze',
+          'establishment_id': establishmentId,
+          'user_id': user.uid,
+          'vouchers_included': '1',
+          'voucher_value': '50',
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final url = await _waitForCheckoutUrl(user.uid, sessionRef.id);
+      if (url != null) {
+        return {'url': url, 'sessionId': sessionRef.id};
+      }
+      return null;
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Erreur lors de la création du paiement sponsor: $e',
+        true,
+      );
+      return null;
+    }
+  }
+
+  // Créer une session pour un sponsor Silver
+  Future<Map<String, String>?> createSponsorSilverCheckout({
+    required String establishmentId,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
+
+      await _ensureCustomerDocument(user.uid, user.email!);
+
+      final checkoutData = {
+        'mode': 'payment',
+        'customer_email': user.email,
+        'success_url': 'https://app.ventemoi.fr/stripe-success.html',
+        'cancel_url': 'https://app.ventemoi.fr/stripe-cancel.html',
+        'line_items': [
+          {
+            'price': StripePrices.sponsorSilverPriceId,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'sponsor',
+          'level': 'silver',
+          'establishment_id': establishmentId,
+          'user_id': user.uid,
+          'vouchers_included': '3',
+          'voucher_value': '50',
+          'video_included': 'standard',
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final url = await _waitForCheckoutUrl(user.uid, sessionRef.id);
+      if (url != null) {
+        return {'url': url, 'sessionId': sessionRef.id};
+      }
+      return null;
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Erreur lors de la création du paiement sponsor: $e',
+        true,
+      );
+      return null;
+    }
+  }
+
+  // Créer une session pour une vidéo (membre ou public)
+  Future<Map<String, String>?> createVideoCheckout({
+    required String establishmentId,
+    required String videoType, // 'standard', 'premium', 'signature'
+    required bool isMember,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
+
+      await _ensureCustomerDocument(user.uid, user.email!);
+
+      // Sélectionner le bon price ID selon le type et le statut membre
+      String priceId;
+      if (isMember) {
+        switch (videoType) {
+          case 'premium':
+            priceId = StripePrices.videoPremiumMembrePriceId;
+            break;
+          case 'signature':
+            priceId = StripePrices.videoSignatureMembrePriceId;
+            break;
+          default:
+            priceId = StripePrices.videoStandardMembrePriceId;
+        }
+      } else {
+        switch (videoType) {
+          case 'premium':
+            priceId = StripePrices.videoPremiumPublicPriceId;
+            break;
+          case 'signature':
+            priceId = StripePrices.videoSignaturePublicPriceId;
+            break;
+          default:
+            priceId = StripePrices.videoStandardPublicPriceId;
+        }
+      }
+
+      final checkoutData = {
+        'mode': 'payment',
+        'customer_email': user.email,
+        'success_url': 'https://app.ventemoi.fr/stripe-success.html',
+        'cancel_url': 'https://app.ventemoi.fr/stripe-cancel.html',
+        'line_items': [
+          {
+            'price': priceId,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'video',
+          'video_type': videoType,
+          'is_member': isMember.toString(),
+          'establishment_id': establishmentId,
+          'user_id': user.uid,
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final url = await _waitForCheckoutUrl(user.uid, sessionRef.id);
+      if (url != null) {
+        return {'url': url, 'sessionId': sessionRef.id};
+      }
+      return null;
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Erreur lors de la création du paiement vidéo: $e',
+        true,
+      );
+      return null;
+    }
+  }
+
+  // Créer une session pour le bandeau publicitaire hebdomadaire
+  Future<Map<String, String>?> createBandeauHebdoCheckout({
+    required String establishmentId,
+    required DateTime startDate,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
+
+      await _ensureCustomerDocument(user.uid, user.email!);
+
+      final checkoutData = {
+        'mode': 'payment',
+        'customer_email': user.email,
+        'success_url': 'https://app.ventemoi.fr/stripe-success.html',
+        'cancel_url': 'https://app.ventemoi.fr/stripe-cancel.html',
+        'line_items': [
+          {
+            'price': StripePrices.bandeauHebdoPriceId,
+            'quantity': 1,
+          }
+        ],
+        'metadata': {
+          'type': 'advertising',
+          'product': 'bandeau_hebdo',
+          'establishment_id': establishmentId,
+          'user_id': user.uid,
+          'start_date': startDate.toIso8601String(),
+        },
+        'allow_promotion_codes': true,
+        'created': FieldValue.serverTimestamp(),
+      };
+
+      final sessionRef = await _firestore
+          .collection('customers')
+          .doc(user.uid)
+          .collection('checkout_sessions')
+          .add(checkoutData);
+
+      final url = await _waitForCheckoutUrl(user.uid, sessionRef.id);
+      if (url != null) {
+        return {'url': url, 'sessionId': sessionRef.id};
+      }
+      return null;
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Erreur lors de la création du paiement publicitaire: $e',
+        true,
+      );
       return null;
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/establishement.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
@@ -9,6 +10,7 @@ class SponsorEstablishmentCard extends StatelessWidget {
   final int index;
   final bool isPremium; // Pour différencier le format standard et bannière
   final VoidCallback? onTap;
+  final String? sponsorLevel; // Bronze ou Silver
 
   const SponsorEstablishmentCard({
     Key? key,
@@ -16,13 +18,47 @@ class SponsorEstablishmentCard extends StatelessWidget {
     required this.index,
     this.isPremium = false,
     this.onTap,
+    this.sponsorLevel,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardHeight = isPremium ? 200.0 : 140.0;
-    
+
+    // Si sponsorLevel n'est pas fourni, on le récupère depuis Firestore
+    if (sponsorLevel == null) {
+      return FutureBuilder<String>(
+        future: _fetchSponsorLevel(),
+        builder: (context, snapshot) {
+          final level = snapshot.data ?? 'bronze';
+          return _buildCard(context, level, cardHeight);
+        },
+      );
+    }
+
+    return _buildCard(context, sponsorLevel!, cardHeight);
+  }
+
+  Future<String> _fetchSponsorLevel() async {
+    try {
+      final querySnapshot = await Get.find<FirebaseFirestore>()
+          .collection('establishments')
+          .where('user_id', isEqualTo: establishment.userId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        return data['sponsor_level'] ?? 'bronze';
+      }
+    } catch (e) {
+      // En cas d'erreur, retourner bronze par défaut
+    }
+    return 'bronze';
+  }
+
+  Widget _buildCard(BuildContext context, String level, double cardHeight) {
     return CustomCardAnimation(
       index: index,
       child: Container(
@@ -90,44 +126,67 @@ class SponsorEstablishmentCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Badge Premium si applicable
-                        if (isPremium)
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
+                        // Badge du niveau sponsor
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          margin: EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: level.toLowerCase() == 'silver'
+                                  ? [
+                                      Color(0xFFB8B8B8), // Argent clair
+                                      Color(0xFF7D7D7D), // Argent foncé
+                                    ]
+                                  : [
+                                      Color(0xFFCD7F32), // Bronze clair
+                                      Color(0xFF8B4513), // Bronze foncé
+                                    ],
                             ),
-                            margin: EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.amber[600]!,
-                                  Colors.orange[600]!,
-                                ],
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: level.toLowerCase() == 'silver'
+                                    ? Colors.grey.withOpacity(0.3)
+                                    : Colors.brown.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
                               ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.workspace_premium,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'SPONSOR ${level.toUpperCase()}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                              if (level.toLowerCase() == 'silver') ...[
+                                SizedBox(width: 4),
                                 Icon(
-                                  Icons.star_rounded,
+                                  Icons.stars,
                                   size: 14,
                                   color: Colors.white,
                                 ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'SPONSOR PREMIUM',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
                               ],
-                            ),
+                            ],
                           ),
+                        ),
                         
                         // Nom de l'établissement
                         Text(
@@ -186,7 +245,7 @@ class SponsorEstablishmentCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // Flèche
                   Icon(
                     Icons.arrow_forward_ios_rounded,

@@ -31,12 +31,27 @@ class _CGUPaymentDialogState extends State<CGUPaymentDialog> {
   final RxBool paymentProcessing = false.obs;
   final RxInt currentStep = 0.obs;
   final ScrollController scrollController = ScrollController();
-  final RxString selectedPaymentOption = 'monthly'.obs; // monthly or annual
+  late final RxString selectedPaymentOption; // monthly, annual, bronze or silver
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialiser l'option par défaut selon le type d'utilisateur
+    if (widget.userType == 'Sponsor') {
+      selectedPaymentOption = 'bronze'.obs;
+    } else {
+      selectedPaymentOption = 'monthly'.obs;
+    }
+  }
 
   // Calcul des prix selon le type d'utilisateur et l'option de paiement
   // Retourne le prix TTC (TVA 20% incluse)
   String get firstYearPrice {
     if (widget.userType == 'Association') return '0';
+    if (widget.userType == 'Sponsor') {
+      // Les sponsors ont des formules spéciales Bronze et Silver
+      return selectedPaymentOption.value == 'bronze' ? '360' : '960'; // 300€ HT ou 800€ HT * 1.20
+    }
 
     switch (widget.userType) {
       case 'Boutique':
@@ -58,6 +73,11 @@ class _CGUPaymentDialogState extends State<CGUPaymentDialog> {
   }
 
   String get monthlyPriceAfterFirstYear {
+    if (widget.userType == 'Sponsor') {
+      // Les sponsors renouvellent annuellement
+      return selectedPaymentOption.value == 'bronze' ? '360' : '960';
+    }
+
     switch (widget.userType) {
       case 'Boutique':
         if (selectedPaymentOption.value == 'annual') {
@@ -390,7 +410,45 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                         const CustomSpace(heightMultiplier: 3),
 
                         // Options de paiement
-                        if (widget.userType != 'Association') ...[
+                        if (widget.userType == 'Sponsor') ...[
+                          // Option Bronze pour sponsors
+                          Obx(() => _buildPaymentCard(
+                                isSelected:
+                                    selectedPaymentOption.value == 'bronze',
+                                onTap: () =>
+                                    selectedPaymentOption.value = 'bronze',
+                                icon: Icons.workspace_premium,
+                                title: 'Sponsor Bronze',
+                                price: '360€ TTC',
+                                details: [
+                                  '✅ 1 bon cadeau de 50€',
+                                  '✅ Mise en avant réseaux sociaux',
+                                  '✅ Logo sur l\'application',
+                                  '✅ Visibilité dans la section sponsors',
+                                ],
+                                badge: null,
+                              )),
+
+                          const SizedBox(height: 16),
+
+                          // Option Silver pour sponsors
+                          Obx(() => _buildPaymentCard(
+                                isSelected:
+                                    selectedPaymentOption.value == 'silver',
+                                onTap: () =>
+                                    selectedPaymentOption.value = 'silver',
+                                icon: Icons.star_rounded,
+                                title: 'Sponsor Silver',
+                                price: '960€ TTC',
+                                details: [
+                                  '✅ 3 bons cadeaux de 50€',
+                                  '✅ 2 mises en avant premium',
+                                  '✅ Vidéo standard incluse',
+                                  '✅ Visibilité prestige',
+                                ],
+                                badge: 'Recommandé',
+                              )),
+                        ] else if (widget.userType != 'Association') ...[
                           // Option Mensuelle
                           Obx(() => _buildPaymentCard(
                                 isSelected:
@@ -1388,11 +1446,13 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         userName: userName,
       );
 
-      // Déclencher le hook de validation pour le parrainage
+      // Déclencher le hook de validation pour le parrainage et les bons cadeaux sponsors
       await PaymentValidationHook.onPaymentAndCGUValidated(
         userId: uid,
         userEmail: userEmail,
         userType: widget.userType,
+        stripeSessionId: null, // Le sessionId sera passé par le webhook si nécessaire
+        paymentOption: selectedPaymentOption.value,
       );
 
       // Trouver l'établissement
@@ -1683,15 +1743,61 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
       'temporary_mode': true, // Marquer comme temporaire
     });
 
-    // Créer le bon cadeau de bienvenue si le service existe
+    // Créer les bons cadeaux selon le type d'utilisateur
     try {
-      if (Get.isRegistered<AutomaticGiftVoucherService>()) {
-        // await AutomaticGiftVoucherService.to.createWelcomeGiftVoucher(
-        //   establishmentId: docId,
-        //   amount: 50.0,
-        // );
+      if (widget.userType == 'Sponsor') {
+        // Pour les sponsors, créer les bons selon la formule
+        final level = selectedPaymentOption.value == 'silver' ? 'silver' : 'bronze';
+        final voucherCount = level == 'bronze' ? 1 : 3;
+
+        for (int i = 0; i < voucherCount; i++) {
+          await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('gift_vouchers')
+              .add({
+            'establishment_id': docId,
+            'value': 50,
+            'status': 'available',
+            'type': 'sponsor_welcome',
+            'sponsor_level': level,
+            'created_at': FieldValue.serverTimestamp(),
+            'expires_at': Timestamp.fromDate(
+                DateTime.now().add(const Duration(days: 365))),
+          });
+        }
+
+        // Mettre à jour l'établissement avec le statut sponsor
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(docId)
+            .update({
+          'is_sponsor': true,
+          'sponsor_level': level,
+          'sponsor_activated_at': FieldValue.serverTimestamp(),
+          'sponsor_expires_at': Timestamp.fromDate(
+              DateTime.now().add(const Duration(days: 365))),
+        });
+
+        // Si Silver, planifier la vidéo incluse
+        if (level == 'silver') {
+          await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('video_orders')
+              .add({
+            'establishment_id': docId,
+            'type': 'standard',
+            'status': 'pending',
+            'included_in': 'sponsor_silver',
+            'created_at': FieldValue.serverTimestamp(),
+          });
+        }
       }
     } catch (e) {
+      // Log error but don't fail the process
     }
 
     // Fermer la dialog

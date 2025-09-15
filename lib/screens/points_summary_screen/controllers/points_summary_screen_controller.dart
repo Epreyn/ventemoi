@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,13 +28,82 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
   final monthlyStats = <String, int>{}.obs;
 
   @override
+  // Streams pour actualisation en temps réel
+  StreamSubscription? _walletSubscription;
+  StreamSubscription? _pendingSubscription;
+  StreamSubscription? _transactionsSubscription;
+
   void onInit() {
     super.onInit();
+    _initializeStreams();
     loadUserPoints();
     loadTransactions();
     loadVouchers();
     loadReceivedGifts();
     loadTransfers();
+  }
+
+  @override
+  void onClose() {
+    _walletSubscription?.cancel();
+    _pendingSubscription?.cancel();
+    _transactionsSubscription?.cancel();
+    super.onClose();
+  }
+
+  void _initializeStreams() {
+    final userId = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    if (userId == null) return;
+
+    // Stream pour les points actuels
+    _walletSubscription = UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('wallets')
+        .where('user_id', isEqualTo: userId)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        currentPoints.value = snapshot.docs.first.data()['points'] ?? 0;
+        // Calculer le total gagné
+        _updateTotalEarned();
+      }
+    });
+
+    // Stream pour les points en attente
+    _pendingSubscription = UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('pending_points')
+        .where('user_id', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
+      int pending = 0;
+      for (var doc in snapshot.docs) {
+        pending += (doc.data()['points'] as int?) ?? 0;
+      }
+      pendingPoints.value = pending;
+    });
+
+    // Stream pour les transactions (actualise automatiquement)
+    _transactionsSubscription = UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('transactions')
+        .where('to_user_id', isEqualTo: userId)
+        .orderBy('created_at', descending: true)
+        .limit(50)
+        .snapshots()
+        .listen((snapshot) {
+      loadTransactions(); // Recharger les transactions
+    });
+  }
+
+  void _updateTotalEarned() {
+    // Le total gagné est le total des points actuels + dépensés
+    totalEarnedPoints.value = currentPoints.value + totalSpentPoints.value;
   }
 
   Future<void> loadUserPoints() async {
@@ -102,11 +172,20 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
           .get();
 
       List<Map<String, dynamic>> allTransactions = [];
+      Set<String> processedIds = {}; // Pour éviter les doublons
 
       // Traiter les transactions envoyées (dépenses)
       for (var doc in sentSnap.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        
+
+        // Pour les transferts, vérifier la direction
+        if (data['type'] == 'transfer' && data['direction'] == 'received') {
+          continue; // Skip les transactions de réception quand on cherche les envois
+        }
+
+        if (processedIds.contains(doc.id)) continue;
+        processedIds.add(doc.id);
+
         // Récupérer le nom de l'établissement si c'est un achat
         String recipientName = '';
         if (data['to_establishment_id'] != null) {
@@ -114,7 +193,10 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         } else if (data['to_user_id'] != null) {
           recipientName = await _getUserName(data['to_user_id']);
         }
-        
+
+        // Conserver le type original pour les achats et dons
+        final originalType = data['type'] ?? '';
+
         allTransactions.add({
           'id': doc.id,
           'type': 'spent',
@@ -124,6 +206,8 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
           'status': data['status'] ?? 'completed',
           'recipient_name': recipientName,
           'recipient_type': data['to_establishment_id'] != null ? 'establishment' : 'user',
+          'original_type': originalType,  // Conserver le type original
+          'transaction_type': originalType, // Pour compatibilité
           ...data,
         });
       }
@@ -131,13 +215,21 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
       // Traiter les transactions reçues (gains)
       for (var doc in receivedSnap.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        
+
+        // Pour les transferts, vérifier la direction
+        if (data['type'] == 'transfer' && data['direction'] == 'sent') {
+          continue; // Skip les transactions d'envoi quand on cherche les réceptions
+        }
+
+        if (processedIds.contains(doc.id)) continue;
+        processedIds.add(doc.id);
+
         // Récupérer le nom de l'expéditeur
         String senderName = '';
         if (data['from_user_id'] != null) {
           senderName = await _getUserName(data['from_user_id']);
         }
-        
+
         allTransactions.add({
           'id': doc.id,
           'type': 'earned',
@@ -386,14 +478,16 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
 
   String _getTransactionDescription(Map<String, dynamic> data) {
     final type = data['type'] ?? '';
-    final recipientName = data['recipient_name'] ?? '';
+    final recipientName = data['recipient_name'] ?? data['to_establishment_name'] ?? '';
     final senderName = data['sender_name'] ?? '';
-    
+
     switch (type) {
+      case 'voucher_purchase':
       case 'purchase':
         final voucherCount = data['voucher_count'] ?? 1;
-        if (recipientName.isNotEmpty) {
-          return 'Achat de $voucherCount bon(s) chez $recipientName';
+        final establishmentName = data['to_establishment_name'] ?? recipientName;
+        if (establishmentName.isNotEmpty) {
+          return 'Achat de $voucherCount bon(s) chez $establishmentName';
         }
         return 'Achat de $voucherCount bon(s)';
       case 'donation':
@@ -514,17 +608,82 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
     }
   }
 
+  Color getTransactionColorDetailed(Map<String, dynamic> transaction) {
+    final type = transaction['type'] ?? '';
+    final originalType = transaction['original_type'] ?? transaction['transaction_type'] ?? transaction['type'] ?? '';
+    final direction = transaction['direction'] ?? '';
+
+    // Pour les transactions de type transfer
+    if (originalType == 'transfer' || originalType.contains('transfer')) {
+      if (direction == 'sent') {
+        return Colors.blue[700]!; // Bleu foncé pour envoi
+      } else if (direction == 'received') {
+        return Colors.teal; // Vert-bleu pour réception
+      }
+    }
+
+    // Pour les achats de bons (voucher_purchase)
+    if (originalType == 'voucher_purchase' || originalType.contains('voucher') || originalType.contains('purchase')) {
+      return Colors.purple; // Violet pour les achats
+    }
+
+    // Pour les dons
+    if (originalType == 'donation' || originalType.contains('donation')) {
+      return Colors.pink; // Rose pour les dons
+    }
+
+    // Pour les cadeaux
+    if (originalType.contains('gift')) {
+      return Colors.amber; // Ambre pour les cadeaux
+    }
+
+    // Pour le parrainage
+    if (originalType.contains('sponsor')) {
+      return Colors.indigo; // Indigo pour parrainage
+    }
+
+    // Pour les récompenses
+    if (originalType.contains('reward')) {
+      return Colors.orange; // Orange pour récompenses
+    }
+
+    // Couleurs par défaut selon le type simple
+    if (type == 'earned') {
+      return Colors.green;
+    } else if (type == 'spent') {
+      return Colors.red;
+    } else if (type == 'pending') {
+      return Colors.orange;
+    }
+
+    return Colors.grey;
+  }
+
   IconData getTransactionIcon(Map<String, dynamic> transaction) {
     final type = transaction['type'] ?? '';
     final originalType = transaction['original_type'] ?? transaction['transaction_type'] ?? '';
-    
+    final direction = transaction['direction'] ?? '';
+
+    // Pour les transferts
+    if (originalType == 'transfer' || transaction['transaction_type'] == 'transfer') {
+      if (direction == 'sent') {
+        return Icons.arrow_upward; // Flèche vers le haut pour envoi
+      } else if (direction == 'received') {
+        return Icons.arrow_downward; // Flèche vers le bas pour réception
+      }
+      return Icons.swap_horiz;
+    }
+
     if (type == 'earned') {
       if (originalType.contains('gift')) return Icons.card_giftcard;
       if (originalType.contains('sponsor')) return Icons.people;
       if (originalType.contains('reward')) return Icons.emoji_events;
       return Icons.add_circle;
     } else if (type == 'spent') {
-      if (originalType.contains('purchase')) return Icons.shopping_cart;
+      // Vérifier spécifiquement pour les achats de bons
+      if (originalType.contains('voucher') || originalType.contains('purchase')) {
+        return Icons.confirmation_number;
+      }
       if (originalType.contains('donation')) return Icons.volunteer_activism;
       return Icons.remove_circle;
     }

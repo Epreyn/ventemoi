@@ -13,6 +13,7 @@ import '../../../core/models/establishement.dart';
 import '../../../core/models/establishment_category.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
+import '../../../core/services/voucher_purchase_email_service.dart';
 
 class ShopEstablishmentScreenController extends GetxController
     with ControllerMixin {
@@ -503,9 +504,12 @@ class ShopEstablishmentScreenController extends GetxController
   
   void _performPurchase() async {
     if (selectedEstab.value == null) return;
-    
+
     final totalCost = couponsToBuy.value * pointPerCoupon;
-    
+    final buyerId = UniquesControllers().data.firebaseAuth.currentUser!.uid;
+    final establishmentId = selectedEstab.value!.id;
+
+    // Vérifier les points disponibles
     if (buyerPoints.value < totalCost) {
       UniquesControllers().data.snackbar(
         'Erreur',
@@ -514,43 +518,69 @@ class ShopEstablishmentScreenController extends GetxController
       );
       return;
     }
-    
+
     isBuying.value = true;
-    
+
     try {
+      // Vérifier les restrictions d'achat - Temporairement désactivé (index Firestore manquant)
+      // TODO: Réactiver après création de l'index dans Firebase Console
+      /*
+      final canPurchase = await _checkPurchaseRestrictions(buyerId, establishmentId);
+      if (!canPurchase['allowed']) {
+        UniquesControllers().data.snackbar(
+          'Achat impossible',
+          canPurchase['message'] ?? 'Vous ne pouvez pas acheter dans cette boutique pour le moment.',
+          true,
+        );
+        isBuying.value = false;
+        return;
+      }
+      */
+
+      // Vérifier la limite de bons par boutique
+      final maxVouchersAllowed = selectedEstab.value!.maxVouchersPerPurchase ?? 4;
+      if (couponsToBuy.value > maxVouchersAllowed) {
+        UniquesControllers().data.snackbar(
+          'Erreur',
+          'Cette boutique limite les achats à $maxVouchersAllowed bon(s) maximum.',
+          true,
+        );
+        isBuying.value = false;
+        return;
+      }
+
       final batch = UniquesControllers().data.firebaseFirestore.batch();
-      final buyerId = UniquesControllers().data.firebaseAuth.currentUser!.uid;
+      final now = FieldValue.serverTimestamp();
       
-      // Créer les bons d'achat
+      // Générer un code QR unique pour chaque bon
+      final voucherCodes = <String>[];
+      final expiryDate = DateTime.now().add(const Duration(days: 90)).toIso8601String();
+
       for (int i = 0; i < couponsToBuy.value; i++) {
+        final voucherCode = _generateVoucherCode();
+        voucherCodes.add(voucherCode);
+
         final couponRef = UniquesControllers()
             .data
             .firebaseFirestore
             .collection('vouchers')
             .doc();
-        
+
         batch.set(couponRef, {
           'buyer_id': buyerId,
-          'establishment_id': selectedEstab.value!.id,
+          'establishment_id': establishmentId,
           'establishment_name': selectedEstab.value!.name,
+          'establishment_logo': selectedEstab.value!.logoUrl ?? '',
           'points_value': pointPerCoupon,
-          'created_at': FieldValue.serverTimestamp(),
+          'voucher_code': voucherCode,
+          'created_at': now,
+          'expiry_date': expiryDate,
           'status': 'active',
+          'used_at': null,
         });
       }
       
-      // Déduire les points de l'acheteur
-      final buyerRef = UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('users')
-          .doc(buyerId);
-      
-      batch.update(buyerRef, {
-        'points': FieldValue.increment(-totalCost),
-      });
-      
-      // Mettre à jour le wallet de l'acheteur
+      // Mettre à jour le wallet de l'acheteur EN PREMIER pour débiter immédiatement
       final buyerWalletQuery = await UniquesControllers()
           .data
           .firebaseFirestore
@@ -558,55 +588,142 @@ class ShopEstablishmentScreenController extends GetxController
           .where('user_id', isEqualTo: buyerId)
           .limit(1)
           .get();
-      
+
       if (buyerWalletQuery.docs.isNotEmpty) {
         final walletRef = buyerWalletQuery.docs.first.reference;
         batch.update(walletRef, {
           'points': FieldValue.increment(-totalCost),
-          'last_updated': FieldValue.serverTimestamp(),
+          'last_updated': now,
         });
       }
+
+      // Mettre à jour aussi les points dans le document user
+      final buyerRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(buyerId);
+
+      batch.update(buyerRef, {
+        'points': FieldValue.increment(-totalCost),
+      });
       
-      // Ajouter les points au commerce
+      // Ajouter les points au commerce ET mettre à jour le compteur de bons vendus
       final estabRef = UniquesControllers()
           .data
           .firebaseFirestore
           .collection('establishments')
-          .doc(selectedEstab.value!.id);
-      
+          .doc(establishmentId);
+
       batch.update(estabRef, {
         'points_received': FieldValue.increment(totalCost),
+        'vouchers_sold': FieldValue.increment(couponsToBuy.value),
+        'last_sale_date': now,
       });
+
+      // Mettre à jour le wallet du commerce
+      final shopUserId = selectedEstab.value!.userId;
+      final shopWalletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: shopUserId)
+          .limit(1)
+          .get();
+
+      if (shopWalletQuery.docs.isNotEmpty) {
+        final shopWalletRef = shopWalletQuery.docs.first.reference;
+        batch.update(shopWalletRef, {
+          'points': FieldValue.increment(totalCost),
+          'coupons': FieldValue.increment(-couponsToBuy.value), // Décrémenter les bons disponibles
+          'last_updated': now,
+        });
+      }
       
-      // Créer une transaction
+      // Créer une transaction détaillée
       final transactionRef = UniquesControllers()
           .data
           .firebaseFirestore
           .collection('transactions')
           .doc();
-      
+
       batch.set(transactionRef, {
         'from_user_id': buyerId,
-        'to_establishment_id': selectedEstab.value!.id,
+        'to_establishment_id': establishmentId,
         'to_establishment_name': selectedEstab.value!.name,
+        'to_user_id': shopUserId,
         'points': totalCost,
         'type': 'voucher_purchase',
         'voucher_count': couponsToBuy.value,
+        'voucher_codes': voucherCodes,
         'description': 'Achat de ${couponsToBuy.value} bon(s) chez ${selectedEstab.value!.name}',
         'status': 'completed',
-        'created_at': FieldValue.serverTimestamp(),
+        'created_at': now,
+        'date': now,
+      });
+
+      // Enregistrer l'historique d'achat pour appliquer les restrictions
+      final purchaseHistoryRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('purchase_history')
+          .doc();
+
+      batch.set(purchaseHistoryRef, {
+        'buyer_id': buyerId,
+        'establishment_id': establishmentId,
+        'purchase_date': now,
+        'voucher_count': couponsToBuy.value,
+        'total_points': totalCost,
       });
       
       await batch.commit();
-      
+
+      // Forcer la mise à jour immédiate du solde local
+      buyerPoints.value = buyerPoints.value - totalCost;
+
+      // Forcer un refresh du stream pour s'assurer que les points sont à jour
+      final updatedWallet = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: buyerId)
+          .limit(1)
+          .get();
+
+      if (updatedWallet.docs.isNotEmpty) {
+        final newPoints = updatedWallet.docs.first.data()['points'] ?? 0;
+        buyerPoints.value = newPoints;
+      }
+
       // Attribuer les points de parrainage (50 points au parrain)
       await _attributeSponsorshipPoints(buyerId, 50);
-      
+
+      // Envoyer une notification à la boutique
+      await _sendShopNotification(establishmentId, shopUserId, couponsToBuy.value, totalCost);
+
+      // Envoyer l'email de confirmation à l'acheteur
+      await VoucherPurchaseEmailService.sendVoucherPurchaseEmail(
+        buyerId: buyerId,
+        establishmentId: establishmentId,
+        establishmentName: selectedEstab.value!.name,
+        voucherCount: couponsToBuy.value,
+        totalPoints: totalCost,
+        voucherCodes: voucherCodes,
+        expiryDate: expiryDate,
+      );
+
+      // Sauvegarder le nombre de bons achetés avant de réinitialiser
+      final vouchersBought = couponsToBuy.value;
+
+      // Réinitialiser le compteur pour le prochain achat
+      couponsToBuy.value = 1;
+
       Get.back(); // Fermer la bottom sheet
-      
+
       UniquesControllers().data.snackbar(
-        'Succès',
-        '${couponsToBuy.value} bon(s) acheté(s) pour $totalCost points',
+        'Achat confirmé',
+        '$vouchersBought bon(s) acheté(s) pour $totalCost points\nVous pouvez les consulter dans votre portefeuille',
         false,
       );
       
@@ -1119,6 +1236,95 @@ class ShopEstablishmentScreenController extends GetxController
       sb.write(rand.nextInt(10)); // 0..9
     }
     return sb.toString();
+  }
+
+  String _generateVoucherCode() {
+    final rand = Random();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    String code = '';
+    for (int i = 0; i < 8; i++) {
+      if (i == 4) code += '-'; // Format: XXXX-XXXX
+      code += chars[rand.nextInt(chars.length)];
+    }
+    return code;
+  }
+
+  Future<Map<String, dynamic>> _checkPurchaseRestrictions(
+    String buyerId,
+    String establishmentId,
+  ) async {
+    try {
+      // Vérifier l'historique d'achat pour le délai de 30 jours
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+
+      final historyQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('purchase_history')
+          .where('buyer_id', isEqualTo: buyerId)
+          .where('establishment_id', isEqualTo: establishmentId)
+          .orderBy('purchase_date', descending: true)
+          .limit(1)
+          .get();
+
+      if (historyQuery.docs.isNotEmpty) {
+        final lastPurchase = historyQuery.docs.first.data();
+        final lastPurchaseDate = lastPurchase['purchase_date'] as Timestamp?;
+
+        if (lastPurchaseDate != null) {
+          final daysSinceLastPurchase = DateTime.now()
+              .difference(lastPurchaseDate.toDate())
+              .inDays;
+
+          if (daysSinceLastPurchase < 30) {
+            final daysRemaining = 30 - daysSinceLastPurchase;
+            return {
+              'allowed': false,
+              'message': 'Vous devez attendre encore $daysRemaining jour(s) avant de pouvoir racheter dans cette boutique.',
+            };
+          }
+        }
+      }
+
+      return {'allowed': true};
+    } catch (e) {
+      print('Erreur lors de la vérification des restrictions: $e');
+      // En cas d'erreur, on autorise l'achat pour ne pas bloquer l'utilisateur
+      return {'allowed': true};
+    }
+  }
+
+  Future<void> _sendShopNotification(
+    String establishmentId,
+    String shopUserId,
+    int voucherCount,
+    int totalPoints,
+  ) async {
+    try {
+      // Créer une notification pour la boutique
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('notifications')
+          .add({
+        'user_id': shopUserId,
+        'establishment_id': establishmentId,
+        'type': 'new_sale',
+        'title': 'Nouvelle vente !',
+        'message': 'Un client vient d\'acheter $voucherCount bon(s) pour $totalPoints points',
+        'created_at': FieldValue.serverTimestamp(),
+        'read': false,
+        'data': {
+          'voucher_count': voucherCount,
+          'total_points': totalPoints,
+        },
+      });
+
+      // Optionnel : Envoyer une notification push si disponible
+      // await _sendPushNotification(shopUserId, title, message);
+    } catch (e) {
+      print('Erreur lors de l\'envoi de la notification: $e');
+    }
   }
   
   Future<void> _attributeSponsorshipPoints(String userId, int points) async {

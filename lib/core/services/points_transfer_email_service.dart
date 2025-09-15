@@ -1,43 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 
 class PointsTransferEmailService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   /// Envoie un email de notification lors d'un transfert de points
-  static Future<void> sendPointsTransferEmail({
-    required String recipientId,
-    required String senderId,
+  static Future<void> sendPointsReceivedEmail({
+    required String toEmail,
+    required String recipientName,
+    required String senderName,
     required int points,
-    required String transferId,
   }) async {
     try {
-      // Récupérer les informations du destinataire
-      final recipientDoc = await _firestore.collection('users').doc(recipientId).get();
-      if (!recipientDoc.exists) {
-        print('Recipient user not found');
+      if (toEmail.isEmpty) {
+        print('No email provided for recipient');
         return;
-      }
-      
-      final recipientData = recipientDoc.data()!;
-      final recipientEmail = recipientData['email'] as String?;
-      final recipientName = recipientData['name'] ?? recipientData['firstName'] ?? 'Utilisateur';
-      
-      if (recipientEmail == null || recipientEmail.isEmpty) {
-        print('No email for recipient');
-        return;
-      }
-
-      // Récupérer les informations de l'expéditeur
-      final senderDoc = await _firestore.collection('users').doc(senderId).get();
-      String senderName = 'Un utilisateur';
-      String senderEmail = '';
-      
-      if (senderDoc.exists) {
-        final senderData = senderDoc.data()!;
-        senderName = senderData['name'] ?? senderData['firstName'] ?? 'Un utilisateur';
-        senderEmail = senderData['email'] ?? '';
       }
 
       // Préparer le contenu de l'email
@@ -89,58 +65,26 @@ class PointsTransferEmailService {
         </div>
       ''';
 
-      // Appeler la fonction Cloud pour envoyer l'email
-      try {
-        final callable = _functions.httpsCallable('sendEmail');
-        await callable.call({
-          'to': recipientEmail,
+      // Utiliser la collection 'mail' comme le reste du projet
+      await _firestore.collection('mail').add({
+        'to': toEmail,
+        'message': {
           'subject': '🎉 Vous avez reçu $points points de $senderName !',
           'html': emailContent,
-        });
-        
-        print('✅ Email sent successfully to $recipientEmail');
-      } catch (e) {
-        print('Error calling sendEmail function: $e');
-        
-        // Alternative : créer un document dans une collection email_queue
-        // qui sera traité par une fonction Cloud
-        await _firestore.collection('email_queue').add({
-          'to': recipientEmail,
-          'subject': '🎉 Vous avez reçu $points points de $senderName !',
-          'html': emailContent,
-          'createdAt': FieldValue.serverTimestamp(),
-          'status': 'pending',
-          'type': 'points_transfer',
-          'metadata': {
-            'transferId': transferId,
-            'senderId': senderId,
-            'recipientId': recipientId,
-            'points': points,
-          }
-        });
-        
-        print('📧 Email queued for sending');
-      }
+        },
+      });
 
-      // Optionnel : Envoyer aussi une copie à l'expéditeur
-      if (senderEmail.isNotEmpty) {
-        await _sendConfirmationToSender(
-          senderEmail: senderEmail,
-          senderName: senderName,
-          recipientName: recipientName,
-          points: points,
-        );
-      }
+      print('✅ Email de transfert envoyé à $toEmail');
 
     } catch (e) {
-      print('Error in sendPointsTransferEmail: $e');
+      print('Erreur lors de l\'envoi de l\'email de transfert: $e');
       // Ne pas bloquer le transfert si l'email échoue
     }
   }
 
-  /// Envoie un email de confirmation à l'expéditeur
-  static Future<void> _sendConfirmationToSender({
-    required String senderEmail,
+  /// Envoie un email de confirmation à l'expéditeur (optionnel)
+  static Future<void> sendTransferConfirmationEmail({
+    required String toEmail,
     required String senderName,
     required String recipientName,
     required int points,
@@ -185,58 +129,18 @@ class PointsTransferEmailService {
         </div>
       ''';
 
-      try {
-        final callable = FirebaseFunctions.instance.httpsCallable('sendEmail');
-        await callable.call({
-          'to': senderEmail,
+      // Utiliser la collection 'mail' comme le reste du projet
+      await _firestore.collection('mail').add({
+        'to': toEmail,
+        'message': {
           'subject': '✅ Transfert de $points points vers $recipientName confirmé',
           'html': emailContent,
-        });
-      } catch (e) {
-        // Fallback : ajouter à la queue
-        await _firestore.collection('email_queue').add({
-          'to': senderEmail,
-          'subject': '✅ Transfert de $points points vers $recipientName confirmé',
-          'html': emailContent,
-          'createdAt': FieldValue.serverTimestamp(),
-          'status': 'pending',
-          'type': 'points_transfer_confirmation',
-        });
-      }
-    } catch (e) {
-      print('Error sending confirmation to sender: $e');
-    }
-  }
-
-  /// Méthode à appeler lors de la création d'un transfert de points
-  static Future<void> handlePointsTransfer({
-    required String fromUserId,
-    required String toUserId,
-    required int amount,
-  }) async {
-    try {
-      // Créer le document de transfert
-      final transferRef = await _firestore.collection('pointsTransfers').add({
-        'fromUserId': fromUserId,
-        'toUserId': toUserId,
-        'amount': amount,
-        'status': 'completed',
-        'hasBeenShown': false,
-        'createdAt': FieldValue.serverTimestamp(),
+        },
       });
 
-      // Envoyer l'email de notification
-      await sendPointsTransferEmail(
-        recipientId: toUserId,
-        senderId: fromUserId,
-        points: amount,
-        transferId: transferRef.id,
-      );
-
-      print('✅ Points transfer created with email notification');
+      print('✅ Email de confirmation envoyé à l\'expéditeur');
     } catch (e) {
-      print('Error in handlePointsTransfer: $e');
-      rethrow;
+      print('Erreur lors de l\'envoi de la confirmation à l\'expéditeur: $e');
     }
   }
 }

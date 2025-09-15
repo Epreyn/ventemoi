@@ -561,7 +561,8 @@ class ProEstablishmentProfileScreenController extends GetxController
     final needsSubscription = userType != null &&
         (userType.name == 'Entreprise' ||
             userType.name == 'Boutique' ||
-            userType.name == 'Commerçant');
+            userType.name == 'Commerçant' ||
+            userType.name == 'Sponsor');
 
     // Vérifier si l'utilisateur a besoin de payer
     // Cas 1 : N'a jamais accepté les CGU

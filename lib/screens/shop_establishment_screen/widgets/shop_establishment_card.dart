@@ -58,7 +58,12 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                       color: CustomTheme.lightScheme().primary.withOpacity(0.3),
                       width: 2,
                     )
-                  : BorderSide.none,
+                  : (widget.establishment.isAssociation && !widget.establishment.isVisible)
+                      ? BorderSide(
+                          color: Colors.orange.withOpacity(0.3),
+                          width: 1.5,
+                        )
+                      : BorderSide.none,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,6 +123,43 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                               ],
                             ),
                             const SizedBox(height: 8),
+                            // Message pour les associations non visibles
+                            if (widget.establishment.isAssociation && !widget.establishment.isVisible)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.orange.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 16 * widthScale,
+                                      color: Colors.orange[700],
+                                    ),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Cette association sera visible dès qu\'un don sera effectué',
+                                        style: TextStyle(
+                                          fontSize: 12 * widthScale,
+                                          color: Colors.orange[700],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             // Description condensée sous le nom
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
@@ -166,39 +208,49 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                           ],
                         ),
                       ),
-                      // Icône de cashback en haut à droite
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.blue[200]!,
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.savings,
-                              color: Colors.blue[700],
-                              size: 16 * widthScale,
+                      // Icône de cashback en haut à droite - Uniquement pour les entreprises
+                      FutureBuilder<String>(
+                        future: _getEstablishmentType(),
+                        builder: (context, snapshot) {
+                          final typeName = snapshot.data ?? '';
+                          final isEnterprise = typeName == 'Entreprise';
+
+                          if (!isEnterprise) return SizedBox.shrink();
+
+                          return Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              '${widget.establishment.cashbackPercentage.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                color: Colors.blue[700],
-                                fontSize: 12 * widthScale,
-                                fontWeight: FontWeight.bold,
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50],
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.blue[200]!,
+                                width: 1,
                               ),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.savings,
+                                  color: Colors.blue[700],
+                                  size: 16 * widthScale,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  '${widget.establishment.cashbackPercentage.toStringAsFixed(0)}%',
+                                  style: TextStyle(
+                                    color: Colors.blue[700],
+                                    fontSize: 12 * widthScale,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -399,13 +451,16 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                               as Map<String, dynamic>;
                           final coupons = data['coupons'] ?? 0;
                           final isAssociation = typeName == 'Association';
+                          final isSponsor = typeName == 'Sponsor';
+                          final isEnterprise = typeName == 'Entreprise';
+                          final showVouchers = typeName == 'Boutique' || typeName == 'Commerçant';
                           final isDisabled = widget.isOwnEstablishment ||
-                              (!isAssociation && coupons == 0);
+                              (!isAssociation && !isSponsor && coupons == 0);
 
                           return Row(
                             children: [
-                              // Stock avec icône - N'afficher que pour les boutiques
-                              if (!isAssociation)
+                              // Stock avec icône - N'afficher que pour les boutiques/commerçants
+                              if (showVouchers)
                                 Expanded(
                                   child: Row(
                                     children: [
@@ -456,6 +511,153 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                                     ],
                                   ),
                                 ),
+                              // Pour les sponsors, afficher leur niveau avec un design attrayant
+                              if (isSponsor)
+                                Expanded(
+                                  child: FutureBuilder<DocumentSnapshot>(
+                                    future: UniquesControllers()
+                                        .data
+                                        .firebaseFirestore
+                                        .collection('establishments')
+                                        .where('user_id', isEqualTo: widget.establishment.userId)
+                                        .limit(1)
+                                        .get()
+                                        .then((snap) => snap.docs.isNotEmpty ? snap.docs.first.reference.get() : Future.value(null)),
+                                    builder: (context, estabSnap) {
+                                      String sponsorLevel = '';
+                                      if (estabSnap.hasData && estabSnap.data != null) {
+                                        final estabData = estabSnap.data!.data() as Map<String, dynamic>?;
+                                        sponsorLevel = estabData?['sponsor_level'] ?? 'bronze';
+                                      }
+
+                                      final isSilver = sponsorLevel == 'silver';
+
+                                      return Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: UniquesControllers().data.baseSpace * 1.5,
+                                          vertical: UniquesControllers().data.baseSpace,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: isSilver
+                                                ? [
+                                                    Color(0xFFB8B8B8), // Argent clair
+                                                    Color(0xFF7D7D7D), // Argent foncé
+                                                  ]
+                                                : [
+                                                    Color(0xFFCD7F32), // Bronze clair
+                                                    Color(0xFF8B4513), // Bronze foncé
+                                                  ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: isSilver
+                                                  ? Colors.grey.withOpacity(0.3)
+                                                  : Colors.brown.withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.workspace_premium,
+                                              color: Colors.white,
+                                              size: 24 * widthScale,
+                                            ),
+                                            SizedBox(width: UniquesControllers().data.baseSpace),
+                                            Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'SPONSOR',
+                                                  style: TextStyle(
+                                                    fontSize: 11 * widthScale,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white.withOpacity(0.9),
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  isSilver ? 'SILVER' : 'BRONZE',
+                                                  style: TextStyle(
+                                                    fontSize: 18 * widthScale,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (isSilver) ...[
+                                              SizedBox(width: UniquesControllers().data.baseSpace),
+                                              Icon(
+                                                Icons.stars,
+                                                color: Colors.white,
+                                                size: 20 * widthScale,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+
+                              // Pour les entreprises, afficher le cashback
+                              if (isEnterprise)
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.all(
+                                          UniquesControllers().data.baseSpace,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.savings,
+                                          color: Colors.blue,
+                                          size: 20 * widthScale,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                          width: UniquesControllers()
+                                              .data
+                                              .baseSpace),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${widget.establishment.cashbackPercentage.toStringAsFixed(0)}% cashback',
+                                            style: TextStyle(
+                                              fontSize: 16 * widthScale,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                          Text(
+                                            'En points',
+                                            style: TextStyle(
+                                              fontSize: 12 * widthScale,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
                               // Si c'est une association, ajouter un Expanded vide pour maintenir l'alignement
                               if (isAssociation) Expanded(child: Container()),
                               // Bouton d'action
@@ -464,7 +666,11 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                                 icon: Icon(
                                   isAssociation
                                       ? Icons.volunteer_activism
-                                      : Icons.shopping_cart,
+                                      : isSponsor
+                                          ? Icons.info_outline
+                                          : isEnterprise
+                                              ? Icons.business_center
+                                              : Icons.shopping_cart,
                                   size: 20 * widthScale,
                                   color: widget.isOwnEstablishment
                                       ? Colors.grey[600]
@@ -475,7 +681,11 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
                                       ? 'Votre établissement'
                                       : (isAssociation
                                           ? 'Faire un don'
-                                          : 'Acheter'),
+                                          : isSponsor
+                                              ? 'En savoir plus'
+                                              : isEnterprise
+                                                  ? 'Voir les offres'
+                                                  : 'Acheter'),
                                   style: TextStyle(
                                     fontSize: 14 * widthScale,
                                     color: widget.isOwnEstablishment
@@ -597,6 +807,11 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
     return widget.establishment.telephone.isNotEmpty ||
         widget.establishment.email.isNotEmpty ||
         widget.establishment.address.isNotEmpty;
+  }
+
+  /// Récupération du type d'établissement
+  Future<String> _getEstablishmentType() async {
+    return await _fetchUserTypeName(widget.establishment.userId);
   }
 
   /// Récupération du user_type.name

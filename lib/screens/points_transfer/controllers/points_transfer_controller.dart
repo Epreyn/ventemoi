@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/classes/email_templates.dart';
+import '../../../core/services/points_transfer_email_service.dart';
 import '../../notifications_screen/controllers/notifications_controller.dart';
 
 class PointsTransferController extends GetxController with ControllerMixin {
@@ -301,15 +302,39 @@ class PointsTransferController extends GetxController with ControllerMixin {
         
         batch.update(recipientWalletRef, {
           'points': currentRecipientPoints + pointsToTransfer.value,
+          'last_updated': FieldValue.serverTimestamp(),
         });
       }
 
       // 2. Déduire les points de l'expéditeur
       final senderWalletRef = senderWalletQuery.docs.first.reference;
       final currentSenderPoints = senderWalletQuery.docs.first.data()['points'] ?? 0;
-      
+
       batch.update(senderWalletRef, {
         'points': currentSenderPoints - pointsToTransfer.value,
+        'last_updated': FieldValue.serverTimestamp(),
+      });
+
+      // 2b. Mettre à jour aussi le document user de l'expéditeur
+      final senderUserRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(currentUserId);
+
+      batch.update(senderUserRef, {
+        'points': FieldValue.increment(-pointsToTransfer.value),
+      });
+
+      // 2c. Mettre à jour aussi le document user du destinataire
+      final recipientUserRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(selectedUser.value!['id']);
+
+      batch.update(recipientUserRef, {
+        'points': FieldValue.increment(pointsToTransfer.value),
       });
 
       // 3. Créer un enregistrement de transfert
@@ -318,13 +343,53 @@ class PointsTransferController extends GetxController with ControllerMixin {
           .firebaseFirestore
           .collection('points_transfers')
           .doc();
-      
+
       batch.set(transferRef, {
         'sender_id': currentUserId,
         'recipient_id': selectedUser.value!['id'],
         'points': pointsToTransfer.value,
         'created_at': FieldValue.serverTimestamp(),
         'status': 'completed',
+      });
+
+      // 3b. Créer les transactions pour l'historique
+      // Transaction pour l'expéditeur (envoi)
+      final senderTransactionRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('transactions')
+          .doc();
+
+      batch.set(senderTransactionRef, {
+        'from_user_id': currentUserId,
+        'to_user_id': selectedUser.value!['id'],
+        'points': pointsToTransfer.value,
+        'type': 'transfer',
+        'direction': 'sent',
+        'recipient_name': getUserDisplayName(selectedUser.value!),
+        'description': 'Transfert de points vers ${getUserDisplayName(selectedUser.value!)}',
+        'status': 'completed',
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
+      // Transaction pour le destinataire (réception)
+      final recipientTransactionRef = UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('transactions')
+          .doc();
+
+      final senderName = await _getCurrentUserName();
+      batch.set(recipientTransactionRef, {
+        'from_user_id': currentUserId,
+        'to_user_id': selectedUser.value!['id'],
+        'points': pointsToTransfer.value,
+        'type': 'transfer',
+        'direction': 'received',
+        'sender_name': senderName,
+        'description': 'Transfert de points de $senderName',
+        'status': 'completed',
+        'created_at': FieldValue.serverTimestamp(),
       });
 
       // 4. Exécuter la transaction
@@ -341,18 +406,17 @@ class PointsTransferController extends GetxController with ControllerMixin {
 
       // 6. Envoyer un email si possible
       final currentUser = UniquesControllers().data.firebaseAuth.currentUser;
-      final senderName = await _getCurrentUserName();
+      // senderName déjà déclaré plus haut
       final recipientEmail = selectedUser.value!['email'];
       final recipientName = getUserDisplayName(selectedUser.value!);
 
       if (recipientEmail != null && recipientEmail.toString().isNotEmpty) {
-        // TODO: Créer un template email pour le transfert de points
-        // await sendPointsReceivedEmail(
-        //   toEmail: recipientEmail,
-        //   recipientName: recipientName,
-        //   senderName: senderName,
-        //   points: pointsToTransfer.value,
-        // );
+        await PointsTransferEmailService.sendPointsReceivedEmail(
+          toEmail: recipientEmail,
+          recipientName: recipientName,
+          senderName: senderName,
+          points: pointsToTransfer.value,
+        );
       }
 
       Get.back();

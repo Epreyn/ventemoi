@@ -8,9 +8,9 @@ import '../models/stripe_service.dart';
 
 class SponsorVideoService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   // ==================== SPONSORS ====================
-  
+
   /// Acheter un pack sponsor
   static Future<bool> purchaseSponsorPackage({
     required String establishmentId,
@@ -18,28 +18,29 @@ class SponsorVideoService {
   }) async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
-      
-      final priceId = level == 'bronze' 
-        ? StripePrices.sponsorBronzePriceId 
-        : StripePrices.sponsorSilverPriceId;
-      
+
+      final priceId = level == 'bronze'
+          ? StripePrices.sponsorBronzePriceId
+          : StripePrices.sponsorSilverPriceId;
+
       final amount = level == 'bronze'
-        ? StripePrices.sponsorBronzeAmount
-        : StripePrices.sponsorSilverAmount;
-      
+          ? StripePrices.sponsorBronzeAmount
+          : StripePrices.sponsorSilverAmount;
+
       // Créer la session de paiement Stripe
-      final Map<String, String>? result = await StripeService.to.createGenericOneTimeCheckout(
+      final Map<String, String>? result =
+          await StripeService.to.createGenericOneTimeCheckout(
         establishmentId: establishmentId,
         amount: amount,
         productName: 'Pack Sponsor ${level == 'bronze' ? 'Bronze' : 'Silver'}',
-        description: level == 'bronze' 
-          ? '1 bon cadeau 50€ + Mise en avant + Logo sur l\'application'
-          : '3 bons cadeaux 50€ + 2 mises en avant + Vidéo standard + Visibilité Prestige',
-        metadata: level == 'bronze' 
-          ? StripePrices.sponsorBronzeMetadata
-          : StripePrices.sponsorSilverMetadata,
+        description: level == 'bronze'
+            ? '1 bon cadeau 50€ + Mise en avant + Logo sur l\'application'
+            : '3 bons cadeaux 50€ + 2 mises en avant + Vidéo standard + Visibilité Prestige',
+        metadata: level == 'bronze'
+            ? StripePrices.sponsorBronzeMetadata
+            : StripePrices.sponsorSilverMetadata,
       );
-      
+
       if (result != null && result['sessionId'] != null) {
         // Enregistrer la commande en attente
         await _firestore.collection('sponsor_orders').add({
@@ -48,36 +49,38 @@ class SponsorVideoService {
           'stripe_session_id': result['sessionId'],
           'status': 'pending',
           'created_at': FieldValue.serverTimestamp(),
-          'benefits': level == 'bronze' ? {
-            'vouchers': 1,
-            'voucher_value': 50,
-            'social_media_boost': true,
-            'logo_display': true,
-          } : {
-            'vouchers': 3,
-            'voucher_value': 50,
-            'social_media_boost': 2,
-            'video_included': 'standard',
-            'prestige_visibility': true,
-          },
+          'benefits': level == 'bronze'
+              ? {
+                  'vouchers': 1,
+                  'voucher_value': 50,
+                  'social_media_boost': true,
+                  'logo_display': true,
+                }
+              : {
+                  'vouchers': 3,
+                  'voucher_value': 50,
+                  'social_media_boost': 2,
+                  'video_included': 'standard',
+                  'prestige_visibility': true,
+                },
         });
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       UniquesControllers().data.snackbar(
-        'Erreur',
-        'Impossible de traiter le paiement: $e',
-        true,
-      );
+            'Erreur',
+            'Impossible de traiter le paiement: $e',
+            true,
+          );
       return false;
     } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
-  
+
   /// Activer le sponsor après paiement réussi
   static Future<void> activateSponsor(String sessionId) async {
     try {
@@ -87,27 +90,30 @@ class SponsorVideoService {
           .where('stripe_session_id', isEqualTo: sessionId)
           .limit(1)
           .get();
-      
+
       if (orderQuery.docs.isNotEmpty) {
         final order = orderQuery.docs.first;
         final orderData = order.data();
         final establishmentId = orderData['establishment_id'];
         final level = orderData['level'];
-        
+
         // Mettre à jour le statut de la commande
         await order.reference.update({
           'status': 'completed',
           'activated_at': FieldValue.serverTimestamp(),
         });
-        
+
         // Activer le sponsor sur l'établissement
-        await _firestore.collection('establishments').doc(establishmentId).update({
+        await _firestore
+            .collection('establishments')
+            .doc(establishmentId)
+            .update({
           'is_sponsor': true,
           'sponsor_level': level,
           'sponsor_activated_at': FieldValue.serverTimestamp(),
           'sponsor_expires_at': DateTime.now().add(Duration(days: 365)), // 1 an
         });
-        
+
         // Créer les bons cadeaux
         final voucherCount = level == 'bronze' ? 1 : 3;
         for (int i = 0; i < voucherCount; i++) {
@@ -119,7 +125,7 @@ class SponsorVideoService {
             'created_at': FieldValue.serverTimestamp(),
           });
         }
-        
+
         // Si Silver, planifier la vidéo
         if (level == 'silver') {
           await _firestore.collection('video_orders').add({
@@ -133,12 +139,12 @@ class SponsorVideoService {
       }
     } catch (e) {
       // Utiliser un logger approprié au lieu de print
-      UniquesControllers().data.debugPrint('Erreur activation sponsor: $e');
+      // UniquesControllers().data.debugPrint('Erreur activation sponsor: $e');
     }
   }
-  
+
   // ==================== VIDÉOS ====================
-  
+
   /// Acheter une prestation vidéo
   static Future<bool> purchaseVideoPackage({
     required String establishmentId,
@@ -147,11 +153,11 @@ class SponsorVideoService {
   }) async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
-      
+
       // Déterminer le prix selon le niveau et le statut membre
       String priceId;
       int amount;
-      
+
       switch (level) {
         case 'standard':
           if (isMember) {
@@ -183,20 +189,23 @@ class SponsorVideoService {
         default:
           throw Exception('Niveau vidéo invalide');
       }
-      
+
       // Créer la session de paiement Stripe
-      final Map<String, String>? result = await StripeService.to.createGenericOneTimeCheckout(
+      final Map<String, String>? result =
+          await StripeService.to.createGenericOneTimeCheckout(
         establishmentId: establishmentId,
         amount: amount,
-        productName: 'Vidéo ${level[0].toUpperCase() + level.substring(1)} ${isMember ? '(Membre)' : '(Public)'}',
-        description: StripePrices.productDescriptions['video_$level'] ?? 'Prestation vidéo professionnelle',
+        productName:
+            'Vidéo ${level[0].toUpperCase() + level.substring(1)} ${isMember ? '(Membre)' : '(Public)'}',
+        description: StripePrices.productDescriptions['video_$level'] ??
+            'Prestation vidéo professionnelle',
         metadata: {
           'type': 'video',
           'level': level,
           'customer_type': isMember ? 'member' : 'public',
         },
       );
-      
+
       if (result != null && result['sessionId'] != null) {
         // Enregistrer la commande vidéo
         await _firestore.collection('video_orders').add({
@@ -208,23 +217,23 @@ class SponsorVideoService {
           'created_at': FieldValue.serverTimestamp(),
           'details': _getVideoDetails(level),
         });
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       UniquesControllers().data.snackbar(
-        'Erreur',
-        'Impossible de traiter le paiement: $e',
-        true,
-      );
+            'Erreur',
+            'Impossible de traiter le paiement: $e',
+            true,
+          );
       return false;
     } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
-  
+
   /// Obtenir les détails de la vidéo selon le niveau
   static Map<String, dynamic> _getVideoDetails(String level) {
     switch (level) {
@@ -259,9 +268,9 @@ class SponsorVideoService {
         return {};
     }
   }
-  
+
   // ==================== BANDEAU PUBLICITAIRE ====================
-  
+
   /// Acheter un emplacement sur le bandeau publicitaire
   static Future<bool> purchaseBannerAd({
     required String establishmentId,
@@ -269,7 +278,7 @@ class SponsorVideoService {
   }) async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
-      
+
       // Vérifier la disponibilité de la semaine
       final endDate = startDate.add(Duration(days: 7));
       final conflictQuery = await _firestore
@@ -277,29 +286,31 @@ class SponsorVideoService {
           .where('start_date', isLessThan: endDate)
           .where('end_date', isGreaterThan: startDate)
           .get();
-      
+
       if (conflictQuery.docs.isNotEmpty) {
         UniquesControllers().data.snackbar(
-          'Indisponible',
-          'Cette période est déjà réservée',
-          true,
-        );
+              'Indisponible',
+              'Cette période est déjà réservée',
+              true,
+            );
         return false;
       }
-      
+
       // Créer la session de paiement Stripe
-      final Map<String, String>? result = await StripeService.to.createGenericOneTimeCheckout(
+      final Map<String, String>? result =
+          await StripeService.to.createGenericOneTimeCheckout(
         establishmentId: establishmentId,
         amount: StripePrices.bandeauHebdoAmount,
         productName: 'Bandeau publicitaire hebdomadaire',
-        description: 'Affichage dans le bandeau "Offres du moment" pendant 7 jours',
+        description:
+            'Affichage dans le bandeau "Offres du moment" pendant 7 jours',
         metadata: {
           'type': 'advertising',
           'duration': '7_days',
           'start_date': startDate.toIso8601String(),
         },
       );
-      
+
       if (result != null && result['sessionId'] != null) {
         // Réserver l'emplacement
         await _firestore.collection('banner_ads').add({
@@ -310,23 +321,23 @@ class SponsorVideoService {
           'status': 'pending_payment',
           'created_at': FieldValue.serverTimestamp(),
         });
-        
+
         return true;
       }
-      
+
       return false;
     } catch (e) {
       UniquesControllers().data.snackbar(
-        'Erreur',
-        'Impossible de traiter le paiement: $e',
-        true,
-      );
+            'Erreur',
+            'Impossible de traiter le paiement: $e',
+            true,
+          );
       return false;
     } finally {
       UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
-  
+
   /// Activer la publicité après paiement
   static Future<void> activateBannerAd(String sessionId) async {
     try {
@@ -335,7 +346,7 @@ class SponsorVideoService {
           .where('stripe_session_id', isEqualTo: sessionId)
           .limit(1)
           .get();
-      
+
       if (adQuery.docs.isNotEmpty) {
         await adQuery.docs.first.reference.update({
           'status': 'active',
@@ -344,48 +355,57 @@ class SponsorVideoService {
       }
     } catch (e) {
       // Utiliser un logger approprié au lieu de print
-      UniquesControllers().data.debugPrint('Erreur activation bannière: $e');
+      //UniquesControllers().data.debugPrint('Erreur activation bannière: $e');
     }
   }
-  
+
   // ==================== GESTION DES COMMANDES ====================
-  
+
   /// Récupérer les commandes sponsor d'un établissement
-  static Stream<List<Map<String, dynamic>>> getSponsorOrders(String establishmentId) {
+  static Stream<List<Map<String, dynamic>>> getSponsorOrders(
+      String establishmentId) {
     return _firestore
         .collection('sponsor_orders')
         .where('establishment_id', isEqualTo: establishmentId)
         .orderBy('created_at', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => {
-          'id': doc.id,
-          ...doc.data(),
-        }).toList());
+        .map((snap) => snap.docs
+            .map((doc) => {
+                  'id': doc.id,
+                  ...doc.data(),
+                })
+            .toList());
   }
-  
+
   /// Récupérer les commandes vidéo d'un établissement
-  static Stream<List<Map<String, dynamic>>> getVideoOrders(String establishmentId) {
+  static Stream<List<Map<String, dynamic>>> getVideoOrders(
+      String establishmentId) {
     return _firestore
         .collection('video_orders')
         .where('establishment_id', isEqualTo: establishmentId)
         .orderBy('created_at', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => {
-          'id': doc.id,
-          ...doc.data(),
-        }).toList());
+        .map((snap) => snap.docs
+            .map((doc) => {
+                  'id': doc.id,
+                  ...doc.data(),
+                })
+            .toList());
   }
-  
+
   /// Récupérer les réservations de bandeau d'un établissement
-  static Stream<List<Map<String, dynamic>>> getBannerAds(String establishmentId) {
+  static Stream<List<Map<String, dynamic>>> getBannerAds(
+      String establishmentId) {
     return _firestore
         .collection('banner_ads')
         .where('establishment_id', isEqualTo: establishmentId)
         .orderBy('start_date', descending: false)
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => {
-          'id': doc.id,
-          ...doc.data(),
-        }).toList());
+        .map((snap) => snap.docs
+            .map((doc) => {
+                  'id': doc.id,
+                  ...doc.data(),
+                })
+            .toList());
   }
 }

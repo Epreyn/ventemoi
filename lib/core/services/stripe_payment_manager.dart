@@ -11,10 +11,10 @@ import '../classes/unique_controllers.dart';
 class StripePaymentManager extends GetxService {
   static StripePaymentManager get to => Get.find();
 
-  // Paiement d'abonnement (mensuel ou annuel)
+  // Paiement d'abonnement (mensuel, annuel, ou sponsor)
   Future<void> processSubscriptionPayment({
     required String userType,
-    required String paymentOption, // 'monthly' ou 'annual'
+    required String paymentOption, // 'monthly', 'annual', 'bronze' ou 'silver'
     required Function() onSuccess,
     Function(String)? onError,
     bool enablePolling = true,
@@ -26,7 +26,41 @@ class StripePaymentManager extends GetxService {
 
       Map<String, String>? result;
 
-      if (paymentOption == 'annual') {
+      // Gérer les sponsors différemment
+      if (userType == 'Sponsor') {
+        // Récupérer l'ID de l'établissement pour les sponsors
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid == null) throw Exception('Utilisateur non connecté');
+
+        final estabQuery = await FirebaseFirestore.instance
+            .collection('establishments')
+            .where('user_id', isEqualTo: uid)
+            .limit(1)
+            .get();
+
+        String establishmentId;
+        if (estabQuery.docs.isNotEmpty) {
+          establishmentId = estabQuery.docs.first.id;
+        } else {
+          // Créer un établissement temporaire pour le sponsor
+          final estabDoc = await FirebaseFirestore.instance.collection('establishments').add({
+            'user_id': uid,
+            'user_type': 'Sponsor',
+            'created_at': FieldValue.serverTimestamp(),
+          });
+          establishmentId = estabDoc.id;
+        }
+
+        if (paymentOption == 'silver') {
+          result = await StripeService.to.createSponsorSilverCheckout(
+            establishmentId: establishmentId,
+          );
+        } else {
+          result = await StripeService.to.createSponsorBronzeCheckout(
+            establishmentId: establishmentId,
+          );
+        }
+      } else if (paymentOption == 'annual') {
         result = await StripeService.to.createAnnualOptionCheckoutWithId(
           userType: userType,
           successUrl: 'https://app.ventemoi.fr/stripe-success.html',
@@ -46,12 +80,19 @@ class StripePaymentManager extends GetxService {
         UniquesControllers().data.isInAsyncCall.value = false;
 
         // Afficher la dialog d'attente améliorée
+        String subtitle;
+        if (userType == 'Sponsor') {
+          subtitle = paymentOption == 'silver' ? 'Sponsor Silver' : 'Sponsor Bronze';
+        } else {
+          subtitle = paymentOption == 'annual'
+              ? 'Abonnement annuel'
+              : 'Abonnement mensuel';
+        }
+
         StripePaymentDialog.show(
           sessionId: result['sessionId']!,
           title: 'Traitement du paiement',
-          subtitle: paymentOption == 'annual'
-              ? 'Abonnement annuel'
-              : 'Abonnement mensuel',
+          subtitle: subtitle,
           onSuccess: onSuccess,
           onError: onError ??
               (error) {
