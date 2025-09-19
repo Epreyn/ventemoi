@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/admin_users_screen_controller.dart';
@@ -48,6 +49,14 @@ class AdminUsersScreen extends StatelessWidget {
 
       return CustomScrollView(
         slivers: [
+          // Header moderne
+          SliverToBoxAdapter(
+            child: ModernPageHeader(
+              title: "Gestion Utilisateurs",
+              subtitle: "Administrez les comptes utilisateurs",
+              icon: Icons.people,
+            ),
+          ),
           // Header fixe avec stats et recherche
           SliverToBoxAdapter(
             child: Column(

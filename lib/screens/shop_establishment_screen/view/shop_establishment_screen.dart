@@ -27,81 +27,39 @@ class ShopEstablishmentScreen extends StatefulWidget {
 
 class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
   late ScrollController _scrollController;
+  late ScrollController _bannerScrollController;
   double _bannerHeight = 150.0; // Hauteur initiale de la bannière
   static const double _maxBannerHeight = 150.0;
   bool _bannerIsHidden = false;
   bool _isScrolling = false;
   Timer? _scrollEndTimer;
+  bool _isScrollingGrid = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-
-    final currentPosition = _scrollController.position.pixels;
-    double targetHeight;
-
-    // Phase 1: Cacher la bannière (0 à 150 pixels de scroll)
-    if (currentPosition <= 0) {
-      targetHeight = _maxBannerHeight;
-    } else if (currentPosition >= _maxBannerHeight) {
-      targetHeight = 0;
-    } else {
-      targetHeight = _maxBannerHeight - currentPosition;
-    }
-
-    // Ne mettre à jour que si la différence est significative
-    if ((targetHeight - _bannerHeight).abs() > 3.0) {
-      setState(() {
-        _bannerHeight = targetHeight.clamp(0.0, _maxBannerHeight);
-        _bannerIsHidden = _bannerHeight < 1.0;
-      });
-    }
-
-    // Détecter la fin du scroll pour snap
-    _isScrolling = true;
-    _scrollEndTimer?.cancel();
-    _scrollEndTimer = Timer(const Duration(milliseconds: 150), () {
-      _snapBanner();
+    _bannerScrollController = ScrollController();
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        final offset = _scrollController.offset;
+        final newHeight = (_maxBannerHeight - offset).clamp(0.0, _maxBannerHeight);
+        if ((newHeight - _bannerHeight).abs() > 1) {
+          setState(() {
+            _bannerHeight = newHeight;
+            _bannerIsHidden = _bannerHeight < 1.0;
+          });
+        }
+      }
     });
   }
 
-  void _snapBanner() {
-    if (!_scrollController.hasClients) return;
-
-    final currentPosition = _scrollController.position.pixels;
-
-    // Si on est dans la zone de la bannière, on snap
-    if (currentPosition > 10 && currentPosition < _maxBannerHeight - 10) {
-      // Si on est plus proche du haut (< 75px), on remonte
-      if (currentPosition < 75) {
-        _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      } else {
-        // Sinon on cache la bannière mais on s'arrête là
-        // pour que la barre de recherche reste visible
-        _scrollController.animateTo(
-          _maxBannerHeight,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-    }
-    _isScrolling = false;
-  }
 
   @override
   void dispose() {
     _scrollEndTimer?.cancel();
     _scrollController.dispose();
+    _bannerScrollController.dispose();
     super.dispose();
   }
 
@@ -121,36 +79,43 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
       noFAB: true,
       body: NestedScrollView(
         controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            // Bannière avec animation de hauteur
-            SliverToBoxAdapter(
-              child: AnimatedContainer(
-                duration: _isScrolling
-                    ? Duration.zero
-                    : const Duration(milliseconds: 200),
-                height: _bannerHeight,
-                child: _bannerHeight > 0
-                    ? ClipRect(
-                        child: OverflowBox(
-                          alignment: Alignment.topCenter,
-                          minHeight: 0,
-                          maxHeight: _maxBannerHeight,
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 150),
-                            opacity: _bannerHeight > 20 ? 1.0 : _bannerHeight / 20,
-                            child: const SpecialOffersBanner(),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+        headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+          // Mettre à jour la hauteur de la bannière en fonction du scroll
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scrollController.hasClients) {
+              final offset = _scrollController.offset;
+              final newHeight = (_maxBannerHeight - offset).clamp(0.0, _maxBannerHeight);
+              if ((newHeight - _bannerHeight).abs() > 1) {
+                setState(() {
+                  _bannerHeight = newHeight;
+                  _bannerIsHidden = _bannerHeight < 1.0;
+                });
+              }
+            }
+          });
+
+          return <Widget>[
+            // Bannière collapsible
+            SliverAppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              expandedHeight: _maxBannerHeight,
+              floating: false,
+              pinned: false,
+              flexibleSpace: FlexibleSpaceBar(
+                background: const SpecialOffersBanner(
+                  key: ValueKey('special_offers_banner'),
+                ),
+                collapseMode: CollapseMode.parallax,
               ),
             ),
-            // Section épinglée contenant barre de recherche, onglets et description
+            // Section fixe avec recherche, onglets et description
             SliverPersistentHeader(
               pinned: true,
               delegate: _StickyHeaderDelegate(
+                minHeight: 210,
+                maxHeight: 210,
                 child: Container(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   child: Column(
@@ -663,7 +628,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
       final establishments = cc.displayedEstablishments;
 
       if (establishments.isEmpty) {
-        return const EmptyStateWidget();
+        return const Center(child: EmptyStateWidget());
       }
 
       return AnimatedSwitcher(
@@ -702,6 +667,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
                     bottom: UniquesControllers().data.baseSpace * 2,
                   ),
                   child: SponsorMobileCard(
+                    key: ValueKey('sponsor_mobile_${establishment.id}'),
                     establishment: establishment,
                     index: index,
                     isOwnEstablishment: isOwnEstablishment,
@@ -714,10 +680,12 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
                   bottom: UniquesControllers().data.baseSpace * 2,
                 ),
                 child: ShopEstablishmentMobileCard(
+                  key: ValueKey('shop_mobile_${establishment.id}'),
                   establishment: establishment,
                   isEnterprise: tName == 'Entreprise',
                   isOwnEstablishment: isOwnEstablishment,
-                  onBuy: isOwnEstablishment
+                  // Boutiques peuvent vendre des bons, Associations peuvent recevoir des dons
+                  onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
                       ? null
                       : () => cc.buyEstablishment(establishment),
                   index: index,
@@ -730,7 +698,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
           // Format grille adaptatif avec taille maximale variable selon l'écran
           double maxCardWidth;
           double aspectRatio;
-          
+
           if (isTablet) {
             maxCardWidth = 350.0; // Cartes plus petites sur tablette
             aspectRatio = 0.8;
@@ -762,12 +730,14 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
               if (cc.selectedTabIndex.value == 3) {
                 // Onglet Sponsors - utiliser la carte stylisée
                 return SponsorCardStyled(
+                  key: ValueKey('sponsor_styled_${establishment.id}'),
                   establishment: establishment,
                   index: index,
                   isOwnEstablishment: isOwnEstablishment,
                 );
               } else if (tName == 'Entreprise') {
                 return EnterpriseEstablishmentCard(
+                  key: ValueKey('enterprise_${establishment.id}'),
                   establishment: establishment,
                   index: index,
                   enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
@@ -775,14 +745,17 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
               } else if (tName == 'Sponsor') {
                 // Les sponsors utilisent la carte stylisée même en dehors de l'onglet 3
                 return SponsorCardStyled(
+                  key: ValueKey('sponsor_styled_${establishment.id}'),
                   establishment: establishment,
                   index: index,
                   isOwnEstablishment: isOwnEstablishment,
                 );
               } else {
                 return ShopEstablishmentCard(
+                  key: ValueKey('shop_${establishment.id}'),
                   establishment: establishment,
-                  onBuy: isOwnEstablishment
+                  // Boutiques peuvent vendre des bons, Associations peuvent recevoir des dons
+                  onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
                       ? null
                       : () => cc.buyEstablishment(establishment),
                   index: index,
@@ -796,101 +769,28 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
     );
   }
 
-  List<Widget> _buildCategoryChips(ShopEstablishmentScreenController cc) {
-    final isEnterprise = cc.selectedTabIndex.value == 2;
-    final categories =
-        isEnterprise ? cc.enterpriseCategoriesMap : cc.categoriesMap;
-    final selectedIds = isEnterprise
-        ? cc.localSelectedEnterpriseCatIds
-        : cc.localSelectedCatIds;
-
-    if (categories.isEmpty) {
-      return [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 40),
-          child: Column(
-            children: [
-              Icon(
-                Icons.category_outlined,
-                size: 48,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Aucune catégorie disponible',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ];
-    }
-
-    return categories.entries.map((entry) {
-      final isSelected = selectedIds.contains(entry.key);
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        child: FilterChip(
-          label: Text(entry.value),
-          selected: isSelected,
-          onSelected: (selected) {
-            if (selected) {
-              selectedIds.add(entry.key);
-            } else {
-              selectedIds.remove(entry.key);
-            }
-          },
-          avatar: isSelected
-              ? const Icon(Icons.check_circle, size: 18)
-              : Icon(
-                  Icons.circle_outlined,
-                  size: 18,
-                  color: Colors.grey[400],
-                ),
-          selectedColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
-          checkmarkColor: CustomTheme.lightScheme().primary,
-          backgroundColor: Colors.grey[100],
-          side: BorderSide(
-            color: isSelected
-                ? CustomTheme.lightScheme().primary
-                : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
-      );
-    }).toList();
-  }
 }
 
-// Delegate pour la section épinglée (recherche + onglets + description)
+// Delegate pour le header sticky
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
   final Widget child;
 
-  _StickyHeaderDelegate({required this.child});
+  _StickyHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
 
   @override
-  double get minExtent {
-    // Calcul précis des hauteurs :
-    // Barre de recherche: 56 + marges (16*2) = 72
-    // Onglets: 48 + marge bottom (8) = 56
-    // Description: variable mais environ 60-80
-    return 210.0;
-  }
+  double get minExtent => minHeight;
 
   @override
-  double get maxExtent => minExtent;
+  double get maxExtent => maxHeight;
 
   @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    // Ajouter une ombre quand le header est épinglé
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
@@ -910,6 +810,9 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_StickyHeaderDelegate oldDelegate) {
-    return child != oldDelegate.child;
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }
+

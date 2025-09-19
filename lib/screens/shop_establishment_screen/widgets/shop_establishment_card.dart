@@ -29,14 +29,19 @@ class ShopEstablishmentCard extends StatefulWidget {
   State<ShopEstablishmentCard> createState() => _ShopEstablishmentCardState();
 }
 
-class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
+class _ShopEstablishmentCardState extends State<ShopEstablishmentCard>
+    with AutomaticKeepAliveClientMixin {
   bool _showFullDescription = false;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
     final cc = Get.put(
       ShopEstablishmentCardController(),
-      tag: 'shop-establishment-card-controller-${widget.index}',
+      tag: 'shop-establishment-card-controller-${widget.establishment.id}',
     );
 
     return CustomCardAnimation(
@@ -432,15 +437,15 @@ class _ShopEstablishmentCardState extends State<ShopEstablishmentCard> {
 
                       final typeName = snap.data ?? '';
 
-                      return StreamBuilder<QuerySnapshot>(
-                        stream: UniquesControllers()
+                      return FutureBuilder<QuerySnapshot>(
+                        future: UniquesControllers()
                             .data
                             .firebaseFirestore
                             .collection('wallets')
                             .where('user_id',
                                 isEqualTo: widget.establishment.userId)
                             .limit(1)
-                            .snapshots(),
+                            .get(),
                         builder: (context, walletSnap) {
                           if (!walletSnap.hasData ||
                               walletSnap.data!.docs.isEmpty) {

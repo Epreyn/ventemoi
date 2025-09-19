@@ -6,6 +6,7 @@ import 'package:ventemoi/features/custom_card_animation/view/custom_card_animati
 // Imports internes
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/points_request.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/admin_points_requests_screen_controller.dart';
@@ -53,6 +54,14 @@ class AdminPointsRequestsScreen extends StatelessWidget {
 
       return CustomScrollView(
         slivers: [
+          // Header moderne
+          SliverToBoxAdapter(
+            child: ModernPageHeader(
+              title: "Demandes de Bons",
+              subtitle: "Validez les demandes de points",
+              icon: Icons.card_giftcard,
+            ),
+          ),
           // Header fixe avec stats et recherche
           SliverToBoxAdapter(
             child: Column(

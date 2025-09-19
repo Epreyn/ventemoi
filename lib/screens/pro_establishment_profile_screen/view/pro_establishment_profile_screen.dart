@@ -7,6 +7,7 @@ import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/enterprise_category.dart';
 import '../../../core/models/establishment_category.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
@@ -99,6 +100,13 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Header moderne
+                        const ModernPageHeader(
+                          title: "Fiche d'établissement",
+                          subtitle: "Gérez votre profil professionnel",
+                          icon: Icons.store_rounded,
+                        ),
+                        const CustomSpace(heightMultiplier: 2),
                         // Section Logo Améliorée
                         CustomCardAnimation(
                           index: 0,

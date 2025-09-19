@@ -18,7 +18,8 @@ class QuoteRequest {
   final double? quotedAmount;
   final int? pointsGenerated;
   final bool pointsClaimed;
-  
+  final bool isGeneralRequest;
+
   QuoteRequest({
     required this.id,
     required this.userId,
@@ -37,6 +38,7 @@ class QuoteRequest {
     this.quotedAmount,
     this.pointsGenerated,
     this.pointsClaimed = false,
+    this.isGeneralRequest = false,
   });
 
   factory QuoteRequest.fromFirestore(DocumentSnapshot doc) {
@@ -63,6 +65,7 @@ class QuoteRequest {
       quotedAmount: data['quoted_amount']?.toDouble(),
       pointsGenerated: data['points_generated'],
       pointsClaimed: data['points_claimed'] ?? false,
+      isGeneralRequest: data['is_general_request'] ?? false,
     );
   }
 
@@ -84,6 +87,7 @@ class QuoteRequest {
       'quoted_amount': quotedAmount,
       'points_generated': pointsGenerated,
       'points_claimed': pointsClaimed,
+      'is_general_request': isGeneralRequest,
     };
   }
 }

@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 // Imports internes
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_space/view/custom_space.dart';
@@ -137,20 +138,11 @@ class ProSellsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Titre principal "Tableau de bord"
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: UniquesControllers().data.baseSpace * 2,
-                        vertical: UniquesControllers().data.baseSpace,
-                      ),
-                      child: const Text(
-                        'Tableau de bord',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
+                    // Header moderne
+                    const ModernPageHeader(
+                      title: "Mes Ventes",
+                      subtitle: "Suivez vos transactions",
+                      icon: Icons.shopping_cart_rounded,
                     ),
                     const CustomSpace(heightMultiplier: 2),
                     

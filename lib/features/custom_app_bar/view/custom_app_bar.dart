@@ -100,6 +100,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             curve: Curves.easeOutQuart,
             xStartPosition: -20,
             isOpacity: true,
+            fixedTag: 'app_bar_menu_button',
             child: Builder(
               builder: (context) => IconButton(
                 icon: Icon(
@@ -126,6 +127,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             curve: Curves.easeOutQuart,
             yStartPosition: -10,
             isOpacity: true,
+            fixedTag: 'app_bar_logo_title',
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -160,6 +162,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           curve: Curves.easeOutQuart,
           xStartPosition: 20,
           isOpacity: true,
+          fixedTag: 'app_bar_mobile_info',
           child: _buildMobileInfoWidget(cc, context),
         ),
       ],
@@ -510,6 +513,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 curve: Curves.easeOutQuart,
                 xStartPosition: -20,
                 isOpacity: true,
+                fixedTag: 'app_bar_menu_button_desktop',
                 child: Builder(
                   builder: (context) => IconButton(
                     icon: Container(
@@ -544,6 +548,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               curve: Curves.easeOutQuart,
               yStartPosition: -10,
               isOpacity: true,
+              fixedTag: 'app_bar_title_desktop',
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,6 +592,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     curve: Curves.easeOutQuart,
                     xStartPosition: 20,
                     isOpacity: true,
+                    fixedTag: 'app_bar_username_desktop',
                     child: InkWell(
                       onTap: () => Get.toNamed(Routes.profile),
                       borderRadius: BorderRadius.circular(8),
@@ -635,6 +641,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     curve: Curves.easeOutQuart,
                     xStartPosition: 20,
                     isOpacity: true,
+                    fixedTag: 'app_bar_avatar_desktop',
                     child: InkWell(
                       onTap: () => Get.toNamed(Routes.profile),
                       customBorder: const CircleBorder(),
@@ -686,6 +693,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   curve: Curves.easeOutQuart,
                   xStartPosition: 20,
                   isOpacity: true,
+                  fixedTag: 'app_bar_points_desktop',
                   child: _buildDesktopPointsWidget(cc),
                 );
               }),

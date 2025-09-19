@@ -36,11 +36,31 @@ class QuotesScreenController extends GetxController with ControllerMixin {
   // Stream subscriptions
   StreamSubscription? _userQuotesSub;
   StreamSubscription? _enterpriseQuotesSub;
-  
+
   // Admin flag
   RxBool isAdmin = false.obs;
   RxList<QuoteRequest> allQuotes = <QuoteRequest>[].obs;
   StreamSubscription? _allQuotesSub;
+
+  // Simulateur
+  final simulatorAmountController = TextEditingController();
+  RxDouble simulatedSavings = 0.0.obs;
+  RxInt simulatedPercentage = 0.obs;
+  RxString selectedProjectType = ''.obs;
+
+  final List<String> projectTypes = [
+    'Rénovation',
+    'Construction',
+    'Plomberie',
+    'Électricité',
+    'Peinture',
+    'Menuiserie',
+    'Chauffage',
+    'Isolation',
+    'Toiture',
+    'Jardinage',
+    'Autre',
+  ];
   
   @override
   void onInit() {
@@ -48,6 +68,21 @@ class QuotesScreenController extends GetxController with ControllerMixin {
     _checkIfAdmin();
     _loadQuotes();
     _loadStatistics();
+  }
+
+  @override
+  void onClose() {
+    simulatorAmountController.dispose();
+    projectTypeController.dispose();
+    projectDescriptionController.dispose();
+    estimatedBudgetController.dispose();
+    userNameController.dispose();
+    userEmailController.dispose();
+    userPhoneController.dispose();
+    _userQuotesSub?.cancel();
+    _enterpriseQuotesSub?.cancel();
+    _allQuotesSub?.cancel();
+    super.onClose();
   }
   
   Future<void> _checkIfAdmin() async {
@@ -118,19 +153,6 @@ class QuotesScreenController extends GetxController with ControllerMixin {
     });
   }
   
-  @override
-  void onClose() {
-    _userQuotesSub?.cancel();
-    _enterpriseQuotesSub?.cancel();
-    _allQuotesSub?.cancel();
-    projectTypeController.dispose();
-    projectDescriptionController.dispose();
-    estimatedBudgetController.dispose();
-    userNameController.dispose();
-    userEmailController.dispose();
-    userPhoneController.dispose();
-    super.onClose();
-  }
   
   void _loadQuotes() {
     final currentUser = UniquesControllers().data.firebaseAuth.currentUser;
@@ -440,6 +462,125 @@ class QuotesScreenController extends GetxController with ControllerMixin {
     // 2% du montant en points
     return (amount * 0.02).round();
   }
+
+  // Attribuer une demande générale à une entreprise (admin only)
+  Future<void> assignQuoteToEnterprise({
+    required String quoteId,
+    required String enterpriseId,
+  }) async {
+    try {
+      // Vérifier que l'utilisateur est admin
+      if (!isAdmin.value) {
+        throw 'Seuls les administrateurs peuvent attribuer des devis';
+      }
+
+      // Récupérer les infos du devis
+      final quoteDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .get();
+
+      if (!quoteDoc.exists) {
+        throw 'Devis introuvable';
+      }
+
+      final quoteData = quoteDoc.data()!;
+
+      // Récupérer les infos de l'entreprise
+      final enterpriseDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .doc(enterpriseId)
+          .get();
+
+      if (!enterpriseDoc.exists) {
+        throw 'Entreprise introuvable';
+      }
+
+      final data = enterpriseDoc.data()!;
+      final establishment = Establishment(
+        id: enterpriseDoc.id,
+        name: data['name'] ?? '',
+        userId: data['user_id'] ?? '',
+        description: data['description'] ?? '',
+        address: data['address'] ?? '',
+        email: data['email'] ?? '',
+        telephone: data['telephone'] ?? '',
+        logoUrl: data['logo_url'] ?? '',
+        bannerUrl: data['banner_url'] ?? '',
+        categoryId: data['category_id'] ?? '',
+        enterpriseCategoryIds: data['enterprise_category_ids'] != null
+            ? List<String>.from(data['enterprise_category_ids'])
+            : null,
+        enterpriseCategorySlots: data['enterprise_category_slots'] ?? 0,
+        videoUrl: data['video_url'] ?? '',
+        hasAcceptedContract: data['has_accepted_contract'] ?? false,
+        affiliatesCount: data['affiliates_count'] ?? 0,
+        isVisibleOverride: data['is_visible_override'] ?? false,
+        isAssociation: data['is_association'] ?? false,
+        maxVouchersPurchase: data['max_vouchers_purchase'] ?? 1,
+        cashbackPercentage: (data['cashback_percentage'] ?? 0).toDouble(),
+        website: data['website'],
+        isPremiumSponsor: data['is_premium_sponsor'],
+        isVisible: data['is_visible'] ?? true,
+      );
+
+      // Mettre à jour le devis avec l'entreprise assignée
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('quote_requests')
+          .doc(quoteId)
+          .update({
+        'enterprise_id': enterpriseId,
+        'enterprise_name': establishment.name,
+        'assigned_by_admin': true,
+        'assigned_at': FieldValue.serverTimestamp(),
+        'is_general_request': false, // N'est plus une demande générale
+      });
+
+      // Notifier l'entreprise
+      await _notifyEnterprise(establishment, {
+        ...quoteData,
+        'enterprise_id': enterpriseId,
+        'enterprise_name': establishment.name,
+      });
+
+      // Créer une notification pour l'entreprise
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('notifications')
+          .add({
+        'user_id': establishment.userId,
+        'type': 'quote_assigned',
+        'title': 'Nouveau devis attribué',
+        'message': 'Un administrateur vous a attribué une demande de devis pour ${quoteData['project_type']}',
+        'quote_id': quoteId,
+        'created_at': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+
+      UniquesControllers().data.snackbar(
+        'Succès',
+        'Devis attribué à ${establishment.name}',
+        false,
+      );
+
+      // Recharger les devis
+      _loadQuotes();
+
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        e.toString(),
+        true,
+      );
+    }
+  }
   
   // Réclamer les points (après signature du devis)
   Future<void> claimPoints(String quoteId) async {
@@ -519,6 +660,37 @@ class QuotesScreenController extends GetxController with ControllerMixin {
   List<QuoteRequest> getFilteredQuotes(List<QuoteRequest> quotes) {
     if (selectedStatus.value == 'all') return quotes;
     return quotes.where((q) => q.status == selectedStatus.value).toList();
+  }
+
+  // Calculer la simulation d'économies
+  void calculateSimulation() {
+    final amountStr = simulatorAmountController.text.replaceAll(',', '.');
+    final amount = double.tryParse(amountStr) ?? 0.0;
+
+    if (amount <= 0 || selectedProjectType.value.isEmpty) {
+      simulatedSavings.value = 0.0;
+      simulatedPercentage.value = 0;
+      return;
+    }
+
+    // Pourcentages d'économies par type de projet
+    final savingsPercentages = {
+      'Rénovation': 15,
+      'Construction': 20,
+      'Plomberie': 12,
+      'Électricité': 10,
+      'Peinture': 18,
+      'Menuiserie': 15,
+      'Chauffage': 14,
+      'Isolation': 16,
+      'Toiture': 12,
+      'Jardinage': 25,
+      'Autre': 10,
+    };
+
+    final percentage = savingsPercentages[selectedProjectType.value] ?? 10;
+    simulatedPercentage.value = percentage;
+    simulatedSavings.value = amount * (percentage / 100);
   }
   
   // Accepter un devis (pour le client)

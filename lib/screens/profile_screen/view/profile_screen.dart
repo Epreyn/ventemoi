@@ -7,6 +7,7 @@ import 'package:ventemoi/firebase_options.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
@@ -96,6 +97,13 @@ class ProfileScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                // Header moderne
+                                const ModernPageHeader(
+                                  title: 'Mon Profil',
+                                  subtitle: 'Gérez vos informations personnelles',
+                                  icon: Icons.person,
+                                ),
+                                const SizedBox(height: 24),
                                 // Section Photo de profil
                                 Center(
                                   child: CustomCardAnimation(

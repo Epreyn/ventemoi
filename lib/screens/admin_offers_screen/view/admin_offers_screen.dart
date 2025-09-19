@@ -6,12 +6,20 @@ import 'package:intl/intl.dart';
 import '../controllers/admin_offers_screen_controller.dart';
 import '../../../core/models/special_offer.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 
-class AdminOffersScreen extends StatelessWidget {
+class AdminOffersScreen extends StatefulWidget {
   const AdminOffersScreen({super.key});
+
+  @override
+  State<AdminOffersScreen> createState() => _AdminOffersScreenState();
+}
+
+class _AdminOffersScreenState extends State<AdminOffersScreen> {
+  int _selectedTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -26,69 +34,197 @@ class AdminOffersScreen extends StatelessWidget {
       fabIcon: const Icon(Icons.add_rounded, size: 24),
       fabText: const Text('Nouvelle offre'),
       fabOnPressed: controller.openCreateOfferBottomSheet,
-      body: DefaultTabController(
-        length: 2,
-        child: Column(
-          children: [
-            // Tabs
-            Container(
-              color: Colors.white,
-              child: TabBar(
-                labelColor: CustomTheme.lightScheme().primary,
-                unselectedLabelColor: Colors.grey[600],
-                indicatorColor: CustomTheme.lightScheme().primary,
-                tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.hourglass_empty),
-                        const SizedBox(width: 8),
-                        Text('Demandes en attente'),
-                        Obx(() => controller.pendingRequests.isNotEmpty
-                            ? Container(
-                                margin: const EdgeInsets.only(left: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '${controller.pendingRequests.length}',
-                                  style: TextStyle(color: Colors.white, fontSize: 12),
-                                ),
-                              )
-                            : const SizedBox.shrink()),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.local_offer),
-                        const SizedBox(width: 8),
-                        Text('Offres actives'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+      body: Column(
+        children: [
+          // Header moderne
+          ModernPageHeader(
+            title: "Offres du Moment",
+            subtitle: "Gérez les offres promotionnelles",
+            icon: Icons.local_offer,
+          ),
+
+          // Modern Tab Bar avec style shop_establishment
+          _buildModernTabs(controller),
+
+          // Contenu des tabs
+          Expanded(
+            child: IndexedStack(
+              index: _selectedTabIndex,
+              children: [
+                // Tab 1: Demandes en attente
+                _buildPendingRequestsTab(controller),
+
+                // Tab 2: Offres actives
+                _buildActiveOffersTab(controller),
+              ],
             ),
-            
-            // Contenu des tabs
-            Expanded(
-              child: TabBarView(
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernTabs(AdminOffersScreenController controller) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 450;
+    final isVerySmallScreen = screenWidth < 380;
+
+    return Container(
+      height: 48,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final containerWidth = constraints.maxWidth;
+          final tabWidth = containerWidth / 2; // 2 onglets
+
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutExpo,
+                left: _selectedTabIndex * tabWidth,
+                child: Container(
+                  width: tabWidth,
+                  height: 48,
+                  padding: const EdgeInsets.all(4),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Row(
                 children: [
-                  // Tab 1: Demandes en attente
-                  _buildPendingRequestsTab(controller),
-                  
-                  // Tab 2: Offres actives
-                  _buildActiveOffersTab(controller),
+                  _buildResponsiveTabButton(
+                    controller,
+                    0,
+                    'Demandes en attente',
+                    Icons.hourglass_empty,
+                    isVerySmallScreen || isSmallScreen,
+                  ),
+                  _buildResponsiveTabButton(
+                    controller,
+                    1,
+                    'Offres actives',
+                    Icons.local_offer,
+                    isVerySmallScreen || isSmallScreen,
+                  ),
                 ],
               ),
-            ),
-          ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildResponsiveTabButton(
+    AdminOffersScreenController controller,
+    int index,
+    String label,
+    IconData icon,
+    bool isSmallScreen,
+  ) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTabIndex = index),
+        child: Container(
+          height: 48,
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: _selectedTabIndex == index || !isSmallScreen
+                      ? Container(
+                          key: ValueKey('$index-full'),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                icon,
+                                size: isSmallScreen ? 18 : 20,
+                                color: _selectedTabIndex == index
+                                    ? CustomTheme.lightScheme().primary
+                                    : Colors.grey[600],
+                              ),
+                              if (!isSmallScreen || _selectedTabIndex == index) ...[
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      label,
+                                      style: TextStyle(
+                                        fontSize: isSmallScreen ? 12 : 14,
+                                        fontWeight: _selectedTabIndex == index
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: _selectedTabIndex == index
+                                            ? CustomTheme.lightScheme().primary
+                                            : Colors.grey[600],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )
+                      : Container(
+                          key: ValueKey('$index-icon'),
+                          child: Icon(
+                            icon,
+                            size: 22,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                ),
+              ),
+              // Badge de notification pour le premier tab
+              if (index == 0)
+                Positioned(
+                  right: isSmallScreen && _selectedTabIndex != 0 ? 0 : 20,
+                  left: isSmallScreen && _selectedTabIndex != 0 ? 0 : null,
+                  top: 8,
+                  child: Obx(() => controller.pendingRequests.isNotEmpty
+                      ? Align(
+                          alignment: isSmallScreen && _selectedTabIndex != 0
+                              ? Alignment.center
+                              : Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${controller.pendingRequests.length}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink()),
+                ),
+            ],
+          ),
         ),
       ),
     );

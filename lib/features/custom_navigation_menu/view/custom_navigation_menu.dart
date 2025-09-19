@@ -16,6 +16,11 @@ class CustomNavigationMenu extends Drawer {
   Widget build(BuildContext context) {
     final cdc = Get.put(CustomNavigationMenuController());
 
+    // Synchroniser l'index quand le drawer est ouvert
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      cdc.syncIndexWithCurrentRoute();
+    });
+
     return Drawer(
       backgroundColor: CustomTheme.lightScheme().surface,
       child: Container(
@@ -484,50 +489,45 @@ class CustomNavigationMenu extends Drawer {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierColor: Colors.black54,
+      barrierColor: Colors.transparent, // Transparent car on gère l'overlay nous-mêmes
+      barrierDismissible: true,
       builder: (BuildContext context) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        return Stack(
+          children: [
+            // Overlay noir transparent qui couvre tout
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(), // Fermer en cliquant sur l'overlay
+                child: Container(
+                  color: Colors.black.withOpacity(0.5), // Voile noir semi-transparent
+                ),
+              ),
+            ),
+            // Dialog centré
+            Center(
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
                   child: Container(
-                    padding:
-                        EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withOpacity(0.98),
-                          Colors.white.withOpacity(0.95),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color:
-                            CustomTheme.lightScheme().primary.withOpacity(0.2),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Icône avec effet glassmorphique
-                        Container(
+              padding:
+                  EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icône avec effet glassmorphique
+                  Container(
                           width: UniquesControllers().data.baseSpace * 10,
                           height: UniquesControllers().data.baseSpace * 10,
                           decoration: BoxDecoration(
@@ -701,14 +701,14 @@ class CustomNavigationMenu extends Drawer {
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                ],
               ),
             ),
           ),
-        );
+        ),
+      ),
+    ],
+  );
       },
     );
   }

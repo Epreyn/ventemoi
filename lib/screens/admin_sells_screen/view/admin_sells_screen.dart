@@ -6,6 +6,7 @@ import 'package:ventemoi/features/custom_card_animation/view/custom_card_animati
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/purchase.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/admin_sells_screen_controller.dart';
@@ -45,6 +46,14 @@ class AdminSellsScreen extends StatelessWidget {
 
       return CustomScrollView(
         slivers: [
+          // Header moderne
+          SliverToBoxAdapter(
+            child: ModernPageHeader(
+              title: "Gestion des Ventes",
+              subtitle: "Suivez toutes les transactions",
+              icon: Icons.point_of_sale,
+            ),
+          ),
           // Header fixe avec stats et recherche
           SliverToBoxAdapter(
             child: Column(

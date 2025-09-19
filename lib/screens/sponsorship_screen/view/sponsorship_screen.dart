@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_space/view/custom_space.dart';
@@ -35,118 +36,43 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
         modernStyle: true,
         showGreeting: true,
       ),
-      fabOnPressed: () => cc.showParrainageTypeDialog(),
-      fabIcon: const Icon(Icons.person_add_rounded),
-      fabText: const Text('Parrainer'),
+      noFAB: true,
       body: Obx(() {
         final sponsorship = cc.currentSponsorship.value;
         final sponsoredEmails = sponsorship?.sponsoredEmails ?? [];
+
+        // Combiner les emails de sponsoredEmails et les clés de referralDetails
+        final allReferralEmails = Set<String>();
+        allReferralEmails.addAll(sponsoredEmails);
+        allReferralEmails.addAll(cc.referralDetails.keys);
+        final allEmailsList = allReferralEmails.toList();
+
         final sponsorInfo = cc.sponsorInfo.value;
         final totalEarnings = cc.totalEarnings.value;
         final activeReferrals = cc.activeReferrals.value;
 
-        return Column(
-          children: [
-            // Header avec titre principal
-            Container(
-              padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
-              child: CustomCardAnimation(
-                index: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Mon parrainage',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const CustomSpace(heightMultiplier: 0.5),
-                        Text(
-                          '${sponsoredEmails.length} filleul${sponsoredEmails.length > 1 ? 's' : ''}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Bouton partage
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            CustomTheme.lightScheme().primary,
-                            CustomTheme.lightScheme().primary.withOpacity(0.8),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          BoxShadow(
-                            color: CustomTheme.lightScheme()
-                                .primary
-                                .withOpacity(0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => cc.shareReferralLink(),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal:
-                                  UniquesControllers().data.baseSpace * 2,
-                              vertical: UniquesControllers().data.baseSpace,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.share_rounded,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Partager',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        return Center(
+          child: ScrollConfiguration(
+            behavior: const ScrollBehavior().copyWith(scrollbars: false),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(
+                UniquesControllers().data.baseSpace * 2,
               ),
-            ),
-
-            // Contenu scrollable
-            Expanded(
-              child: ScrollConfiguration(
-                behavior: const ScrollBehavior().copyWith(scrollbars: false),
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: UniquesControllers().data.baseSpace * 2,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isTablet ? 700 : 500,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isTablet ? 700 : 500,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header moderne
+                    const ModernPageHeader(
+                      title: 'Mon Parrainage',
+                      subtitle: 'Invitez vos amis et gagnez des récompenses',
+                      icon: Icons.people,
                     ),
-                    child: Column(
-                      children: [
+                    const SizedBox(height: 24),
                         // Section Types de parrainage
                         CustomCardAnimation(
                           index: 1,
@@ -219,123 +145,154 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                 ),
                                 const CustomSpace(heightMultiplier: 3),
                                 // Parrainage proche
-                                Container(
-                                  padding: EdgeInsets.all(
-                                    UniquesControllers().data.baseSpace * 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[50],
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      cc.selectedParrainageType.value = 'proche';
+                                      cc.openCreateUserBottomSheet();
+                                    },
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.grey[300]!,
+                                    child: Container(
+                                      padding: EdgeInsets.all(
+                                        UniquesControllers().data.baseSpace * 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[50],
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.grey[300]!,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[100],
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.person_rounded,
+                                              color: Colors.black87,
+                                              size: 24,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Parrainer un proche',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Gagnez 50 points sur tous les achats de votre filleul',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: Colors.grey[400],
+                                            size: 16,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[100],
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.person_rounded,
-                                          color: Colors.black87,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Parrainer un proche',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Gagnez 50 points sur tous les achats de votre filleul',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 12),
                                 // Parrainage entreprise
-                                Container(
-                                  padding: EdgeInsets.all(
-                                    UniquesControllers().data.baseSpace * 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        CustomTheme.lightScheme().primary.withOpacity(0.9),
-                                        CustomTheme.lightScheme().primary.withOpacity(0.7),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
+                                Material(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: InkWell(
+                                    onTap: () {
+                                      cc.selectedParrainageType.value = 'entreprise';
+                                      cc.openCreateUserBottomSheet();
+                                    },
                                     borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
+                                    child: Container(
+                                      padding: EdgeInsets.all(
+                                        UniquesControllers().data.baseSpace * 2,
                                       ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.2),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.business_rounded,
-                                          color: Colors.white,
-                                          size: 24,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Parrainer une entreprise',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'Gagnez 100 points sur chaque adhésion',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.white70,
-                                              ),
-                                            ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            CustomTheme.lightScheme().primary.withOpacity(0.9),
+                                            CustomTheme.lightScheme().primary.withOpacity(0.7),
                                           ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withOpacity(0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Icon(
+                                              Icons.business_rounded,
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Parrainer une entreprise',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Gagnez 100 points sur chaque adhésion',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: Colors.white.withOpacity(0.7),
+                                            size: 16,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -345,9 +302,189 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
 
                         const CustomSpace(heightMultiplier: 3),
 
+                        // Section Mon parrain
+                        if (sponsorInfo != null) ...[
+                          CustomCardAnimation(
+                            index: 2,
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(
+                                UniquesControllers().data.baseSpace * 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    CustomTheme.lightScheme().primary.withOpacity(0.1),
+                                    CustomTheme.lightScheme().primary.withOpacity(0.05),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                  color: CustomTheme.lightScheme().primary.withOpacity(0.3),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: CustomTheme.lightScheme()
+                                        .primary
+                                        .withOpacity(0.15),
+                                    blurRadius: 30,
+                                    spreadRadius: 5,
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: CustomTheme.lightScheme()
+                                              .primary
+                                              .withOpacity(0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          Icons.person_pin_rounded,
+                                          color:
+                                              CustomTheme.lightScheme().primary,
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Mon parrain',
+                                        style: TextStyle(
+                                          fontSize: UniquesControllers()
+                                                  .data
+                                                  .baseSpace *
+                                              2,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Container(
+                                    padding: EdgeInsets.all(
+                                      UniquesControllers().data.baseSpace * 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.8),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: CustomTheme.lightScheme()
+                                            .primary
+                                            .withOpacity(0.2),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 60,
+                                          height: 60,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                CustomTheme.lightScheme().primary,
+                                                CustomTheme.lightScheme()
+                                                    .primary
+                                                    .withOpacity(0.7),
+                                              ],
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              (sponsorInfo['name'] ?? 'P')[0].toUpperCase(),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                sponsorInfo['name'] ?? 'Parrain',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                sponsorInfo['email'] ?? '',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                              if (sponsorInfo['phone'] != null && sponsorInfo['phone'].toString().isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 2),
+                                                  child: Text(
+                                                    sponsorInfo['phone'],
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.grey[500],
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: CustomTheme.lightScheme()
+                                                .primary
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            'Parrain actif',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: CustomTheme.lightScheme().primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const CustomSpace(heightMultiplier: 3),
+                        ],
+
                         // Section Statistiques
                         CustomCardAnimation(
-                          index: 2,
+                          index: 3,
                           child: Container(
                             width: double.infinity,
                             padding: EdgeInsets.all(
@@ -464,7 +601,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
 
                         // Section Code de parrainage
                         CustomCardAnimation(
-                          index: 3,
+                          index: 4,
                           child: Container(
                             width: double.infinity,
                             padding: EdgeInsets.all(
@@ -595,7 +732,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                         if (sponsorInfo != null) ...[
                           const CustomSpace(heightMultiplier: 3),
                           CustomCardAnimation(
-                            index: 4,
+                            index: 6,
                             child: Container(
                               width: double.infinity,
                               padding: EdgeInsets.all(
@@ -699,10 +836,10 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                         ],
 
                         // Section Mes filleuls
-                        if (sponsoredEmails.isNotEmpty) ...[
+                        if (allEmailsList.isNotEmpty) ...[
                           const CustomSpace(heightMultiplier: 3),
                           CustomCardAnimation(
-                            index: 5,
+                            index: 6,
                             child: Container(
                               width: double.infinity,
                               padding: EdgeInsets.all(
@@ -761,7 +898,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'Mes filleuls (${sponsoredEmails.length})',
+                                          'Mes filleuls (${allEmailsList.length})',
                                           style: TextStyle(
                                             fontSize: UniquesControllers()
                                                     .data
@@ -775,76 +912,27 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                     ],
                                   ),
                                   const CustomSpace(heightMultiplier: 2),
-                                  ...sponsoredEmails
-                                      .asMap()
-                                      .entries
-                                      .map((entry) {
-                                    final index = entry.key;
-                                    final email = entry.value;
-                                    final referralData =
-                                        cc.referralDetails[email];
-                                    final isActive =
-                                        referralData?['isActive'] ?? false;
-                                    final earnings =
-                                        referralData?['earnings'] ?? 0;
-                                    final joinDate =
-                                        referralData?['joinDate'] ?? '';
-                                    final userType =
-                                        referralData?['userType'] ?? '';
-                                    final name = referralData?['name'] ?? '';
+                                  Obx(() => Column(
+                                    children: allEmailsList
+                                        .asMap()
+                                        .entries
+                                        .map((entry) {
+                                      final index = entry.key;
+                                      final email = entry.value;
+                                      final referralData =
+                                          cc.referralDetails[email];
+                                      final isActive =
+                                          referralData?['isActive'] ?? false;
+                                      final earnings =
+                                          referralData?['earnings'] ?? 0;
+                                      final joinDate =
+                                          referralData?['joinDate'] ?? '';
+                                      final userType =
+                                          referralData?['userType'] ?? '';
+                                      final name = referralData?['name'] ?? '';
 
-                                    return Dismissible(
+                                    return Container(
                                       key: Key(email),
-                                      direction: DismissDirection.endToStart,
-                                      background: Container(
-                                        alignment: Alignment.centerRight,
-                                        padding:
-                                            const EdgeInsets.only(right: 20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.2),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(
-                                          Icons.delete_rounded,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                      confirmDismiss: (direction) async {
-                                        return await showDialog(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return AlertDialog(
-                                              title: Text('Confirmer'),
-                                              content: Text(
-                                                'Voulez-vous vraiment retirer $email de vos filleuls ?',
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context)
-                                                          .pop(false),
-                                                  child: Text('Annuler'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context)
-                                                          .pop(true),
-                                                  child: Text(
-                                                    'Retirer',
-                                                    style: TextStyle(
-                                                        color: Colors.red),
-                                                  ),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                      },
-                                      onDismissed: (direction) {
-                                        cc.removeReferral(email);
-                                      },
-                                      child: Container(
                                         margin: EdgeInsets.only(
                                           bottom: UniquesControllers()
                                               .data
@@ -993,35 +1081,82 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                                                 ),
                                             ],
                                           ),
-                                          trailing: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(
-                                                '+$earnings',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color:
-                                                      CustomTheme.lightScheme()
-                                                          .primary,
-                                                  fontSize: 16,
-                                                ),
+                                              Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    '+$earnings',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color:
+                                                          CustomTheme.lightScheme()
+                                                              .primary,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Points',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              Text(
-                                                'Points',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.grey[600],
+                                              const SizedBox(width: 12),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.red[400],
                                                 ),
+                                                onPressed: () {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (BuildContext context) {
+                                                      return AlertDialog(
+                                                        title: const Text('Confirmer la suppression'),
+                                                        content: Text(
+                                                          'Voulez-vous vraiment retirer ${name.isNotEmpty ? name : email} de vos filleuls ?',
+                                                        ),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.of(context)
+                                                                    .pop(),
+                                                            child: const Text('Annuler'),
+                                                          ),
+                                                          ElevatedButton(
+                                                            onPressed: () {
+                                                              Navigator.of(context).pop();
+                                                              cc.removeReferral(email);
+                                                            },
+                                                            style: ElevatedButton.styleFrom(
+                                                              backgroundColor: Colors.red,
+                                                            ),
+                                                            child: const Text(
+                                                              'Supprimer',
+                                                              style: TextStyle(color: Colors.white),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+                                                },
+                                                tooltip: 'Retirer ce filleul',
                                               ),
                                             ],
                                           ),
                                         ),
-                                      ),
-                                    );
-                                  }).toList(),
+                                      );
+                                    }).toList(),
+                                  )),
                                 ],
                               ),
                             ),
@@ -1029,7 +1164,7 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                         ] else ...[
                           const CustomSpace(heightMultiplier: 3),
                           CustomCardAnimation(
-                            index: 5,
+                            index: 6,
                             child: Container(
                               width: double.infinity,
                               padding: EdgeInsets.all(
@@ -1093,14 +1228,12 @@ class SponsorshipScreen extends GetView<SponsorshipScreenController> {
                           ),
                         ],
 
-                        const CustomSpace(heightMultiplier: 8),
-                      ],
-                    ),
-                  ),
+                    const CustomSpace(heightMultiplier: 8),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
         );
       }),
     );

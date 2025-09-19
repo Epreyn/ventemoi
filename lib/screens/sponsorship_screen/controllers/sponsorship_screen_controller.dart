@@ -537,7 +537,16 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
         'updated_at': FieldValue.serverTimestamp(),
       });
 
+      // Mettre à jour les observables locales immédiatement
       referralDetails.remove(email);
+
+      // Recalculer les statistiques
+      if (removedDetail != null && removedDetail.isActive) {
+        activeReferrals.value--;
+      } else {
+        pendingReferrals.value--;
+      }
+      totalEarnings.value = newTotalEarnings;
 
       UniquesControllers().data.snackbar(
             'Succès',
@@ -601,6 +610,21 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
 
       // Ajouter l'email à la liste des parrainés (sans créer de compte)
       await _addSponsoredEmailToList(emailToSponsor);
+
+      // Forcer la mise à jour des détails du nouveau filleul
+      referralDetails[emailToSponsor] = {
+        'isActive': false,
+        'earnings': 0,
+        'joinDate': '',
+        'name': '',
+        'userType': selectedParrainageType.value == 'entreprise' ? 'Entreprise' : 'Particulier',
+        'hasPaid': false,
+        'hasAcceptedCGU': false,
+        'userId': null,
+      };
+
+      // Mettre à jour le compteur de parrainages en attente
+      pendingReferrals.value++;
 
       // Envoyer l'email d'invitation approprié
       if (selectedParrainageType.value == 'entreprise') {

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/point_attribution.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
@@ -50,6 +51,14 @@ class AdminPointsAttributionsScreen extends StatelessWidget {
 
       return CustomScrollView(
         slivers: [
+          // Header moderne
+          SliverToBoxAdapter(
+            child: ModernPageHeader(
+              title: "Gestion des Points",
+              subtitle: "Administrez les attributions",
+              icon: Icons.star,
+            ),
+          ),
           // Header avec stats et recherche
           SliverToBoxAdapter(
             child: Column(

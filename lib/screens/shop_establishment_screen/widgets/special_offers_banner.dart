@@ -26,15 +26,8 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
 
   @override
   Widget build(BuildContext context) {
-    // Vérifier si l'utilisateur est une entreprise/boutique
-    final userType = UniquesControllers().getStorage.read('currentUserType');
-    final isBusinessUser = userType == 'Boutique' ||
-        userType == 'Entreprise' ||
-        userType == 'Sponsor' ||
-        userType == 'Association';
-
-    // N'afficher le bouton que pour les utilisateurs business
-    final showRequestButton = isBusinessUser;
+    // Toujours afficher le bouton "Je veux ma pub"
+    final showRequestButton = true;
 
     return StreamBuilder<QuerySnapshot>(
       stream: UniquesControllers()
@@ -61,78 +54,145 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
           return const SizedBox.shrink();
         }
 
-        // Si une seule offre, affichage simple
-        if (offers.length == 1) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 120,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _buildModernBanner(offers.first),
-              ),
-              if (showRequestButton) _buildRequestBannerButton(),
-            ],
+        // Déterminer les paramètres adaptatifs
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isDesktop = screenWidth > 1200;
+        final isTablet = screenWidth > 600 && screenWidth <= 1200;
+        final isMobile = screenWidth <= 600;
+
+        // Configuration adaptative
+        double carouselHeight;
+        double viewportFraction;
+        bool showNavButtons;
+
+        if (isMobile) {
+          carouselHeight = 120;
+          viewportFraction = offers.length == 1 ? 0.95 : 0.92;
+          showNavButtons = false;
+        } else if (isTablet) {
+          carouselHeight = 140;
+          if (offers.length == 1) {
+            viewportFraction = 0.7;
+          } else if (offers.length == 2) {
+            viewportFraction = 0.48; // Afficher 2 bannières
+          } else {
+            viewportFraction = 0.45;
+          }
+          showNavButtons = offers.length > 2;
+        } else {
+          // Desktop
+          carouselHeight = 160;
+          if (offers.length == 1) {
+            viewportFraction = 0.5; // Bannière centrée
+          } else if (offers.length == 2) {
+            viewportFraction = 0.45; // 2 bannières visibles
+          } else if (offers.length <= 4) {
+            viewportFraction = 0.32; // 3 bannières visibles
+          } else {
+            viewportFraction = 0.25; // 4 bannières visibles
+          }
+          showNavButtons = offers.length > 3;
+        }
+
+        // Si une seule offre sur mobile/tablette, affichage simple avec bouton intégré
+        if (offers.length == 1 && !isDesktop) {
+          return Container(
+            height: carouselHeight,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _buildModernBanner(offers.first),
+                ),
+                if (showRequestButton) ...[
+                  const SizedBox(width: 8),
+                  _buildCompactRequestButton(),
+                ],
+              ],
+            ),
           );
         }
 
-        // Si plusieurs offres, carrousel avec contrôles
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 120,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: Stack(
-                children: [
-                  CarouselSlider.builder(
-                    carouselController: _carouselController,
-                    itemCount: offers.length,
-                    options: CarouselOptions(
-                      height: 120,
-                      autoPlay: true,
-                      autoPlayInterval: const Duration(seconds: 6),
-                      autoPlayAnimationDuration:
-                          const Duration(milliseconds: 800),
-                      autoPlayCurve: Curves.easeInOutCubic,
-                      enlargeCenterPage: true,
-                      viewportFraction: 0.92,
-                      enableInfiniteScroll: offers.length > 1,
-                      onPageChanged: (index, reason) {
-                        setState(() {
-                          _currentIndex = index;
-                        });
+        // Carrousel adaptatif pour plusieurs offres ou desktop
+        return Container(
+          height: carouselHeight + 20,
+          child: Stack(
+            children: [
+              Container(
+                height: carouselHeight,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: Stack(
+                  children: [
+                    CarouselSlider.builder(
+                      carouselController: _carouselController,
+                      itemCount: offers.length,
+                      options: CarouselOptions(
+                        height: carouselHeight,
+                        autoPlay: offers.length > 1,
+                        autoPlayInterval: const Duration(seconds: 6),
+                        autoPlayAnimationDuration:
+                            const Duration(milliseconds: 800),
+                        autoPlayCurve: Curves.easeInOutCubic,
+                        enlargeCenterPage: !isDesktop || offers.length <= 2,
+                        enlargeStrategy: CenterPageEnlargeStrategy.scale,
+                        enlargeFactor: 0.15,
+                        viewportFraction: viewportFraction,
+                        enableInfiniteScroll: offers.length > 1,
+                        padEnds: isDesktop,
+                        onPageChanged: (index, reason) {
+                          setState(() {
+                            _currentIndex = index;
+                          });
+                        },
+                      ),
+                      itemBuilder: (context, index, realIndex) {
+                        return Container(
+                          margin: EdgeInsets.symmetric(
+                            horizontal: isDesktop ? 8 : 4,
+                          ),
+                          child: _buildModernBanner(offers[index]),
+                        );
                       },
                     ),
-                    itemBuilder: (context, index, realIndex) {
-                      return _buildModernBanner(offers[index]);
-                    },
-                  ),
-                  // Flèches de navigation
-                  Positioned(
-                    left: 8,
-                    top: 45,
-                    child: _buildNavigationButton(
-                      Icons.arrow_back_ios_rounded,
-                      () => _carouselController.previousPage(),
-                    ),
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 45,
-                    child: _buildNavigationButton(
-                      Icons.arrow_forward_ios_rounded,
-                      () => _carouselController.nextPage(),
-                    ),
-                  ),
-                ],
+                    // Flèches de navigation (seulement si nécessaire)
+                    if (showNavButtons) ...[
+                      Positioned(
+                        left: 8,
+                        top: carouselHeight / 2 - 15,
+                        child: _buildNavigationButton(
+                          Icons.arrow_back_ios_rounded,
+                          () => _carouselController.previousPage(),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: carouselHeight / 2 - 15,
+                        child: _buildNavigationButton(
+                          Icons.arrow_forward_ios_rounded,
+                          () => _carouselController.nextPage(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            // Indicateurs de pagination
-            const SizedBox(height: 4),
-            _buildPaginationIndicator(offers.length),
-            if (showRequestButton) _buildRequestBannerButton(),
-          ],
+              // Indicateurs de pagination centrés
+              Positioned(
+                bottom: 10,
+                left: 0,
+                right: 0,
+                child: _buildPaginationIndicator(offers.length),
+              ),
+              // Bouton flottant en bas à droite
+              if (showRequestButton)
+                Positioned(
+                  bottom: 0,
+                  right: 16,
+                  child: _buildFloatingRequestButton(),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -500,9 +560,100 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
     return '';
   }
 
+  Widget _buildCompactRequestButton() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Get.toNamed(Routes.proRequestOffer);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 140,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.orange.shade400, Colors.orange.shade600],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.campaign_rounded, color: Colors.white, size: 24),
+              const SizedBox(height: 4),
+              Text(
+                'Je veux',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'ma pub',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloatingRequestButton() {
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () {
+          Get.toNamed(Routes.proRequestOffer);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.orange.shade400, Colors.orange.shade600],
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.campaign_rounded, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                'Je veux ma pub',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRequestBannerButton() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -512,7 +663,7 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
           },
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [Colors.orange.shade400, Colors.orange.shade600],
@@ -534,14 +685,14 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                 Icon(
                   Icons.campaign_rounded,
                   color: Colors.white,
-                  size: 24,
+                  size: 20,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Text(
-                  'Je veux ma bannière publicitaire',
+                  'Je veux ma pub',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),

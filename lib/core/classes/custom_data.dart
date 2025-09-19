@@ -110,6 +110,12 @@ class CustomData extends GetxController {
       onPressed: () => Get.offNamed(Routes.proSells),
     ),
     CustomBottomAppBarIconButtonModel(
+      tag: Routes.proRequestOffer,
+      iconData: Icons.campaign_rounded,
+      text: 'Offres publicitaires',
+      onPressed: () => Get.offNamed(Routes.proRequestOffer),
+    ),
+    CustomBottomAppBarIconButtonModel(
       tag: Routes.profile,
       iconData: Icons.person_outline,
       text: 'Profil',
@@ -154,6 +160,12 @@ class CustomData extends GetxController {
       iconData: Icons.onetwothree_outlined,
       text: 'Points',
       onPressed: () => Get.offNamed(Routes.proPoints),
+    ),
+    CustomBottomAppBarIconButtonModel(
+      tag: Routes.proRequestOffer,
+      iconData: Icons.campaign_rounded,
+      text: 'Offres publicitaires',
+      onPressed: () => Get.offNamed(Routes.proRequestOffer),
     ),
     CustomBottomAppBarIconButtonModel(
       tag: Routes.profile,

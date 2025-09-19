@@ -13,6 +13,7 @@ import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/services/association_visibility_service.dart';
 import '../../../core/services/association_waitlist_service.dart';
+import '../../../core/services/communication_team_email_service.dart';
 
 class RegisterScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Inscription'.toUpperCase();
@@ -767,6 +768,16 @@ class RegisterScreenController extends GetxController with ControllerMixin {
 
       await sendModernWelcomeEmail(
           user.email ?? '', nameController.text.trim());
+
+      // Envoyer un email à l'équipe communication pour les nouveaux partenaires (pas les particuliers)
+      if (currentUserType.value?.name != 'Particulier') {
+        await CommunicationTeamEmailService.sendNewPartnerRegistrationEmail(
+          partnerName: nameController.text.trim(),
+          partnerEmail: emailController.text.trim(),
+          partnerType: currentUserType.value?.name ?? '',
+          companyName: showCompanyField.value ? companyController.text.trim() : null,
+        );
+      }
 
       Get.offAllNamed(Routes.login);
 

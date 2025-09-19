@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../features/screen_layout/view/screen_layout.dart';
-import '../../../features/custom_text_form_field/view/custom_text_form_field.dart';
+import '../../features/screen_layout/view/screen_layout.dart';
+import '../../features/custom_text_form_field/view/custom_text_form_field.dart';
 
 class TestScreen extends StatelessWidget {
   const TestScreen({super.key});

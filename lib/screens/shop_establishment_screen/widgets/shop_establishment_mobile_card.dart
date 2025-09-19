@@ -946,14 +946,20 @@ class _ShopEstablishmentMobileCardState
   }
 
   void _showQuoteForm(BuildContext context) {
-    final controller = Get.put(QuotesScreenController());
-    // Réinitialiser le formulaire avant d'ouvrir le dialog
-    controller.resetForm();
-    
+    // Créer un controller temporaire pour le dialog
+    final tempController = QuotesScreenController();
+    tempController.resetForm();
+
     Get.dialog(
-      QuoteFormDialog(enterprise: widget.establishment),
+      QuoteFormDialog(
+        enterprise: widget.establishment,
+        controller: tempController,
+      ),
       barrierDismissible: false,
-    );
+    ).then((_) {
+      // Nettoyer le controller après fermeture du dialog
+      tempController.onClose();
+    });
   }
 
   void _showPointsSimulator(BuildContext context) {

@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/establishement.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../controllers/admin_establishments_screen_controller.dart';
@@ -47,6 +48,14 @@ class AdminEstablishmentsScreen extends StatelessWidget {
 
       return CustomScrollView(
         slivers: [
+          // Header moderne
+          SliverToBoxAdapter(
+            child: ModernPageHeader(
+              title: "Gestion Établissements",
+              subtitle: "Administrez les commerces",
+              icon: Icons.store,
+            ),
+          ),
           // Header fixe avec stats et recherche
           SliverToBoxAdapter(
             child: Column(

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/theme/custom_theme.dart';
+import '../../../core/widgets/modern_page_header.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../controllers/points_summary_screen_controller.dart';
@@ -32,8 +33,12 @@ class PointsSummaryScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // En-tête avec titre
-                _buildHeader(),
+                // En-tête moderne avec titre
+                const ModernPageHeader(
+                  title: 'Mon Portefeuille',
+                  subtitle: 'Toutes vos transactions au même endroit',
+                  icon: Icons.account_balance_wallet,
+                ),
                 const SizedBox(height: 24),
                 
                 // Cartes de résumé des points
@@ -59,40 +64,6 @@ class PointsSummaryScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.account_balance_wallet,
-              size: 32,
-              color: CustomTheme.lightScheme().primary,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Mon Portefeuille',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[900],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Toutes vos transactions au même endroit',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
     );
   }
 

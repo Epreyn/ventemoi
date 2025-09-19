@@ -10,6 +10,7 @@ import '../../../core/classes/unique_controllers.dart';
 import '../../../core/models/purchase.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_space/view/custom_space.dart';
+import '../../../core/services/communication_team_email_service.dart';
 
 class ProSellsScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Ventes'.toUpperCase();
@@ -471,6 +472,87 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
           .update({
         'isReclaimed': true,
       });
+
+      // Récupérer les informations du vendeur (partenaire)
+      final currentUserId = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (currentUserId != null) {
+        try {
+          // Récupérer les infos du partenaire
+          final sellerDoc = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('users')
+              .doc(currentUserId)
+              .get();
+
+          if (sellerDoc.exists) {
+            final sellerData = sellerDoc.data()!;
+            final sellerName = sellerData['name'] ?? 'Partenaire';
+            final sellerEmail = sellerData['email'] ?? '';
+            final userTypeId = sellerData['user_type_id'] ?? '';
+
+            // Récupérer le type d'utilisateur
+            String userType = '';
+            if (userTypeId.isNotEmpty) {
+              final userTypeDoc = await UniquesControllers()
+                  .data
+                  .firebaseFirestore
+                  .collection('user_types')
+                  .doc(userTypeId)
+                  .get();
+
+              if (userTypeDoc.exists) {
+                userType = userTypeDoc.data()?['name'] ?? '';
+              }
+            }
+
+            // Récupérer le nom de l'établissement si disponible
+            String? companyName;
+            final establishmentQuery = await UniquesControllers()
+                .data
+                .firebaseFirestore
+                .collection('establishments')
+                .where('user_id', isEqualTo: currentUserId)
+                .limit(1)
+                .get();
+
+            if (establishmentQuery.docs.isNotEmpty) {
+              companyName = establishmentQuery.docs.first.data()['name'] ?? '';
+            }
+
+            // Récupérer les informations du client
+            String customerName = 'Client';
+            if (pur.buyerId.isNotEmpty) {
+              final customerDoc = await UniquesControllers()
+                  .data
+                  .firebaseFirestore
+                  .collection('users')
+                  .doc(pur.buyerId)
+                  .get();
+
+              if (customerDoc.exists) {
+                customerName = customerDoc.data()?['name'] ?? 'Client';
+              }
+            }
+
+            // Envoyer l'email à l'équipe communication (pas pour les particuliers)
+            if (userType != 'Particulier') {
+              await CommunicationTeamEmailService.sendPartnerSaleNotification(
+                partnerName: sellerName,
+                partnerEmail: sellerEmail,
+                productOrService: 'Bon cadeau ${pur.amount.toStringAsFixed(2)}€',
+                amount: pur.amount.toDouble(),
+                customerName: customerName,
+                companyName: companyName,
+              );
+            }
+          }
+        } catch (e) {
+          print('Erreur lors de l\'envoi de l\'email à l\'équipe communication: $e');
+          // Ne pas faire échouer la validation si l'email échoue
+        }
+      }
+
       UniquesControllers().data.isInAsyncCall.value = false;
 
       // Message de succès avec style
