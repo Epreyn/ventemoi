@@ -125,7 +125,7 @@ class QuoteRequestCard extends StatelessWidget {
                       )
                     else if (quote.estimatedBudget != null)
                       Text(
-                        '~${quote.estimatedBudget?.toStringAsFixed(0)} €',
+                        '~${quote.estimatedBudget ?? '0'} €',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 15,
@@ -194,17 +194,17 @@ class QuoteRequestCard extends StatelessWidget {
                       icon: Icons.description_outlined,
                       color: Colors.blue,
                     ),
-                    
+
                     if (quote.estimatedBudget != null) ...[
                       const SizedBox(height: 16),
                       _buildInfoCard(
                         title: 'Budget estimé',
-                        content: '${quote.estimatedBudget?.toStringAsFixed(2)} €',
+                        content: '${quote.estimatedBudget ?? '0'} €',
                         icon: Icons.euro,
                         color: Colors.green,
                       ),
                     ],
-                    
+
                     // Informations de contact (si reçu)
                     if (isReceived) ...[
                       const SizedBox(height: 20),

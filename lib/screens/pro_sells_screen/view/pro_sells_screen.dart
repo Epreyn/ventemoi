@@ -220,44 +220,42 @@ class ProSellsScreen extends StatelessWidget {
           ],
         ),
         child: isMobile
-            ? Column(
+            ? Row(
                 children: [
-                  _buildStatItem(
-                    icon: Icons.shopping_cart_rounded,
-                    label: 'Total des ventes',
-                    value: '${cc.purchases.length}',
-                    bgColor: CustomTheme.lightScheme().primary.withOpacity(0.1),
-                    iconColor: CustomTheme.lightScheme().primary,
+                  Expanded(
+                    child: _buildStatItem(
+                      icon: Icons.shopping_cart_rounded,
+                      label: 'Total des ventes',
+                      value: '${cc.purchases.length}',
+                      bgColor: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                      iconColor: CustomTheme.lightScheme().primary,
+                    ),
                   ),
-                  const CustomSpace(heightMultiplier: 2),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatItem(
-                          icon: Icons.euro_rounded,
-                          label: 'Valeur totale',
-                          value:
-                              '${cc.purchases.fold(0, (sum, p) => sum + (p.couponsCount * 50))}€',
-                          bgColor: CustomTheme.lightScheme()
-                              .primary
-                              .withOpacity(0.1),
-                          iconColor: CustomTheme.lightScheme().primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatItem(
-                          icon: Icons.check_circle_rounded,
-                          label: 'Récupérées',
-                          value:
-                              '${cc.purchases.where((p) => p.isReclaimed).length}',
-                          bgColor: CustomTheme.lightScheme()
-                              .primary
-                              .withOpacity(0.3),
-                          iconColor: CustomTheme.lightScheme().primary,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatItem(
+                      icon: Icons.euro_rounded,
+                      label: 'Valeur totale',
+                      value:
+                          '${cc.purchases.fold(0, (sum, p) => sum + (p.couponsCount * 50))}€',
+                      bgColor: CustomTheme.lightScheme()
+                          .primary
+                          .withOpacity(0.1),
+                      iconColor: CustomTheme.lightScheme().primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatItem(
+                      icon: Icons.check_circle_rounded,
+                      label: 'Récupérées',
+                      value:
+                          '${cc.purchases.where((p) => p.isReclaimed).length}',
+                      bgColor: CustomTheme.lightScheme()
+                          .primary
+                          .withOpacity(0.3),
+                      iconColor: CustomTheme.lightScheme().primary,
+                    ),
                   ),
                 ],
               )

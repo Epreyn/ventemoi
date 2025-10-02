@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/services/firebase_email_service.dart';
 
 class PasswordScreenController extends GetxController {
   String pageTitle = 'Mot de passe oublié ?'.toUpperCase();
@@ -44,10 +45,30 @@ class PasswordScreenController extends GetxController {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
 
-      await UniquesControllers()
-          .data
-          .firebaseAuth
-          .sendPasswordResetEmail(email: emailController.text);
+      // Récupérer le nom de l'utilisateur si possible
+      String userName = '';
+      try {
+        final userQuery = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('users')
+            .where('email', isEqualTo: emailController.text.trim())
+            .limit(1)
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          userName = userQuery.docs.first.data()['name'] ?? '';
+        }
+      } catch (e) {
+        // Ignorer l'erreur si on ne peut pas récupérer le nom
+      }
+
+      // Envoyer l'email de réinitialisation avec template personnalisé
+      final emailService = FirebaseEmailService();
+      await emailService.sendCustomPasswordResetEmail(
+        emailController.text.trim(),
+        userName,
+      );
 
       UniquesControllers().data.isInAsyncCall.value = false;
       Get.offAllNamed(Routes.login);

@@ -499,9 +499,57 @@ class ProRequestOfferScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               _buildFormSection(
-                title: 'Période de diffusion',
+                title: 'Période de diffusion (7 jours)',
                 icon: Icons.calendar_month_rounded,
                 children: [
+                  // Information sur la tarification
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blue.shade50,
+                          Colors.blue.shade100.withOpacity(0.5),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.euro_rounded,
+                          color: Colors.blue.shade700,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tarif : 50€ TTC pour 7 jours',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.blue.shade900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Publication garantie après paiement',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   Row(
                     children: [
                       Expanded(
@@ -513,10 +561,40 @@ class ProRequestOfferScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: _buildDatePicker(
-                          context: Get.context!,
-                          controller: controller,
-                          isStartDate: false,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Date de fin',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Obx(() => Text(
+                                controller.startDate.value != null
+                                  ? DateFormat('dd/MM/yyyy').format(
+                                      controller.startDate.value!.add(const Duration(days: 7))
+                                    )
+                                  : 'Automatique (+7 jours)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: controller.startDate.value != null
+                                    ? Colors.black87
+                                    : Colors.grey[500],
+                                ),
+                              )),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -937,7 +1015,7 @@ class ProRequestOfferScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Vérifiez votre offre avant de soumettre',
+              'Procédez au paiement pour publier votre bannière',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -950,9 +1028,9 @@ class ProRequestOfferScreen extends StatelessWidget {
               child: Obx(() => ElevatedButton(
                 onPressed: controller.isLoading.value
                     ? null
-                    : () => controller.submitOfferRequest(),
+                    : () => controller.proceedToPayment(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: CustomTheme.lightScheme().primary,
+                  backgroundColor: Colors.green.shade600,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -972,7 +1050,7 @@ class ProRequestOfferScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'Envoi en cours...',
+                            'Préparation du paiement...',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -984,10 +1062,10 @@ class ProRequestOfferScreen extends StatelessWidget {
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                          Icon(Icons.payment_rounded, color: Colors.white, size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Soumettre la demande',
+                            'Payer et publier',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -1216,39 +1294,48 @@ class ProRequestOfferScreen extends StatelessWidget {
     ProRequestOfferController controller,
     bool isStartDate
   ) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: isStartDate
-          ? (controller.startDate.value ?? DateTime.now())
-          : (controller.endDate.value ?? DateTime.now().add(const Duration(days: 7))),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      locale: const Locale('fr', 'FR'),
-      builder: (BuildContext context, Widget? child) {
-        return Localizations.override(
-          context: context,
-          locale: const Locale('fr', 'FR'),
-          child: Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: CustomTheme.lightScheme().primary,
-                onPrimary: Colors.white,
-                surface: Colors.white,
-                onSurface: Colors.black87,
+    if (isStartDate) {
+      // Sélection de la date de début
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: controller.startDate.value ?? DateTime.now(),
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        locale: const Locale('fr', 'FR'),
+        builder: (BuildContext context, Widget? child) {
+          return Localizations.override(
+            context: context,
+            locale: const Locale('fr', 'FR'),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: ColorScheme.light(
+                  primary: CustomTheme.lightScheme().primary,
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Colors.black87,
+                ),
               ),
+              child: child!,
             ),
-            child: child!,
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
 
-    if (picked != null) {
-      if (isStartDate) {
+      if (picked != null) {
         controller.startDate.value = picked;
-      } else {
-        controller.endDate.value = picked;
+        // Automatiquement définir la date de fin à 7 jours après
+        controller.endDate.value = picked.add(const Duration(days: 7));
       }
+    } else {
+      // Afficher un message que la période est fixe
+      Get.snackbar(
+        'Période fixe',
+        'La durée de publication est fixée à 7 jours',
+        backgroundColor: Colors.orange.shade100,
+        colorText: Colors.orange.shade900,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
     }
   }
 

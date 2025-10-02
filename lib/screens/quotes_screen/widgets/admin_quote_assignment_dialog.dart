@@ -248,7 +248,7 @@ class _AdminQuoteAssignmentDialogState extends State<AdminQuoteAssignmentDialog>
                                           ),
                                         ),
                                         Text(
-                                          '${widget.quote.estimatedBudget?.toStringAsFixed(2) ?? "Non spécifié"} €',
+                                          '${widget.quote.estimatedBudget ?? "Non spécifié"} €',
                                           style: const TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.bold,

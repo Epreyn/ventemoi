@@ -763,19 +763,21 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
           <tr>
             <td style="padding: 8px 0;"><strong>1ère année :</strong></td>
             <td style="padding: 8px 0; text-align: right;">
-              <span style="color: #0369a1; font-weight: bold;">870€ HT</span>
-              <span style="font-size: 12px; color: #666;">(adhésion + vidéo + cotisation)</span>
+              <span style="color: #0369a1; font-weight: bold; font-size: 18px;">1 044€ TTC</span><br>
+              <span style="font-size: 12px; color: #666;">(870€ HT - adhésion + vidéo + cotisation)</span>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;"><strong>Années suivantes :</strong></td>
             <td style="padding: 8px 0; text-align: right;">
-              <span style="color: #0369a1; font-weight: bold;">540€ HT/an</span>
+              <span style="color: #0369a1; font-weight: bold;">648€ TTC/an</span><br>
+              <span style="font-size: 12px; color: #666;">(540€ HT)</span>
             </td>
           </tr>
         </table>
         <p style="margin: 10px 0 0 0; font-size: 14px; color: #0369a1;">
-          ✅ Sans engagement après la première année
+          ✅ Sans engagement après la première année<br>
+          <span style="font-size: 12px; color: #666;">TVA de 20% incluse dans tous les prix</span>
         </p>
       </div>
 

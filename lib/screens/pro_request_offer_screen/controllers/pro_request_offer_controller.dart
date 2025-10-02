@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ventemoi/core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/services/offer_email_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/models/stripe_service.dart';
+import '../../../core/services/stripe_payment_manager.dart';
 
 class ProRequestOfferController extends GetxController with ControllerMixin {
   static const tag = 'pro-request-offer';
@@ -168,7 +171,7 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
     try {
       isLoading.value = true;
       final userId = UniquesControllers().getStorage.read('currentUserUID');
-      
+
       final requestData = {
         'user_id': userId,
         'establishment_name': establishmentNameCtrl.text.trim(),
@@ -204,10 +207,10 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
 
       // Réinitialiser le formulaire
       clearForm();
-      
+
       // Recharger les demandes
       await loadMyRequests();
-      
+
     } catch (e) {
       UniquesControllers().data.snackbar(
         'Erreur',
@@ -216,6 +219,115 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> proceedToPayment() async {
+    if (!formKey.currentState!.validate()) return;
+
+    // Vérifier que la date de début est sélectionnée
+    if (startDate.value == null) {
+      UniquesControllers().data.snackbar(
+        'Date requise',
+        'Veuillez sélectionner une date de début pour votre bannière',
+        true,
+      );
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      final userId = UniquesControllers().getStorage.read('currentUserUID');
+
+      // Calculer automatiquement la date de fin (7 jours après)
+      final endDateCalculated = startDate.value!.add(const Duration(days: 7));
+
+      // Préparer les données de l'offre pour la sauvegarde après paiement
+      final offerData = {
+        'user_id': userId,
+        'establishment_name': establishmentNameCtrl.text.trim(),
+        'contact_phone': contactPhoneCtrl.text.trim(),
+        'title': titleCtrl.text.trim(),
+        'description': descriptionCtrl.text.trim(),
+        'image_url': imageUrlCtrl.text.trim().isEmpty ? null : imageUrlCtrl.text.trim(),
+        'link_url': linkUrlCtrl.text.trim().isEmpty ? null : linkUrlCtrl.text.trim(),
+        'button_text': buttonTextCtrl.text.trim().isEmpty ? 'En savoir plus' : buttonTextCtrl.text.trim(),
+        'start_date': Timestamp.fromDate(startDate.value!),
+        'end_date': Timestamp.fromDate(endDateCalculated),
+        'price': 50, // Prix en euros
+        'duration_days': 7,
+        'status': 'pending_payment',
+        'created_at': FieldValue.serverTimestamp(),
+      };
+
+      // Sauvegarder temporairement l'offre en attente de paiement
+      final docRef = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('pending_banner_offers')
+          .add(offerData);
+
+      // Récupérer l'ID de l'établissement
+      String? establishmentId;
+      final establishmentSnap = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: userId)
+          .limit(1)
+          .get();
+
+      if (establishmentSnap.docs.isNotEmpty) {
+        establishmentId = establishmentSnap.docs.first.id;
+      }
+
+      isLoading.value = false;
+
+      // Utiliser StripePaymentManager pour gérer le paiement avec dialog d'attente
+      await StripePaymentManager.to.processBannerPayment(
+        establishmentId: establishmentId ?? docRef.id,
+        startDate: startDate.value!,
+        onSuccess: () async {
+          // Stocker l'ID de session dans l'offre
+          await docRef.update({
+            'payment_completed': true,
+            'payment_date': FieldValue.serverTimestamp(),
+          });
+
+          UniquesControllers().data.snackbar(
+            'Paiement réussi',
+            'Votre bannière publicitaire sera activée dans quelques instants',
+            false,
+          );
+
+          // Réinitialiser le formulaire
+          clearForm();
+
+          // Recharger les offres
+          await loadMyRequests();
+
+          // Rediriger vers la page de succès
+          Get.offNamed('/banner-success');
+        },
+        onError: (error) {
+          // En cas d'erreur, supprimer l'offre en attente
+          docRef.delete();
+
+          UniquesControllers().data.snackbar(
+            'Paiement annulé',
+            'Le paiement a été annulé ou a échoué',
+            true,
+          );
+        },
+      );
+
+    } catch (e) {
+      isLoading.value = false;
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible de procéder au paiement: $e',
+        true,
+      );
     }
   }
 

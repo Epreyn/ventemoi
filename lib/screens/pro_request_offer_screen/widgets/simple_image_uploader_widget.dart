@@ -25,6 +25,7 @@ class _SimpleImageUploaderWidgetState extends State<SimpleImageUploaderWidget> {
   Uint8List? _selectedImage;
   String? _imageName;
   bool _isUploading = false;
+  bool _isUploaded = false;
 
   Future<void> _pickImage() async {
     try {
@@ -40,6 +41,7 @@ class _SimpleImageUploaderWidgetState extends State<SimpleImageUploaderWidget> {
         setState(() {
           _selectedImage = bytes;
           _imageName = image.name;
+          _isUploaded = false; // Réinitialiser l'état d'upload
         });
       }
     } catch (e) {
@@ -94,10 +96,14 @@ class _SimpleImageUploaderWidgetState extends State<SimpleImageUploaderWidget> {
 
       widget.onImageUploaded(downloadUrl);
 
-      Get.back();
+      setState(() {
+        _isUploaded = true;
+      });
+
+      // Ne pas fermer automatiquement - laisser l'utilisateur décider
       Get.snackbar(
         'Succès',
-        'Image téléversée avec succès !',
+        'Image téléversée avec succès ! Vous pouvez maintenant fermer cette fenêtre.',
         backgroundColor: Colors.green.shade400,
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
@@ -292,6 +298,7 @@ class _SimpleImageUploaderWidgetState extends State<SimpleImageUploaderWidget> {
                                   setState(() {
                                     _selectedImage = null;
                                     _imageName = null;
+                                    _isUploaded = false;
                                   });
                                 },
                                 icon: const Icon(
@@ -357,65 +364,98 @@ class _SimpleImageUploaderWidgetState extends State<SimpleImageUploaderWidget> {
             const SizedBox(height: 32),
 
             // Boutons d'action
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: _isUploading ? null : (widget.onCancel ?? () => Get.back()),
-                    child: Text(
-                      'Annuler',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
+            _isUploaded
+              ? // Après téléversement réussi
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Get.back(),
+                        icon: Icon(Icons.check_circle, color: Colors.green.shade600),
+                        label: Text(
+                          'Fermer et utiliser cette image',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.green.shade600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.green.shade50,
+                          elevation: 0,
+                          side: BorderSide(
+                            color: Colors.green.shade600,
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  ],
+                )
+              : // Avant téléversement
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: _isUploading ? null : (widget.onCancel ?? () => Get.back()),
+                        child: Text(
+                          'Annuler',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: (_isUploading || _selectedImage == null) ? null : _uploadImage,
+                        icon: _isUploading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.orange,
+                                ),
+                              )
+                            : Icon(Icons.cloud_upload_rounded, color: Colors.orange.shade600),
+                        label: Text(
+                          _isUploading ? 'Téléversement...' : 'Téléverser l\'image',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.orange.shade600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey[100],
+                          elevation: 0,
+                          side: BorderSide(
+                            color: _isUploading || _selectedImage == null
+                                ? Colors.grey[300]!
+                                : Colors.orange.shade600,
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: (_isUploading || _selectedImage == null) ? null : _uploadImage,
-                    icon: _isUploading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.orange,
-                            ),
-                          )
-                        : Icon(Icons.cloud_upload_rounded, color: Colors.orange.shade600),
-                    label: Text(
-                      _isUploading ? 'Téléversement...' : 'Téléverser l\'image',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        color: Colors.orange.shade600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey[100],
-                      elevation: 0,
-                      side: BorderSide(
-                        color: _isUploading || _selectedImage == null
-                            ? Colors.grey[300]!
-                            : Colors.orange.shade600,
-                        width: 2,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

@@ -64,7 +64,13 @@ class CustomData extends GetxController {
 
     final userTypeName = docSnap.data()?['name'] ?? '';
 
-    if (userTypeName == 'Association' || userTypeName == 'Boutique') {
+    if (userTypeName == 'Association') {
+      // Pour les associations, on utilise shopIconList mais sans l'item "Ventes"
+      dynamicIconList.value = shopIconList
+          .where((item) => item.tag != Routes.proSells)
+          .toList()
+          .obs;
+    } else if (userTypeName == 'Boutique') {
       dynamicIconList.value = shopIconList;
     } else if (userTypeName == 'Entreprise') {
       dynamicIconList.value = proIconList;
@@ -276,6 +282,12 @@ class CustomData extends GetxController {
       iconData: Icons.local_offer_outlined,
       text: 'Offres du moment',
       onPressed: () => Get.offNamed(Routes.adminOffers),
+    ),
+    CustomBottomAppBarIconButtonModel(
+      tag: Routes.adminQuotes,
+      iconData: Icons.description_outlined,
+      text: 'Devis',
+      onPressed: () => Get.offNamed(Routes.adminQuotes),
     ),
     // CustomBottomAppBarIconButtonModel(
     //   tag: Routes.adminMigration,

@@ -83,7 +83,7 @@ class Establishment implements Nameable {
       affiliatesCount: data['affiliatesCount'] ?? 0,
       isVisibleOverride: data['isVisibleOverride'] ?? false,
       isAssociation: data['isAssociation'] ?? false,
-      maxVouchersPurchase: data['max_vouchers_purchase'] ?? 1,
+      maxVouchersPurchase: data['max_vouchers_purchase'] ?? 4,
       cashbackPercentage: (data['cashback_percentage'] ?? 2.0).toDouble(),
       website: data['website'] ?? '',
       isPremiumSponsor: data['is_premium_sponsor'] ?? false,

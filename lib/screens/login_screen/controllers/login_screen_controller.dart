@@ -1,10 +1,12 @@
 // lib/screens/login_screen/controllers/login_screen_controller.dart
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
 import 'package:ventemoi/core/services/gift_notification_service_simple.dart';
+import 'package:ventemoi/core/services/firebase_email_service.dart';
 import 'package:ventemoi/widgets/celebration_dialog_improved.dart';
 
 import '../../../core/classes/unique_controllers.dart';
@@ -17,6 +19,9 @@ class LoginScreenController extends GetxController {
   // ⚠️ AJOUT DES FOCUSNODES
   final FocusNode emailFocusNode = FocusNode();
   final FocusNode passwordFocusNode = FocusNode();
+
+  // État pour éviter les envois multiples
+  RxBool isResendingEmail = false.obs;
 
   String emailTag = 'email';
   String emailLabel = 'Email';
@@ -63,6 +68,8 @@ class LoginScreenController extends GetxController {
     super.onInit();
     // Charger les identifiants sauvegardés au démarrage
     loadSavedCredentials();
+    // Tenter une connexion automatique si "Se souvenir" est coché
+    attemptAutoLogin();
   }
 
   // ⚠️ IMPORTANT : Disposer des FocusNodes
@@ -85,12 +92,12 @@ class LoginScreenController extends GetxController {
       final savedEmail = storage.read('saved_email');
       final savedPassword = storage.read('saved_password');
       final savedRememberMe = storage.read('remember_me') ?? false;
-      
+
       print('🔐 Loading saved credentials:');
       print('  - Email: ${savedEmail != null ? '***' : 'null'}');
       print('  - Password: ${savedPassword != null ? '***' : 'null'}');
       print('  - Remember Me: $savedRememberMe');
-      
+
       if (savedRememberMe && savedEmail != null && savedPassword != null) {
         emailController.text = savedEmail;
         passwordController.text = savedPassword;
@@ -101,6 +108,32 @@ class LoginScreenController extends GetxController {
       }
     } catch (e) {
       print('❌ Error loading credentials: $e');
+    }
+  }
+
+  // Tenter une connexion automatique
+  Future<void> attemptAutoLogin() async {
+    try {
+      // Vérifier si "Se souvenir" est activé et que les identifiants sont présents
+      final savedRememberMe = storage.read('remember_me') ?? false;
+      final savedEmail = storage.read('saved_email');
+      final savedPassword = storage.read('saved_password');
+
+      if (savedRememberMe && savedEmail != null && savedPassword != null) {
+        print('🔄 Attempting auto-login...');
+
+        // Afficher un indicateur de chargement pendant la connexion automatique
+        UniquesControllers().data.isInAsyncCall.value = true;
+
+        // Attendre un peu pour que l'UI se charge (optionnel)
+        await Future.delayed(Duration(milliseconds: 500));
+
+        // Tenter la connexion
+        await loginSilent();
+      }
+    } catch (e) {
+      print('❌ Auto-login failed: $e');
+      UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
   
@@ -148,6 +181,184 @@ class LoginScreenController extends GetxController {
     login();
   }
 
+  // Version silencieuse de login pour l'auto-connexion
+  Future<void> loginSilent() async {
+    try {
+      // Connexion avec les identifiants sauvegardés
+      final userCredential = await UniquesControllers()
+          .data
+          .firebaseAuth
+          .signInWithEmailAndPassword(
+            email: emailController.text,
+            password: passwordController.text,
+          );
+
+      final user = userCredential.user;
+      if (user == null) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        return;
+      }
+
+      // Si l'email n'est pas vérifié, on arrête silencieusement
+      if (!user.emailVerified) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        await UniquesControllers().data.firebaseAuth.signOut();
+        return;
+      }
+
+      final uid = user.uid;
+      UniquesControllers().getStorage.write('currentUserUID', uid);
+
+      final doc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        await UniquesControllers().data.firebaseAuth.signOut();
+        return;
+      }
+
+      final data = doc.data()!;
+
+      final bool isEnabled = data['isEnable'] ?? false;
+      if (!isEnabled) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        await UniquesControllers().data.firebaseAuth.signOut();
+        return;
+      }
+
+      // Vérifier si l'onboarding doit être affiché
+      final shouldShowOnboarding =
+          await OnboardingScreenController.shouldShowOnboarding();
+      if (shouldShowOnboarding) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        Get.offAllNamed(Routes.onboarding);
+        return;
+      }
+
+      // Suite du code existant pour la redirection normale...
+      final userTypeID = data['user_type_id'] as String?;
+      final userTypeDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(userTypeID)
+          .get();
+      final userType = userTypeDoc.data()!['name'] as String;
+
+      // Initialiser le service de notifications de cadeaux en parallèle
+      print('🎁 GIFT CHECK: Initializing gift notification service...');
+      Future<List<GiftNotification>> giftCheckFuture = Future.value([]);
+
+      if (!Get.isRegistered<GiftNotificationServiceSimple>()) {
+        await Get.putAsync(() => GiftNotificationServiceSimple().init());
+      }
+
+      // Lancer la vérification des cadeaux en arrière-plan (sans await)
+      final giftService = Get.find<GiftNotificationServiceSimple>();
+      giftCheckFuture = Future(() async {
+        print('🎁 GIFT CHECK: Checking for new gifts in background...');
+        await giftService.cleanTestDocuments();
+        final gifts = await giftService.checkForNewGiftsSimple();
+        print('🎁 GIFT CHECK: Found ${gifts.length} new gifts/points');
+        return gifts;
+      });
+
+      // Redirection selon le type d'utilisateur
+      String targetRoute;
+
+      // Pour les établissements, vérifier s'ils sont visibles
+      bool shouldGoToExplorer = false;
+
+      if (userType == 'Administrateur') {
+        targetRoute = Routes.adminUsers;
+      } else if (userType == 'Particulier') {
+        targetRoute = Routes.shopEstablishment;
+      } else if (userType == 'Boutique' || userType == 'Entreprise' ||
+                 userType == 'Sponsor' || userType == 'Cine7com' ||
+                 userType == 'Association') {
+        // Récupérer les informations de l'établissement
+        final estabQuery = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .where('user_id', isEqualTo: uid)
+            .limit(1)
+            .get();
+
+        if (estabQuery.docs.isNotEmpty) {
+          final estabData = estabQuery.docs.first.data();
+          final isVisible = estabData['is_visible'] ?? false;
+
+          if (!isVisible) {
+            shouldGoToExplorer = true;
+            targetRoute = Routes.shopEstablishment;
+          } else {
+            // Si c'est un Sponsor, aller vers la page des commissions
+            if (userType == 'Sponsor') {
+              targetRoute = Routes.adminCommissions;
+            } else {
+              targetRoute = Routes.profile;
+            }
+          }
+        } else {
+          targetRoute = Routes.profile;
+        }
+      } else {
+        targetRoute = Routes.shopEstablishment;
+      }
+
+      UniquesControllers().data.isInAsyncCall.value = false;
+
+      // Naviguer vers la bonne page
+      Get.offAllNamed(targetRoute);
+
+      // Si l'établissement n'est pas visible, afficher le message
+      if (shouldGoToExplorer) {
+        await Future.delayed(Duration(milliseconds: 500));
+        Get.snackbar(
+          'Profil en attente',
+          'Votre établissement est en cours de validation. Explorez l\'application en attendant !',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          duration: Duration(seconds: 4),
+          snackPosition: SnackPosition.TOP,
+          margin: EdgeInsets.all(16),
+          borderRadius: 12,
+          icon: Icon(Icons.hourglass_empty, color: Colors.white),
+        );
+      }
+
+      // Vérifier les cadeaux en arrière-plan
+      giftCheckFuture.then((gifts) {
+        if (gifts.isNotEmpty) {
+          Get.dialog(
+            CelebrationDialogImproved(
+              notifications: gifts,
+              onClose: () => Get.back(),
+            ),
+            barrierDismissible: false,
+            useSafeArea: true,
+          );
+        }
+      }).catchError((error) {
+        print('🎁 GIFT CHECK ERROR: $error');
+      });
+
+      print('🎉 Auto-login successful! Redirecting to: $targetRoute');
+
+    } catch (e) {
+      print('❌ Silent login failed: $e');
+      UniquesControllers().data.isInAsyncCall.value = false;
+      // En cas d'échec de l'auto-connexion, on reste sur la page de login
+      // sans afficher de message d'erreur
+    }
+  }
+
   void login() async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
@@ -169,7 +380,269 @@ class LoginScreenController extends GetxController {
             password: passwordController.text,
           );
 
-      final uid = userCredential.user!.uid;
+      final user = userCredential.user;
+      if (user == null) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        UniquesControllers().data.snackbar(
+            'Erreur', 'Impossible de récupérer les informations utilisateur', true);
+        return;
+      }
+
+      // Vérifier si l'email est vérifié
+      if (!user.emailVerified) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+
+        // Afficher un dialogue moderne et informatif
+        Get.dialog(
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.mark_email_unread,
+                    size: 48,
+                    color: Colors.orange,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Email non vérifié',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Pour accéder à votre compte, vous devez d\'abord vérifier votre adresse email.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Vérifiez votre boîte mail et vos spams',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Email envoyé à :',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '${user.email}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Get.back();
+                  await UniquesControllers().data.firebaseAuth.signOut();
+                },
+                child: Text(
+                  'Fermer',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: isResendingEmail.value ? null : () async {
+                  if (isResendingEmail.value) return;
+                  isResendingEmail.value = true;
+
+                  try {
+                    // Afficher un loader pendant l'envoi
+                    Get.back();
+                    UniquesControllers().data.isInAsyncCall.value = true;
+
+                    // Utiliser la Cloud Function pour envoyer l'email personnalisé
+                    try {
+                      final HttpsCallable callable = FirebaseFunctions.instanceFor(region: 'europe-west1')
+                          .httpsCallable('resendVerificationEmail');
+
+                      final result = await callable.call();
+
+                      if (result.data['success'] != true) {
+                        throw Exception(result.data['message'] ?? 'Erreur inconnue');
+                      }
+
+                      print('✅ Email personnalisé envoyé via Cloud Function');
+                    } catch (e) {
+                      print('⚠️ Erreur Cloud Function, fallback sur méthode standard: $e');
+                      // Fallback sur la méthode standard si la Cloud Function échoue
+                      await user.sendEmailVerification();
+                    }
+
+                    UniquesControllers().data.isInAsyncCall.value = false;
+                    isResendingEmail.value = false;
+
+                    // Afficher un dialogue de succès
+                    Get.dialog(
+                      AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.check_circle,
+                                size: 48,
+                                color: Colors.green,
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Email envoyé !',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Un nouvel email de vérification a été envoyé à ${user.email}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.timer, color: Colors.amber[700], size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Vérifiez dans quelques minutes',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.amber[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Get.back();
+                              UniquesControllers().data.firebaseAuth.signOut();
+                            },
+                            child: Text('OK'),
+                          ),
+                        ],
+                      ),
+                      barrierDismissible: false,
+                    );
+                  } catch (e) {
+                    Get.back();
+                    UniquesControllers().data.isInAsyncCall.value = false;
+                    isResendingEmail.value = false;
+
+                    // Afficher un dialogue d'erreur
+                    Get.dialog(
+                      AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Erreur'),
+                          ],
+                        ),
+                        content: Text(
+                          'Impossible d\'envoyer l\'email. Veuillez réessayer plus tard.',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Get.back();
+                              UniquesControllers().data.firebaseAuth.signOut();
+                            },
+                            child: Text('Fermer'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                },
+                icon: Icon(Icons.send, size: 18, color: Colors.white),
+                label: Text('Renvoyer l\'email', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+
+        return;
+      }
+
+      final uid = user.uid;
       UniquesControllers().getStorage.write('currentUserUID', uid);
 
       final doc = await UniquesControllers()

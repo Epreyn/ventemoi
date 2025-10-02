@@ -82,6 +82,9 @@ class ProEstablishmentProfileScreenController extends GetxController
   // Nombre maximum de bons achetables
   RxInt maxVouchersPurchase = 1.obs;
 
+  // Conditions d'utilisation des bons cadeaux
+  final TextEditingController voucherUsageConditionsController = TextEditingController();
+
   // Bannière / Logo
   RxString bannerUrl = ''.obs;
   RxBool isPickedBanner = false.obs;
@@ -486,6 +489,9 @@ class ProEstablishmentProfileScreenController extends GetxController
       final maxVouchers = data['max_vouchers_purchase'] ?? 1;
       maxVouchersPurchase.value = maxVouchers;
 
+      // Lire les conditions d'utilisation des bons cadeaux
+      voucherUsageConditionsController.text = data['voucher_usage_conditions'] ?? '';
+
       // Initialiser les dropdowns (ancien système)
       final List<dynamic>? entCats =
           data['enterprise_categories'] as List<dynamic>?;
@@ -659,6 +665,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         'category_id': currentCategory.value?.id ?? '',
         'enterprise_categories': selectedEnterpriseCategoryIds,
         'max_vouchers_purchase': maxVouchersPurchase.value,
+        'voucher_usage_conditions': voucherUsageConditionsController.text.trim(),
       };
 
       // Sauvegarder

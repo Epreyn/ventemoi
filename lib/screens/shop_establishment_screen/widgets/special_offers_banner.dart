@@ -134,12 +134,10 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                         autoPlayAnimationDuration:
                             const Duration(milliseconds: 800),
                         autoPlayCurve: Curves.easeInOutCubic,
-                        enlargeCenterPage: !isDesktop || offers.length <= 2,
-                        enlargeStrategy: CenterPageEnlargeStrategy.scale,
-                        enlargeFactor: 0.15,
+                        enlargeCenterPage: false, // Désactiver l'agrandissement
                         viewportFraction: viewportFraction,
                         enableInfiniteScroll: offers.length > 1,
-                        padEnds: isDesktop,
+                        padEnds: true, // Garder pour le centrage mobile
                         onPageChanged: (index, reason) {
                           setState(() {
                             _currentIndex = index;
@@ -155,6 +153,57 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                         );
                       },
                     ),
+                    // Dégradés blancs opaques sur les côtés
+                    if (offers.length > 1) ...[
+                      // Dégradé gauche
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: Container(
+                            width: screenWidth * 0.10, // 10% de largeur
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Theme.of(context).scaffoldBackgroundColor,
+                                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+                                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7),
+                                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.0),
+                                ],
+                                stops: const [0.0, 0.3, 0.7, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Dégradé droite
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: Container(
+                            width: screenWidth * 0.10, // 10% de largeur
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerRight,
+                                end: Alignment.centerLeft,
+                                colors: [
+                                  Theme.of(context).scaffoldBackgroundColor,
+                                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.95),
+                                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.7),
+                                  Theme.of(context).scaffoldBackgroundColor.withOpacity(0.0),
+                                ],
+                                stops: const [0.0, 0.3, 0.7, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     // Flèches de navigation (seulement si nécessaire)
                     if (showNavButtons) ...[
                       Positioned(

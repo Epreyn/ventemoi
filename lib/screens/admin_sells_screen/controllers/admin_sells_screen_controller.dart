@@ -50,6 +50,7 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
   // Gestion des streams
   // ---------------------------------------------------------------------------
   StreamSubscription<QuerySnapshot>? _purchasesSubscription;
+  StreamSubscription<QuerySnapshot>? _vouchersSubscription;
 
   // ---------------------------------------------------------------------------
   // Statistiques calculées
@@ -182,6 +183,7 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
   @override
   void onClose() {
     _purchasesSubscription?.cancel();
+    _vouchersSubscription?.cancel();
     super.onClose();
   }
 
@@ -189,6 +191,11 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
   // Initialisation des données
   // ---------------------------------------------------------------------------
   void _initializeDataStream() {
+    // Variables pour stocker les dernières valeurs
+    List<Purchase> latestPurchasesList = [];
+    List<Purchase> latestVouchersList = [];
+
+    // Stream pour les achats classiques (purchases)
     _purchasesSubscription = UniquesControllers()
         .data
         .firebaseFirestore
@@ -196,21 +203,54 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
         .orderBy('date', descending: true)
         .snapshots()
         .listen((snapshot) {
-      final purchasesList = snapshot.docs
+      latestPurchasesList = snapshot.docs
           .map((doc) => Purchase.fromDocumentSnapshot(doc))
           .toList();
 
-      purchases.value = purchasesList;
-
-      // Précharger les noms pour améliorer les performances
-      _preloadParticipantNames();
+      // Combiner les deux listes
+      _updateCombinedList(latestPurchasesList, latestVouchersList);
     }, onError: (error) {
-      UniquesControllers().data.snackbar(
-            'Erreur',
-            'Impossible de charger les ventes',
-            true,
-          );
+      print('Erreur chargement purchases: $error');
     });
+
+    // Stream pour les bons cadeaux (vouchers)
+    _vouchersSubscription = UniquesControllers()
+        .data
+        .firebaseFirestore
+        .collection('vouchers')
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+      final newVouchersList = <Purchase>[];
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data();
+          newVouchersList.add(Purchase.fromVoucherDocument(doc.id, data));
+        } catch (e) {
+          print('Erreur parsing voucher ${doc.id}: $e');
+        }
+      }
+      latestVouchersList = newVouchersList;
+
+      // Combiner les deux listes
+      _updateCombinedList(latestPurchasesList, latestVouchersList);
+    }, onError: (error) {
+      print('Erreur chargement vouchers: $error');
+    });
+  }
+
+  void _updateCombinedList(List<Purchase> purchasesList, List<Purchase> vouchersList) {
+    // Combiner les deux listes
+    final combined = [...purchasesList, ...vouchersList];
+
+    // Trier par date décroissante
+    combined.sort((a, b) => b.date.compareTo(a.date));
+
+    // Mettre à jour l'observable
+    purchases.value = combined;
+
+    // Précharger les noms pour améliorer les performances
+    _preloadParticipantNames();
   }
 
   // ---------------------------------------------------------------------------
@@ -342,7 +382,24 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
     }
 
     try {
-      // D'abord essayer de récupérer l'établissement
+      // D'abord essayer de récupérer directement l'établissement par son ID
+      final establishmentDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .doc(sellerId)
+          .get();
+
+      if (establishmentDoc.exists) {
+        final establishmentData = establishmentDoc.data()!;
+        return {
+          'name': (establishmentData['name'] ?? 'Établissement sans nom')
+              .toString(),
+          'email': (establishmentData['email'] ?? '').toString(),
+        };
+      }
+
+      // Si ce n'est pas un ID d'établissement, chercher par user_id
       final establishmentQuery = await UniquesControllers()
           .data
           .firebaseFirestore

@@ -49,6 +49,27 @@ class Purchase {
     return Purchase.fromDocument(doc.id, data);
   }
 
+  // Constructor pour vouchers (bons cadeaux)
+  factory Purchase.fromVoucherDocument(String id, Map<String, dynamic> data) {
+    return Purchase(
+      id: id,
+      buyerId: data['buyer_id'] ?? '',
+      sellerId: data['establishment_id'] ?? data['shop_id'] ?? data['seller_id'] ?? '',
+      couponsCount: 1, // Un bon = 1 unité
+      reclamationPassword: data['voucher_code'] ?? data['code'] ?? '',
+      isReclaimed: data['status'] == 'used' || data['used_at'] != null,
+      date: _parseDate(data['created_at']),
+      isDonation: false,
+    );
+  }
+
+  static DateTime _parseDate(dynamic dateValue) {
+    if (dateValue == null) return DateTime.now();
+    if (dateValue is Timestamp) return dateValue.toDate();
+    if (dateValue is String) return DateTime.parse(dateValue);
+    return DateTime.now();
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'buyer_id': buyerId,

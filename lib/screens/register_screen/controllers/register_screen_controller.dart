@@ -14,6 +14,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/services/association_visibility_service.dart';
 import '../../../core/services/association_waitlist_service.dart';
 import '../../../core/services/communication_team_email_service.dart';
+import '../../../core/services/firebase_email_service.dart';
 
 class RegisterScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Inscription'.toUpperCase();
@@ -530,6 +531,10 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .doc(user.uid)
           .set(userData);
 
+      // L'email de vérification sera envoyé automatiquement par la Cloud Function
+      // sendCustomVerificationEmail qui se déclenche sur auth.user().onCreate()
+      // Pas besoin d'appeler sendEmailVerification() ici
+
       // Calculer les points de bienvenue
       int welcomePoints = 0; // Pas de bonus automatique
 
@@ -782,10 +787,10 @@ class RegisterScreenController extends GetxController with ControllerMixin {
       Get.offAllNamed(Routes.login);
 
       // Message personnalisé en fonction des points reçus
-      String successMessage = 'Inscription réussie !';
+      String successMessage = 'Inscription réussie ! Un email de vérification vous a été envoyé. Veuillez vérifier votre boîte mail (et vos spams) pour activer votre compte.';
       if (pendingPoints > 0) {
         successMessage =
-            'Bienvenue ! Vous avez reçu ${pendingPoints} points qui vous attendaient.';
+            'Bienvenue ! Vous avez reçu ${pendingPoints} points qui vous attendaient. Un email de vérification vous a été envoyé.';
       }
 
       UniquesControllers().data.snackbar(

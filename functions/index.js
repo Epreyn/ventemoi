@@ -6,6 +6,27 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Importer les fonctions d'email de vérification
+const emailVerification = require('./email-verification');
+exports.sendCustomVerificationEmail = emailVerification.sendCustomVerificationEmail;
+exports.resendVerificationEmail = emailVerification.resendVerificationEmail;
+exports.testVerificationEmail = emailVerification.testVerificationEmail;
+
+// Importer les fonctions de paiement des bannières
+const bannerPayment = require('./banner-payment');
+exports.processBannerPaymentSuccess = bannerPayment.processBannerPaymentSuccess;
+exports.deactivateExpiredBanners = bannerPayment.deactivateExpiredBanners;
+
+// Importer les fonctions pour les points initiaux des sponsors
+const sponsorPoints = require('./sponsor-initial-points');
+exports.fixSponsorInitialPoints = sponsorPoints.fixSponsorInitialPoints;
+exports.grantInitialSponsorPoints = sponsorPoints.grantInitialSponsorPoints;
+
+// Importer les fonctions de rappel pour les bons cadeaux
+const voucherReminders = require('./voucher-expiry-reminder');
+exports.sendVoucherExpiryReminders = voucherReminders.sendVoucherExpiryReminders;
+exports.testVoucherReminders = voucherReminders.testVoucherReminders;
+
 // Initialiser Stripe avec gestion d'erreur
 let stripe;
 try {

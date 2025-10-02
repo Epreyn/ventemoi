@@ -93,7 +93,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                     SizedBox(width: 6),
                     Text(
-                      'v 1.9.9',
+                      'v 2.0.0',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -315,7 +315,7 @@ class LoginScreen extends StatelessWidget {
                                       )),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Se souvenir de moi',
+                                    'Se souvenir',
                                     style: TextStyle(
                                       color: Colors.grey[700],
                                       fontSize: 14,
@@ -384,7 +384,7 @@ class LoginScreen extends StatelessWidget {
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        'Se souvenir de moi',
+                                        'Se souvenir',
                                         style: TextStyle(
                                           color: Colors.grey[700],
                                           fontSize: 14,

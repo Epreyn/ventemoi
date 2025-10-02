@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +13,7 @@ import '../../../core/classes/controller_mixin.dart';
 import '../../../core/classes/unique_controllers.dart';
 import '../../../core/routes/app_routes.dart'; // ajustez selon vos imports
 import '../../../core/services/payment_validation_hook.dart';
+import '../../../core/services/account_deletion_service.dart';
 import '../../../core/theme/custom_theme.dart';
 import '../../../features/custom_card_animation/view/custom_card_animation.dart';
 import '../../../features/custom_space/view/custom_space.dart';
@@ -44,6 +46,8 @@ class ProfileScreenController extends GetxController with ControllerMixin {
   String? currentWalletDocId;
   // Id d'établissement (si besoin, ex: pour user de type Boutique)
   String? userEstablishmentId;
+  // Nom de l'établissement
+  RxString establishmentName = ''.obs;
 
   // ---------------------------
   // Lifecycle
@@ -53,6 +57,27 @@ class ProfileScreenController extends GetxController with ControllerMixin {
     super.onInit();
     _fetchWalletDocId();
     _fetchUserEstablishmentId();
+  }
+
+  // ---------------------------
+  // Recharger les infos du wallet
+  // ---------------------------
+  Future<void> loadWalletInfo() async {
+    await _fetchWalletDocId();
+    // Force un rafraîchissement du stream
+    if (currentWalletDocId != null) {
+      final walletDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .doc(currentWalletDocId)
+          .get();
+
+      if (walletDoc.exists) {
+        final data = walletDoc.data()!;
+        couponsController.text = '${data['coupons'] ?? 0}';
+      }
+    }
   }
 
   // ---------------------------
@@ -88,6 +113,8 @@ class ProfileScreenController extends GetxController with ControllerMixin {
         .get();
     if (estDoc.docs.isNotEmpty) {
       userEstablishmentId = estDoc.docs.first.id;
+      final estData = estDoc.docs.first.data();
+      establishmentName.value = estData['name'] ?? 'Boutique';
     }
   }
 
@@ -722,46 +749,71 @@ class ProfileScreenController extends GetxController with ControllerMixin {
         return;
       }
 
-      // 1) Create the points_requests doc
-      final pointsRequestsRef = UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('points_requests')
-          .doc();
-      await pointsRequestsRef.set({
-        'user_id': uid,
-        'wallet_id': currentWalletDocId ?? '',
-        'establishment_id': userEstablishmentId ?? '',
-        'coupons_count': nb,
-        'isValidated': false,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+      // NOUVEAU: Créer directement les bons renouvelés pour la boutique
+      final batch = UniquesControllers().data.firebaseFirestore.batch();
+      final now = DateTime.now();
+      final expiryDate = now.add(const Duration(days: 90));
 
-      // 2) Fetch user doc (the "enterprise" user) to get name & email
+      // Générer les bons renouvelés
+      for (int i = 0; i < nb; i++) {
+        final voucherCode = _generateVoucherCode();
+        final voucherRef = UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('vouchers')
+            .doc();
+
+        batch.set(voucherRef, {
+          'buyer_id': uid, // La boutique qui renouvelle
+          'establishment_id': userEstablishmentId ?? '',
+          'establishment_name': establishmentName.value,
+          'value': 50, // Valeur du bon : 50€
+          'code': voucherCode,
+          'created_at': now.toIso8601String(),
+          'expiry_date': expiryDate.toIso8601String(),
+          'status': 'active',
+          'used_at': null,
+          // IMPORTANT: Marquer comme bon renouvelé
+          'is_renewed': true,
+          'renewal_date': now.toIso8601String(),
+          'renewal_cost': 15, // Coût pour la boutique : 15€
+          'ventemoi_owes': 35, // Ce que VenteMoi doit : 35€
+          'payment_status': 'pending', // Statut du paiement par VenteMoi
+          'payment_date': null,
+        });
+      }
+
+      // Mettre à jour le wallet de la boutique
+      if (currentWalletDocId != null) {
+        final walletRef = UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('wallets')
+            .doc(currentWalletDocId);
+
+        batch.update(walletRef, {
+          'coupons': FieldValue.increment(nb),
+          'last_renewal': now.toIso8601String(),
+        });
+      }
+
+      // Exécuter le batch
+      await batch.commit();
+
+      // 2) Fetch user doc (the "enterprise" user) to get name & email pour notifications
       final userSnap = await UniquesControllers()
           .data
           .firebaseFirestore
           .collection('users')
           .doc(uid)
           .get();
-      if (!userSnap.exists) {
-        // If there's no doc, you may want to skip emailing
-        UniquesControllers().data.snackbar(
-              'Info',
-              'Impossible de trouver le document user. Pas d\'email pour la notification.',
-              true,
-            );
-      } else {
+      if (userSnap.exists) {
         final userData = userSnap.data()!;
         final enterpriseEmail = (userData['email'] ?? '').toString().trim();
         final enterpriseName = (userData['name'] ?? '').toString().trim();
 
-        // 3) Notify admins by email
-        await sendEnterpriseBuyCouponsRequestEmailToAdmins(
-          enterpriseEmail: enterpriseEmail,
-          enterpriseName: enterpriseName,
-          couponsCount: nb,
-        );
+        // Envoyer un email de confirmation (au lieu de demande)
+        // TODO: Créer une nouvelle fonction pour email de confirmation de renouvellement
 
         // NOUVEAU: Si c'est une entreprise/boutique qui vient de payer et accepter les CGU
         // Déclencher le hook de parrainage
@@ -780,9 +832,12 @@ class ProfileScreenController extends GetxController with ControllerMixin {
         }
       }
 
+      // Rafraîchir le nombre de bons dans l'interface
+      await loadWalletInfo();
+
       UniquesControllers().data.snackbar(
-            'Demande envoyée',
-            'Votre demande de crédit de ${sliderValue.value} bon(s) a bien été créée.',
+            'Bons crédités',
+            'Vos ${nb} bon(s) ont été crédités avec succès !',
             false,
           );
     } catch (e) {
@@ -792,42 +847,151 @@ class ProfileScreenController extends GetxController with ControllerMixin {
     }
   }
 
+  // Fonction helper pour générer un code de bon unique
+  String _generateVoucherCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return List.generate(8, (index) => chars[random.nextInt(chars.length)]).join();
+  }
+
   // ---------------------------
   // Suppression compte
   // ---------------------------
   Future<void> deleteAccount() async {
-    openAlertDialog(
-      'Supprimer le compte',
-      confirmText: 'Supprimer',
-      confirmColor: CustomTheme.lightScheme().error,
+    // Afficher d'abord un dialogue d'avertissement détaillé
+    Get.dialog(
+      AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: CustomTheme.lightScheme().error),
+            SizedBox(width: 8),
+            Text('Supprimer votre compte'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cette action est irréversible !',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: CustomTheme.lightScheme().error,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text('La suppression de votre compte entraînera :'),
+              SizedBox(height: 8),
+              _buildDeletionItem('• Suppression de vos informations personnelles'),
+              _buildDeletionItem('• Perte de tous vos points et bons'),
+              _buildDeletionItem('• Suppression de votre historique de parrainage'),
+              _buildDeletionItem('• Impossibilité de récupérer votre compte'),
+              SizedBox(height: 16),
+              Text(
+                'Vos transactions passées seront anonymisées pour préserver l\'historique des autres utilisateurs.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              _proceedWithDeletion();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: CustomTheme.lightScheme().error,
+            ),
+            child: Text('Continuer la suppression'),
+          ),
+        ],
+      ),
     );
   }
 
-  @override
-  Widget alertDialogContent() {
-    return const Text('Êtes-vous sûr de vouloir supprimer votre compte ?');
+  Widget _buildDeletionItem(String text) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 4),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 14),
+      ),
+    );
   }
 
-  @override
-  Future<void> actionAlertDialog() async {
+  Future<void> _proceedWithDeletion() async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
       final user = UniquesControllers().data.firebaseAuth.currentUser;
       if (user == null) return;
+
       final uid = user.uid;
       final userEmail = user.email;
 
-      // IMPORTANT: Essayer de supprimer d'abord le compte Firebase Auth
-      // Cela peut échouer si l'utilisateur n'est pas réauthentifié récemment
+      // Récupérer le nom de l'utilisateur
+      String? userName;
+      final userDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (userDoc.exists) {
+        userName = userDoc.data()?['name'];
+      }
+
+      // Vérifier d'abord si l'utilisateur peut supprimer son compte
+      final deletionService = AccountDeletionService();
+
       try {
-        await user.delete();
+        await deletionService.canDeleteAccount(uid);
+      } catch (e) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        Get.dialog(
+          AlertDialog(
+            title: Text('Suppression impossible'),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text('Compris'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Essayer de supprimer directement
+      try {
+        await deletionService.deleteUserAccount(
+          uid: uid,
+          userEmail: userEmail,
+          userName: userName,
+        );
+
+        UniquesControllers().data.isInAsyncCall.value = false;
+        UniquesControllers().data.snackbar(
+          'Compte supprimé',
+          'Votre compte a été supprimé avec succès. Nous sommes tristes de vous voir partir.',
+          false,
+        );
+        Get.offAllNamed(Routes.login);
+
       } catch (authError) {
-        // Si la suppression échoue (besoin de ré-authentification), 
-        // on demande le mot de passe
+        // Si la suppression échoue (besoin de ré-authentification)
         if (authError.toString().contains('requires-recent-login')) {
           UniquesControllers().data.isInAsyncCall.value = false;
-          
+
           // Demander le mot de passe pour ré-authentifier
+          final passwordController = TextEditingController();
           Get.dialog(
             AlertDialog(
               title: Text('Confirmation requise'),
@@ -838,14 +1002,14 @@ class ProfileScreenController extends GetxController with ControllerMixin {
                   SizedBox(height: 16),
                   TextField(
                     obscureText: true,
-                    controller: TextEditingController(),
+                    controller: passwordController,
                     decoration: InputDecoration(
                       labelText: 'Mot de passe',
                       border: OutlineInputBorder(),
                     ),
-                    onSubmitted: (password) async {
+                    onSubmitted: (password) {
                       Get.back();
-                      await _deleteAccountWithReauth(userEmail!, password);
+                      _deleteAccountWithReauth(userEmail!, password, userName);
                     },
                   ),
                 ],
@@ -855,26 +1019,27 @@ class ProfileScreenController extends GetxController with ControllerMixin {
                   onPressed: () => Get.back(),
                   child: Text('Annuler'),
                 ),
+                ElevatedButton(
+                  onPressed: () {
+                    Get.back();
+                    _deleteAccountWithReauth(
+                      userEmail!,
+                      passwordController.text,
+                      userName,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: CustomTheme.lightScheme().error,
+                  ),
+                  child: Text('Supprimer'),
+                ),
               ],
             ),
           );
-          return;
         } else {
           throw authError;
         }
       }
-
-      // Si on arrive ici, le compte Auth a été supprimé avec succès
-      // Maintenant supprimer toutes les données Firestore
-      await _deleteUserData(uid);
-
-      UniquesControllers().data.isInAsyncCall.value = false;
-
-      UniquesControllers().data.snackbar(
-          'Compte supprimé', 'Votre compte a été supprimé avec succès.', false);
-
-      // Redirection vers l'écran de login
-      Get.offAllNamed(Routes.login);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
@@ -882,86 +1047,59 @@ class ProfileScreenController extends GetxController with ControllerMixin {
   }
 
   // Méthode pour supprimer le compte avec ré-authentification
-  Future<void> _deleteAccountWithReauth(String email, String password) async {
+  Future<void> _deleteAccountWithReauth(String email, String password, String? userName) async {
     try {
       UniquesControllers().data.isInAsyncCall.value = true;
-      
+
       // Ré-authentifier l'utilisateur
       final credential = EmailAuthProvider.credential(
         email: email,
         password: password,
       );
-      
+
       final user = UniquesControllers().data.firebaseAuth.currentUser;
       if (user == null) return;
-      
+
       await user.reauthenticateWithCredential(credential);
       final uid = user.uid;
-      
-      // Maintenant supprimer le compte Auth
-      await user.delete();
-      
-      // Supprimer toutes les données Firestore
-      await _deleteUserData(uid);
-      
+
+      // Utiliser le service de suppression
+      final deletionService = AccountDeletionService();
+      await deletionService.deleteUserAccount(
+        uid: uid,
+        userEmail: email,
+        userName: userName,
+      );
+
       UniquesControllers().data.isInAsyncCall.value = false;
-      
+
       UniquesControllers().data.snackbar(
-          'Compte supprimé', 'Votre compte a été supprimé avec succès.', false);
-      
+        'Compte supprimé',
+        'Votre compte a été supprimé avec succès. Nous sommes tristes de vous voir partir.',
+        false,
+      );
+
       // Redirection vers l'écran de login
       Get.offAllNamed(Routes.login);
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
-      UniquesControllers().data.snackbar('Erreur', 'Mot de passe incorrect ou erreur lors de la suppression.', true);
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Mot de passe incorrect ou erreur lors de la suppression.',
+        true,
+      );
     }
   }
 
-  // Méthode pour supprimer toutes les données utilisateur de Firestore
-  Future<void> _deleteUserData(String uid) async {
-    // 1) Supprime le doc 'users/{uid}'
-    await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('users')
-        .doc(uid)
-        .delete();
+  // Ces méthodes ne sont plus nécessaires avec le nouveau AlertDialog
+  @override
+  Widget alertDialogContent() {
+    return const SizedBox.shrink();
+  }
 
-    // 2) Supprime le(s) doc(s) 'wallets'
-    final walletSnap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('wallets')
-        .where('user_id', isEqualTo: uid)
-        .get();
-
-    for (var d in walletSnap.docs) {
-      await d.reference.delete();
-    }
-
-    // 3) Supprime les établissements
-    final estabSnap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('establishments')
-        .where('user_id', isEqualTo: uid)
-        .get();
-
-    for (var d in estabSnap.docs) {
-      await d.reference.delete();
-    }
-
-    // 4) Supprime les sponsorships
-    final sponsorSnap = await UniquesControllers()
-        .data
-        .firebaseFirestore
-        .collection('sponsorships')
-        .where('user_id', isEqualTo: uid)
-        .get();
-
-    for (var d in sponsorSnap.docs) {
-      await d.reference.delete();
-    }
+  @override
+  Future<void> actionAlertDialog() async {
+    // Cette méthode n'est plus utilisée
   }
 
   // ---------------------------

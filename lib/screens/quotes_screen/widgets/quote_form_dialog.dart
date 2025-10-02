@@ -411,18 +411,6 @@ class _QuoteFormDialogState extends State<QuoteFormDialog> with SingleTickerProv
                                   },
                                 ),
 
-                                const SizedBox(height: 16),
-
-                                _buildModernTextField(
-                                  controller: controller.estimatedBudgetController,
-                                  label: 'Budget estimé',
-                                  icon: Icons.euro_outlined,
-                                  iconColor: Colors.teal,
-                                  keyboardType: TextInputType.number,
-                                  suffix: '€',
-                                  onChanged: (_) => _simulatePoints(),
-                                ),
-
                                 // Simulation de points
                                 if (simulatedPoints > 0) ...[
                                   const SizedBox(height: 16),
@@ -483,6 +471,18 @@ class _QuoteFormDialogState extends State<QuoteFormDialog> with SingleTickerProv
                                     ),
                                   ),
                                 ],
+
+                                const SizedBox(height: 16),
+
+                                _buildModernTextField(
+                                  controller: controller.estimatedBudgetController,
+                                  label: 'Budget estimé',
+                                  icon: Icons.euro_outlined,
+                                  iconColor: Colors.teal,
+                                  keyboardType: TextInputType.number,
+                                  suffix: '€',
+                                  onChanged: (_) => _simulatePoints(),
+                                ),
 
                                 const SizedBox(height: 32),
 

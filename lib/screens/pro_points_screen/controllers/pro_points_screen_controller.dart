@@ -323,9 +323,51 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
 
       // 1) Vérifier si l'utilisateur (Particulier) existe ou le créer
       final existingUser = await findUserByEmail(email);
-      final String userId = existingUser == null
+      String userId = existingUser == null
           ? await createUserWithoutSwitchingSession(email)
           : existingUser['uid'];
+
+      // Vérifier si c'est une association et récupérer le propriétaire si c'est le cas
+      bool isAssociation = false;
+      String? ownerEmail;
+      if (existingUser != null && existingUser['user_type_id'] != null) {
+        final userTypeDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('user_types')
+            .doc(existingUser['user_type_id'])
+            .get();
+
+        if (userTypeDoc.exists && userTypeDoc.data()?['name'] == 'Association') {
+          isAssociation = true;
+          // C'est une association, on cherche le propriétaire
+          final establishmentQuery = await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('establishments')
+              .where('user_id', isEqualTo: userId)
+              .limit(1)
+              .get();
+
+          if (establishmentQuery.docs.isNotEmpty) {
+            final ownerUserId = establishmentQuery.docs.first.data()['owner_user_id'];
+            if (ownerUserId != null && ownerUserId.toString().isNotEmpty) {
+              // On attribue les points au propriétaire de l'association
+              userId = ownerUserId;
+              // Récupérer l'email du propriétaire pour le message
+              final ownerDoc = await UniquesControllers()
+                  .data
+                  .firebaseFirestore
+                  .collection('users')
+                  .doc(ownerUserId)
+                  .get();
+              if (ownerDoc.exists) {
+                ownerEmail = ownerDoc.data()?['email'];
+              }
+            }
+          }
+        }
+      }
 
       // 2) Calcul des points => 1.6%
       final points = (montant * (manualPercentage.value / 100.0)).floor();
@@ -378,9 +420,13 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
         );
       }
 
+      String successMessage = isAssociation && ownerEmail != null
+          ? 'Montant $montant € => $points points attribués au propriétaire de l\'association ($ownerEmail)'
+          : 'Montant $montant € => $points points attribués à $email';
+
       UniquesControllers().data.snackbar(
             'Succès',
-            'Montant $montant € => $points points attribués à $email',
+            successMessage,
             false,
           );
 
@@ -635,40 +681,6 @@ class ProPointsScreenController extends GetxController with ControllerMixin {
                 await updatePotentialPoints(value);
               },
             ),
-            const CustomSpace(heightMultiplier: 4),
-
-            // => Affichage du nb de points potentiel
-            Obx(() {
-              if (!montantValide.value) {
-                return Text(
-                  'Entrez un montant d\'au moins ${MONTANT_MINIMUM.toStringAsFixed(0)}€ pour voir les points',
-                  style: TextStyle(
-                    fontSize: UniquesControllers().data.baseSpace * 1.75,
-                    color: Colors.grey.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: UniquesControllers().data.baseSpace * 3,
-                  ),
-                  const CustomSpace(heightMultiplier: 1),
-                  Text(
-                    'Ce montant équivaut à ${potentialPoints.value} points',
-                    style: TextStyle(
-                      fontSize: UniquesControllers().data.baseSpace * 2,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ],
-              );
-            }),
             const CustomSpace(heightMultiplier: 2),
           ],
         ),

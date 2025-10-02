@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:ventemoi/screens/admin_commissions_screen/view/admin_commissions_screen.dart';
 import 'package:ventemoi/screens/admin_offers_screen/view/admin_offers_screen.dart';
+import 'package:ventemoi/screens/admin_quotes_screen/view/admin_quotes_screen.dart';
 import 'package:ventemoi/screens/admin_establishments_screen/view/admin_establishments_screen.dart';
 import 'package:ventemoi/screens/admin_points_requests_screen/view/admin_points_requests_screen.dart';
 import 'package:ventemoi/screens/admin_sells_screen/view/admin_sells_screen.dart';
@@ -9,6 +10,7 @@ import 'package:ventemoi/screens/test_screen/test_screen.dart';
 
 import '../../screens/admin_categories_screen/view/admin_categories_screen.dart';
 import '../../screens/admin_enterprise_categories_screen/view/admin_enterprise_categories_screen.dart';
+import '../../screens/banner_success_screen/view/banner_success_screen.dart';
 import '../../screens/admin_migration_screen/view/admin_migration_screen.dart';
 import '../../screens/admin_points_attributions_screen/view/admin_points_attributions_screen.dart';
 import '../../screens/admin_user_types_screen/view/admin_user_types_screen.dart';
@@ -136,12 +138,20 @@ class AppScreens {
       page: () => const AdminOffersScreen(),
     ),
     GetPage(
+      name: RoutePaths.adminQuotes,
+      page: () => const AdminQuotesScreen(),
+    ),
+    GetPage(
       name: RoutePaths.onboarding,
       page: () => const OnboardingScreen(),
     ),
     GetPage(
       name: RoutePaths.adminMigration,
       page: () => AdminMigrationScreen(),
+    ),
+    GetPage(
+      name: RoutePaths.bannerSuccess,
+      page: () => const BannerSuccessScreen(),
     ),
   ];
 }

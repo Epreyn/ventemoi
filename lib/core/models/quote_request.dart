@@ -10,10 +10,12 @@ class QuoteRequest {
   final String userPhone;
   final String projectType;
   final String projectDescription;
-  final double? estimatedBudget;
-  final String status; // pending, responded, accepted, rejected, completed
+  final String? estimatedBudget;
+  final String status; // pending, assigned, responded, accepted, rejected, completed, cancelled
   final DateTime createdAt;
   final DateTime? respondedAt;
+  final String? assignedTo; // ID de l'entreprise à qui le devis est assigné
+  final DateTime? assignedAt;
   final String? enterpriseResponse;
   final double? quotedAmount;
   final int? pointsGenerated;
@@ -34,6 +36,8 @@ class QuoteRequest {
     required this.status,
     required this.createdAt,
     this.respondedAt,
+    this.assignedTo,
+    this.assignedAt,
     this.enterpriseResponse,
     this.quotedAmount,
     this.pointsGenerated,
@@ -53,13 +57,17 @@ class QuoteRequest {
       userPhone: data['user_phone'] ?? '',
       projectType: data['project_type'] ?? '',
       projectDescription: data['project_description'] ?? '',
-      estimatedBudget: data['estimated_budget']?.toDouble(),
+      estimatedBudget: data['estimated_budget']?.toString(),
       status: data['status'] ?? 'pending',
-      createdAt: data['created_at'] != null 
+      createdAt: data['created_at'] != null
           ? (data['created_at'] as Timestamp).toDate()
           : DateTime.now(),
-      respondedAt: data['responded_at'] != null 
-          ? (data['responded_at'] as Timestamp).toDate() 
+      respondedAt: data['responded_at'] != null
+          ? (data['responded_at'] as Timestamp).toDate()
+          : null,
+      assignedTo: data['assigned_to'],
+      assignedAt: data['assigned_at'] != null
+          ? (data['assigned_at'] as Timestamp).toDate()
           : null,
       enterpriseResponse: data['enterprise_response'],
       quotedAmount: data['quoted_amount']?.toDouble(),
@@ -83,6 +91,8 @@ class QuoteRequest {
       'status': status,
       'created_at': FieldValue.serverTimestamp(),
       'responded_at': respondedAt,
+      'assigned_to': assignedTo,
+      'assigned_at': assignedAt,
       'enterprise_response': enterpriseResponse,
       'quoted_amount': quotedAmount,
       'points_generated': pointsGenerated,

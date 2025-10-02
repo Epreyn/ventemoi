@@ -9,12 +9,8 @@ import '../../../core/theme/custom_theme.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../controllers/shop_establishment_screen_controller.dart';
-import '../widgets/shop_establishment_card.dart';
-import '../widgets/enterprise_establishment_card.dart';
-import '../widgets/shop_establishment_mobile_card.dart';
-import '../widgets/sponsor_establishment_card.dart';
-import '../widgets/sponsor_card_styled.dart';
-import '../widgets/sponsor_mobile_card.dart';
+import '../widgets/unified_establishment_card.dart';
+import '../widgets/unified_mobile_card_fixed.dart';
 import '../widgets/empty_state_widget.dart';
 import '../widgets/special_offers_banner.dart';
 
@@ -305,7 +301,9 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
   ) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => cc.selectedTabIndex.value = index,
+        onTap: () {
+          cc.selectedTabIndex.value = index;
+        },
         child: Container(
           height: 48,
           color: Colors.transparent,
@@ -553,10 +551,10 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
   }
 
   void _showFilterBottomSheet(ShopEstablishmentScreenController cc) {
-    cc.localSelectedCatIds.value = Set.from(cc.selectedCatIds);
+    cc.localSelectedCatIds.value = Set<String>.from(cc.selectedCatIds.toList());
     cc.localSelectedEnterpriseCatIds.value =
-        Set.from(cc.selectedEnterpriseCatIds);
-    cc.localSelectedSponsorCatIds.value = Set.from(cc.selectedSponsorCatIds);
+        Set<String>.from(cc.selectedEnterpriseCatIds.toList());
+    cc.localSelectedSponsorCatIds.value = Set<String>.from(cc.selectedSponsorCatIds.toList());
 
     cc.openBottomSheet(
       'Filtrer par catégorie',
@@ -626,6 +624,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
   Widget _buildContent(ShopEstablishmentScreenController cc) {
     return Obx(() {
       final establishments = cc.displayedEstablishments;
+      final currentTab = cc.selectedTabIndex.value;
 
       if (establishments.isEmpty) {
         return const Center(child: EmptyStateWidget());
@@ -633,14 +632,15 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
 
       return AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
-        child: _buildGrid(establishments, cc),
+        child: _buildGrid(establishments, cc, key: ValueKey('grid_tab_$currentTab')),
       );
     });
   }
 
   Widget _buildGrid(List<Establishment> establishments,
-      ShopEstablishmentScreenController cc) {
+      ShopEstablishmentScreenController cc, {Key? key}) {
     return LayoutBuilder(
+      key: key,
       builder: (context, constraints) {
         // Définir les breakpoints et tailles de cartes
         final bool isMobile = constraints.maxWidth < 600;
@@ -649,8 +649,9 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
         final bool isLargeDesktop = constraints.maxWidth >= 1400;
 
         if (isMobile) {
-          // Format liste horizontale condensée sur mobile
+          // Format liste horizontale condensée sur mobile avec carte unifiée
           return ListView.builder(
+            controller: cc.getCurrentScrollController(),
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
             itemCount: establishments.length,
             itemBuilder: (context, index) {
@@ -660,31 +661,14 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
               final isOwnEstablishment =
                   cc.isOwnEstablishment(establishment.userId);
 
-              // Pour les sponsors sur mobile, utiliser la carte mobile dédiée
-              if (tName == 'Sponsor') {
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: UniquesControllers().data.baseSpace * 2,
-                  ),
-                  child: SponsorMobileCard(
-                    key: ValueKey('sponsor_mobile_${establishment.id}'),
-                    establishment: establishment,
-                    index: index,
-                    isOwnEstablishment: isOwnEstablishment,
-                  ),
-                );
-              }
-
               return Padding(
                 padding: EdgeInsets.only(
                   bottom: UniquesControllers().data.baseSpace * 2,
                 ),
-                child: ShopEstablishmentMobileCard(
-                  key: ValueKey('shop_mobile_${establishment.id}'),
+                child: UnifiedMobileCardFixed(
+                  key: ValueKey('unified_mobile_${establishment.id}'),
                   establishment: establishment,
-                  isEnterprise: tName == 'Entreprise',
                   isOwnEstablishment: isOwnEstablishment,
-                  // Boutiques peuvent vendre des bons, Associations peuvent recevoir des dons
                   onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
                       ? null
                       : () => cc.buyEstablishment(establishment),
@@ -711,6 +695,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
           }
 
           return GridView.builder(
+            controller: cc.getCurrentScrollController(),
             padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: maxCardWidth,
@@ -726,42 +711,17 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
               final isOwnEstablishment =
                   cc.isOwnEstablishment(establishment.userId);
 
-              // Utiliser la bonne carte selon le type et l'onglet
-              if (cc.selectedTabIndex.value == 3) {
-                // Onglet Sponsors - utiliser la carte stylisée
-                return SponsorCardStyled(
-                  key: ValueKey('sponsor_styled_${establishment.id}'),
-                  establishment: establishment,
-                  index: index,
-                  isOwnEstablishment: isOwnEstablishment,
-                );
-              } else if (tName == 'Entreprise') {
-                return EnterpriseEstablishmentCard(
-                  key: ValueKey('enterprise_${establishment.id}'),
-                  establishment: establishment,
-                  index: index,
-                  enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
-                );
-              } else if (tName == 'Sponsor') {
-                // Les sponsors utilisent la carte stylisée même en dehors de l'onglet 3
-                return SponsorCardStyled(
-                  key: ValueKey('sponsor_styled_${establishment.id}'),
-                  establishment: establishment,
-                  index: index,
-                  isOwnEstablishment: isOwnEstablishment,
-                );
-              } else {
-                return ShopEstablishmentCard(
-                  key: ValueKey('shop_${establishment.id}'),
-                  establishment: establishment,
-                  // Boutiques peuvent vendre des bons, Associations peuvent recevoir des dons
-                  onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
-                      ? null
-                      : () => cc.buyEstablishment(establishment),
-                  index: index,
-                  isOwnEstablishment: isOwnEstablishment,
-                );
-              }
+              // Utiliser la carte unifiée pour tous les types
+              return UnifiedEstablishmentCard(
+                key: ValueKey('unified_${establishment.id}'),
+                establishment: establishment,
+                onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
+                    ? null
+                    : () => cc.buyEstablishment(establishment),
+                index: index,
+                isOwnEstablishment: isOwnEstablishment,
+                enterpriseCategoriesMap: tName == 'Entreprise' ? cc.enterpriseCategoriesMap : null,
+              );
             },
           );
         }

@@ -53,6 +53,7 @@ class CustomNavigationMenuController extends GetxController {
       '/admin-users': ['admin', 'administration', 'utilisateur'],
       '/admin-establishments': ['admin', 'administration', 'établissement'],
       '/admin-sells': ['admin', 'administration', 'vente'],
+      '/admin-quotes': ['admin', 'administration', 'devis', 'quote'],
       '/admin-points': ['admin', 'administration', 'point'],
       '/admin-categories': ['admin', 'administration', 'catégorie'],
       '/admin-commissions': ['admin', 'administration', 'commission'],

@@ -71,19 +71,21 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
       }
     });
 
-    // Stream pour les points en attente
+    // Stream pour les points en attente (utiliser exactement la même requête que l'appBar)
     _pendingSubscription = UniquesControllers()
         .data
         .firebaseFirestore
-        .collection('pending_points')
-        .where('user_id', isEqualTo: userId)
-        .where('status', isEqualTo: 'pending')
+        .collection('points_attributions')
+        .where('target_id', isEqualTo: userId)
+        .where('validated', isEqualTo: false)
         .snapshots()
         .listen((snapshot) {
       int pending = 0;
       for (var doc in snapshot.docs) {
-        pending += (doc.data()['points'] as int?) ?? 0;
+        final rawPoints = doc.data()['points'] ?? 0;
+        pending += (rawPoints as num).toInt();
       }
+      print('📊 Points en attente (Portefeuille): $pending points');
       pendingPoints.value = pending;
     });
 
@@ -125,19 +127,21 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         currentPoints.value = walletSnap.docs.first.data()['points'] ?? 0;
       }
 
-      // Charger les points en attente (transactions non finalisées)
+      // Charger les points en attente (exactement comme l'appBar)
       final pendingSnap = await UniquesControllers()
           .data
           .firebaseFirestore
-          .collection('pending_points')
-          .where('user_id', isEqualTo: userId)
-          .where('status', isEqualTo: 'pending')
+          .collection('points_attributions')
+          .where('target_id', isEqualTo: userId)
+          .where('validated', isEqualTo: false)
           .get();
 
       int pending = 0;
       for (var doc in pendingSnap.docs) {
-        pending += (doc.data()['points'] as int?) ?? 0;
+        final rawPoints = doc.data()['points'] ?? 0;
+        pending += (rawPoints as num).toInt();
       }
+      print('📊 Points en attente chargés (Portefeuille): $pending points');
       pendingPoints.value = pending;
 
     } catch (e) {

@@ -1171,6 +1171,64 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                           );
                         }),
 
+                        // Conditions d'utilisation des bons cadeaux
+                        const CustomSpace(heightMultiplier: 3),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Conditions d\'utilisation des bons cadeaux',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Précisez les conditions d\'utilisation de vos bons (ex: valable uniquement en semaine, minimum d\'achat 30€, non cumulable avec d\'autres offres...)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                              ),
+                              child: TextField(
+                                controller: ec.voucherUsageConditionsController,
+                                maxLines: 4,
+                                maxLength: 500,
+                                style: const TextStyle(fontSize: 14),
+                                decoration: InputDecoration(
+                                  hintText: 'Ex: Valable tous les jours sauf dimanche et jours fériés.\nMinimum d\'achat: 30€\nNon cumulable avec d\'autres offres en cours.\nÀ présenter avant la commande.',
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 14,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.transparent,
+                                  contentPadding: const EdgeInsets.all(16),
+                                  counterStyle: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
                         // Statut de visibilité
                         const CustomSpace(heightMultiplier: 3),
                         Obx(() {

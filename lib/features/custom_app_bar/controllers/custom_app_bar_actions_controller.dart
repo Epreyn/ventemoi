@@ -29,17 +29,20 @@ class CustomAppBarActionsController extends GetxController {
     super.onInit();
 
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+    print('🔵 Init CustomAppBarActionsController pour UID: $uid');
     if (uid == null) {
+      print('❌ Pas d\'utilisateur connecté');
       // CustomAppBarActionsController: uid is null
       return;
     }
-    
+
     // CustomAppBarActionsController: Initializing with uid
 
     _determineUserType(uid);
 
     // Souscrire aux streams
     _walletSub = _walletStream(uid).listen((pts) {
+      print('📊 Points stream update: $pts points');
       // Points updated: $pts
       realPoints.value = pts;
     });
@@ -76,8 +79,9 @@ class CustomAppBarActionsController extends GetxController {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid == null) return;
 
+    print('🔄 Refresh wallet pour UID: $uid');
     // Force refresh wallet for user: $uid
-    
+
     try {
       // Charger directement les points
       final walletQuery = await UniquesControllers()
@@ -87,17 +91,22 @@ class CustomAppBarActionsController extends GetxController {
           .where('user_id', isEqualTo: uid)
           .limit(1)
           .get();
-      
+
       if (walletQuery.docs.isNotEmpty) {
         final data = walletQuery.docs.first.data();
+        final points = data['points'] ?? 0;
+        final coupons = data['coupons'] ?? 0;
+        print('✅ Wallet trouvé dans refreshWallet: $points points, $coupons bons');
         // Direct wallet data
-        realPoints.value = data['points'] ?? 0;
-        couponsRestants.value = data['coupons'] ?? 0;
+        realPoints.value = points;
+        couponsRestants.value = coupons;
         // Updated: points and coupons
       } else {
+        print('⚠️ Aucun wallet trouvé dans refreshWallet pour UID: $uid');
         // No wallet found in direct query
       }
     } catch (e) {
+      print('❌ Erreur refreshWallet: $e');
       // Error refreshing wallet: $e
     }
   }
@@ -131,6 +140,10 @@ class CustomAppBarActionsController extends GetxController {
       isBoutique.value = true;
     } else if (name == 'administrateur') {
       isAdmin.value = true;
+    } else if (name == 'sponsor') {
+      // Les sponsors sont un type d'utilisateur spécial
+      // On s'assure qu'ils peuvent voir leurs points
+      print('🎯 User is a Sponsor');
     }
   }
 
@@ -146,18 +159,21 @@ class CustomAppBarActionsController extends GetxController {
         .map((snap) {
       // Wallet stream - docs found
       if (snap.docs.isEmpty) {
+        print('⚠️ Pas de wallet trouvé pour user: $uid');
         // No wallet found for user
         return 0;
       }
       final data = snap.docs.first.data();
       // Wallet data retrieved
       final points = data['points'] ?? 0;
+      print('💰 Wallet trouvé pour user $uid: $points points');
       // Points in wallet retrieved
       return points;
     });
   }
 
   Stream<int> _pendingPointsStream(String uid) {
+    // Utiliser uniquement points_attributions pour les points en attente
     return UniquesControllers()
         .data
         .firebaseFirestore
@@ -172,6 +188,7 @@ class CustomAppBarActionsController extends GetxController {
         final rawPoints = data['points'] ?? 0;
         sum += (rawPoints as num).toInt();
       }
+      print('📊 Points en attente (appBar): $sum points');
       return sum;
     });
   }

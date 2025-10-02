@@ -134,6 +134,76 @@ class StripePaymentManager extends GetxService {
     }
   }
 
+  // Paiement de bannière publicitaire
+  Future<void> processBannerPayment({
+    required String establishmentId,
+    required DateTime startDate,
+    required Function() onSuccess,
+    Function(String)? onError,
+    bool enablePolling = true,
+    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      final result = await StripeService.to.createBandeauHebdoCheckout(
+        establishmentId: establishmentId,
+        startDate: startDate,
+      );
+
+      if (result != null &&
+          result['url'] != null &&
+          result['sessionId'] != null) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+
+        // Afficher la dialog d'attente
+        StripePaymentDialog.show(
+          sessionId: result['sessionId']!,
+          title: 'Traitement du paiement',
+          subtitle: 'Bannière publicitaire - 7 jours',
+          onSuccess: onSuccess,
+          onError: onError ??
+              (error) {
+                UniquesControllers().data.snackbar(
+                      'Erreur',
+                      error,
+                      true,
+                    );
+              },
+          enablePolling: enablePolling,
+          pollingInterval: pollingInterval,
+          timeout: timeout,
+          metadata: {
+            'type': 'banner_ad',
+            'establishmentId': establishmentId,
+            'startDate': startDate.toIso8601String(),
+          },
+        );
+
+        // Attendre que la dialog soit affichée
+        await Future.delayed(Duration(milliseconds: 300));
+
+        // Ouvrir Stripe dans un nouvel onglet
+        await StripeService.to.launchCheckout(result['url']!);
+      } else {
+        throw 'Impossible de créer la session de paiement';
+      }
+    } catch (e) {
+      UniquesControllers().data.isInAsyncCall.value = false;
+
+      if (onError != null) {
+        onError('Erreur lors du paiement: $e');
+      } else {
+        UniquesControllers().data.snackbar(
+              'Erreur',
+              'Erreur lors du paiement: $e',
+              true,
+            );
+      }
+    }
+  }
+
   // Paiement de slot additionnel
   Future<void> processSlotPayment({
     required Function() onSuccess,

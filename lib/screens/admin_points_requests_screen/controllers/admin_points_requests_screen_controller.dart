@@ -13,10 +13,13 @@ import '../../../core/models/points_request.dart';
 
 class AdminPointsRequestsScreenController extends GetxController
     with ControllerMixin {
-  String pageTitle = 'Demandes de Bons'.toUpperCase();
+  String pageTitle = 'Gestion des Bons Cadeaux'.toUpperCase();
   String customBottomAppBarTag = 'admin-points-requests-bottom-app-bar';
 
-  // All points_requests docs
+  // Collection de bons renouvelés vendus (au lieu de requests)
+  final RxList<Map<String, dynamic>> renewedVouchersSold = <Map<String, dynamic>>[].obs;
+
+  // Pour compatibilité temporaire avec le code existant
   final RxList<PointsRequest> requests = <PointsRequest>[].obs;
 
   // Filtered requests
@@ -101,7 +104,7 @@ class AdminPointsRequestsScreenController extends GetxController
   final RxMap<String, String> estabNameCache = <String, String>{}.obs;
 
   // Firestore subscription
-  StreamSubscription<List<PointsRequest>>? _sub;
+  StreamSubscription<QuerySnapshot>? _sub;
 
   // For the AlertDialog
   PointsRequest? tempPointsRequest;
@@ -124,20 +127,42 @@ class AdminPointsRequestsScreenController extends GetxController
   void onInit() {
     super.onInit();
 
-    // 1) Listen to the 'points_requests' collection in Firestore
+    // MODIFIÉ: Écouter TOUS les bons (normaux + renouvelés)
     _sub = UniquesControllers()
         .data
         .firebaseFirestore
-        .collection('points_requests')
+        .collection('vouchers')
+        .orderBy('created_at', descending: true)
         .snapshots()
-        .map((querySnap) {
-      return querySnap.docs
-          .map((doc) => PointsRequest.fromDocument(doc.id, doc.data()))
-          .toList();
-    }).listen((list) {
-      // Sort newest first
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      requests.value = list;
+        .listen((querySnap) {
+      final allVouchers = <Map<String, dynamic>>[];
+
+      for (var doc in querySnap.docs) {
+        final data = doc.data();
+        // Déterminer si c'est un bon renouvelé
+        final isRenewed = data['is_renewed'] == true;
+
+        allVouchers.add({
+          'id': doc.id,
+          'establishment_id': data['establishment_id'] ?? '',
+          'establishment_name': data['establishment_name'] ?? 'Boutique inconnue',
+          'buyer_id': data['buyer_id'] ?? '', // Acheteur ou boutique qui renouvelle
+          'final_buyer_id': data['final_buyer_id'] ?? '', // Client final si bon renouvelé vendu
+          'code': data['voucher_code'] ?? data['code'] ?? '',
+          'value': data['value'] ?? data['points_value'] ?? 50,
+          'is_renewed': isRenewed,
+          'renewal_cost': isRenewed ? (data['renewal_cost'] ?? 15) : 0,
+          'ventemoi_owes': isRenewed ? (data['ventemoi_owes'] ?? 35) : 0,
+          'renewal_date': data['renewal_date'],
+          'created_at': data['created_at'],
+          'status': data['status'] ?? 'active',
+          'used_at': data['used_at'],
+          'payment_status': isRenewed ? (data['payment_status'] ?? 'pending') : 'not_applicable',
+          'payment_date': data['payment_date'],
+        });
+      }
+
+      renewedVouchersSold.value = allVouchers;
     });
 
     // 2) Watch for changes to userNameCache, userEmailCache, or estabNameCache
@@ -165,6 +190,92 @@ class AdminPointsRequestsScreenController extends GetxController
     searchEmailCtrl.dispose();
     couponsCountCtrl.dispose();
     super.onClose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // NOUVEAU: Marquer un bon renouvelé comme payé
+  // ---------------------------------------------------------------------------
+  Future<void> markAsPaid(String voucherId) async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('vouchers')
+          .doc(voucherId)
+          .update({
+        'payment_status': 'paid',
+        'payment_date': DateTime.now().toIso8601String(),
+      });
+
+      UniquesControllers().data.snackbar(
+        'Succès',
+        'Paiement marqué comme effectué',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Impossible de marquer le paiement: $e',
+        true,
+      );
+    } finally {
+      UniquesControllers().data.isInAsyncCall.value = false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Filtrer pour afficher uniquement les bons renouvelés qui ont été vendus
+  // ---------------------------------------------------------------------------
+  List<Map<String, dynamic>> get filteredVouchers {
+    // Filtrer uniquement les bons renouvelés qui ont été vendus
+    // is_renewed = true ET (status = 'used' OU final_buyer_id non vide)
+    var filtered = renewedVouchersSold.where((v) {
+      final isRenewed = v['is_renewed'] == true;
+      final status = v['status'] ?? '';
+      final hasFinalBuyer = v['final_buyer_id'] != null && v['final_buyer_id'].toString().isNotEmpty;
+
+      // Seulement les bons renouvelés qui ont été vendus
+      return isRenewed && (status == 'used' || hasFinalBuyer);
+    }).toList();
+
+    // Appliquer le filtre de recherche
+    if (searchText.value.isNotEmpty) {
+      final search = searchText.value.toLowerCase();
+      filtered = filtered.where((v) {
+        final establishmentName = (v['establishment_name'] ?? '').toString().toLowerCase();
+        final code = (v['code'] ?? '').toString().toLowerCase();
+        final value = v['value'].toString();
+
+        return establishmentName.contains(search) ||
+               code.contains(search) ||
+               value.contains(search);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Calculer le total dû par VenteMoi
+  // ---------------------------------------------------------------------------
+  double get totalOwed {
+    return filteredVouchers
+        .where((v) => v['payment_status'] != 'paid')
+        .fold(0.0, (sum, v) {
+          // Tous sont des bons renouvelés vendus : VenteMoi doit 35€
+          return sum + (v['ventemoi_owes'] ?? 35);
+        });
+  }
+
+  double get totalPaid {
+    return filteredVouchers
+        .where((v) => v['payment_status'] == 'paid')
+        .fold(0.0, (sum, v) {
+          // Tous sont des bons renouvelés vendus : VenteMoi a payé 35€
+          return sum + (v['ventemoi_owes'] ?? 35);
+        });
   }
 
   // ---------------------------------------------------------------------------

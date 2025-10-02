@@ -19,6 +19,28 @@ class ShopEstablishmentScreenController extends GetxController
     with ControllerMixin {
   /// 0 => Partenaires (Entreprises), 1 => Commerces (Boutiques), 2 => Associations, 3 => Sponsors
   RxInt selectedTabIndex = 0.obs;
+  Timer? _filterDebounceTimer;
+  bool _isFilteringInProgress = false;
+
+  // Seed aléatoire pour mélanger les cartes (généré une seule fois à l'initialisation)
+  final Random _random = Random();
+  bool _hasShuffled = false; // Pour s'assurer qu'on mélange qu'une fois
+
+  // Controllers de scroll pour mémoriser la position de chaque onglet
+  final Map<int, ScrollController> scrollControllers = {
+    0: ScrollController(), // Partenaires
+    1: ScrollController(), // Commerces
+    2: ScrollController(), // Associations
+    3: ScrollController(), // Sponsors
+  };
+
+  // Positions de scroll sauvegardées
+  final Map<int, double> scrollPositions = {
+    0: 0.0,
+    1: 0.0,
+    2: 0.0,
+    3: 0.0,
+  };
 
   // Streams
   StreamSubscription<List<Establishment>>? _estabSub;
@@ -74,13 +96,19 @@ class ShopEstablishmentScreenController extends GetxController
 
     // 1) Charger la liste d'établissements
     _estabSub = _getEstablishmentStream().listen((list) async {
+      // Mélanger la liste une seule fois au premier chargement
+      if (!_hasShuffled) {
+        list.shuffle(_random);
+        _hasShuffled = true;
+      }
+
       allEstablishments.value = list;
 
       // Charger les 2 types de catégories
       await _loadCategoriesForBoutiques(list);
       await _loadCategoriesForEnterprises(list);
 
-      // Filtrer
+      // Toujours filtrer après le chargement initial
       filterEstablishments();
     });
 
@@ -92,8 +120,38 @@ class ShopEstablishmentScreenController extends GetxController
       });
     }
 
-    // watchers => refiltre
-    ever(selectedTabIndex, (_) => filterEstablishments());
+    // Variable pour stocker l'index précédent
+    int previousTabIndex = 0;
+
+    // watchers => refiltre immédiatement sur changement d'onglet
+    ever(selectedTabIndex, (index) {
+      // Sauvegarder la position de scroll de l'onglet qu'on quitte
+      final previousController = scrollControllers[previousTabIndex];
+      if (previousController != null && previousController.hasClients) {
+        scrollPositions[previousTabIndex] = previousController.offset;
+      }
+
+      // Annuler tout timer de debounce en cours
+      _filterDebounceTimer?.cancel();
+
+      // Forcer un filtrage immédiat
+      _isFilteringInProgress = false;
+      _performFiltering();
+
+      // Restaurer la position de scroll après un court délai
+      Future.delayed(const Duration(milliseconds: 100), () {
+        final currentController = scrollControllers[index];
+        final savedPosition = scrollPositions[index] ?? 0.0;
+        if (currentController != null &&
+            currentController.hasClients &&
+            savedPosition > 0) {
+          currentController.jumpTo(savedPosition);
+        }
+      });
+
+      // Mettre à jour l'index précédent pour la prochaine fois
+      previousTabIndex = index;
+    });
 
     // watchers pour commerces/assos
     ever(searchText, (_) => filterEstablishments());
@@ -108,11 +166,29 @@ class ShopEstablishmentScreenController extends GetxController
     ever(selectedSponsorCatIds, (_) => filterEstablishments());
   }
 
+  // Obtenir le ScrollController pour l'onglet actuel
+  ScrollController? getCurrentScrollController() {
+    return scrollControllers[selectedTabIndex.value];
+  }
+
   @override
   void onClose() {
+    // Arrêter tout filtrage en cours
+    _isFilteringInProgress = false;
+    _filterDebounceTimer?.cancel();
+
+    // Fermer les streams
     _estabSub?.cancel();
     _buyerPointsSub?.cancel();
+
+    // Disposer les controllers
     donationCtrl.dispose();
+
+    // Disposer tous les ScrollControllers
+    scrollControllers.forEach((key, controller) {
+      controller.dispose();
+    });
+
     super.onClose();
   }
 
@@ -303,9 +379,23 @@ class ShopEstablishmentScreenController extends GetxController
   }
 
   // ----------------------------------------------------------------
-  // Filtrage
+  // Filtrage optimisé avec debouncing
   // ----------------------------------------------------------------
   void filterEstablishments() {
+    // Annuler le timer précédent s'il existe
+    _filterDebounceTimer?.cancel();
+
+    // Créer un nouveau timer pour éviter les appels répétitifs
+    _filterDebounceTimer = Timer(const Duration(milliseconds: 100), () {
+      _performFiltering();
+    });
+  }
+
+  void _performFiltering() {
+    if (_isFilteringInProgress) return;
+    _isFilteringInProgress = true;
+
+    try {
     final tab = selectedTabIndex.value;
 
     // Déterminer quel texte de recherche utiliser selon l'onglet
@@ -401,7 +491,13 @@ class ShopEstablishmentScreenController extends GetxController
       result.add(e);
     }
 
-    displayedEstablishments.value = result;
+    // Mettre à jour la liste affichée (l'ordre aléatoire est déjà appliqué dans allEstablishments)
+    displayedEstablishments.value = List<Establishment>.from(result);
+    } catch (e) {
+      print('Error filtering establishments: $e');
+    } finally {
+      _isFilteringInProgress = false;
+    }
   }
 
   // ----------------------------------------------------------------
@@ -474,14 +570,14 @@ class ShopEstablishmentScreenController extends GetxController
     switch (tab) {
       case 0: // Partenaires (Entreprises)
         localSelectedEnterpriseCatIds.value =
-            Set.from(selectedEnterpriseCatIds);
+            Set<String>.from(selectedEnterpriseCatIds.toList());
         break;
       case 1: // Commerces (Boutiques)
       case 2: // Associations
-        localSelectedCatIds.value = Set.from(selectedCatIds);
+        localSelectedCatIds.value = Set<String>.from(selectedCatIds.toList());
         break;
       case 3: // Sponsors
-        localSelectedSponsorCatIds.value = Set.from(selectedSponsorCatIds);
+        localSelectedSponsorCatIds.value = Set<String>.from(selectedSponsorCatIds.toList());
         break;
     }
   }
@@ -608,7 +704,7 @@ class ShopEstablishmentScreenController extends GetxController
         'points': FieldValue.increment(-totalCost),
       });
       
-      // Ajouter les points au commerce ET mettre à jour le compteur de bons vendus
+      // Mettre à jour le compteur de bons vendus (PAS de points !)
       final estabRef = UniquesControllers()
           .data
           .firebaseFirestore
@@ -616,12 +712,12 @@ class ShopEstablishmentScreenController extends GetxController
           .doc(establishmentId);
 
       batch.update(estabRef, {
-        'points_received': FieldValue.increment(totalCost),
+        // NE PAS ajouter de points à l'establishment !
         'vouchers_sold': FieldValue.increment(couponsToBuy.value),
         'last_sale_date': now,
       });
 
-      // Mettre à jour le wallet du commerce
+      // Mettre à jour le wallet du commerce (SEULEMENT les bons, PAS les points!)
       final shopUserId = selectedEstab.value!.userId;
       final shopWalletQuery = await UniquesControllers()
           .data
@@ -634,8 +730,8 @@ class ShopEstablishmentScreenController extends GetxController
       if (shopWalletQuery.docs.isNotEmpty) {
         final shopWalletRef = shopWalletQuery.docs.first.reference;
         batch.update(shopWalletRef, {
-          'points': FieldValue.increment(totalCost),
-          'coupons': FieldValue.increment(-couponsToBuy.value), // Décrémenter les bons disponibles
+          // NE PAS toucher aux points du propriétaire de la boutique !
+          'coupons': FieldValue.increment(couponsToBuy.value), // Créditer les bons à la boutique
           'last_updated': now,
         });
       }
@@ -891,75 +987,121 @@ class ShopEstablishmentScreenController extends GetxController
         const SizedBox(height: 20),
         
         // Slider pour sélectionner le nombre de bons
-        Obx(() => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Nombre de bons',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: CustomTheme.lightScheme().primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${couponsToBuy.value}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: CustomTheme.lightScheme().primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            // Le slider
-            SliderTheme(
-              data: SliderThemeData(
-                activeTrackColor: CustomTheme.lightScheme().primary,
-                inactiveTrackColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
-                thumbColor: CustomTheme.lightScheme().primary,
-                overlayColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
-                valueIndicatorColor: CustomTheme.lightScheme().primary,
-                valueIndicatorTextStyle: const TextStyle(color: Colors.white),
+        Obx(() {
+          final maxVouchers = selectedEstab.value?.maxVouchersPerPurchase ?? 4;
+
+          // Si max est 1, pas de slider, juste afficher la valeur fixe
+          if (maxVouchers <= 1) {
+            couponsToBuy.value = 1; // Forcer à 1
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
               ),
-              child: Slider(
-                value: couponsToBuy.value.toDouble(),
-                min: 1,
-                max: 4,
-                divisions: 3,
-                label: '${couponsToBuy.value} bon${couponsToBuy.value > 1 ? 's' : ''}',
-                onChanged: (value) {
-                  couponsToBuy.value = value.round();
-                },
-              ),
-            ),
-            
-            // Indicateurs des valeurs
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('1', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                  Text('2', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                  Text('3', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                  Text('4', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  const Text(
+                    'Nombre de bons',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        )),
+            );
+          }
+
+          // Sinon afficher le slider
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Nombre de bons',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${couponsToBuy.value}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Le slider
+              SliderTheme(
+                data: SliderThemeData(
+                  activeTrackColor: CustomTheme.lightScheme().primary,
+                  inactiveTrackColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
+                  thumbColor: CustomTheme.lightScheme().primary,
+                  overlayColor: CustomTheme.lightScheme().primary.withOpacity(0.2),
+                  valueIndicatorColor: CustomTheme.lightScheme().primary,
+                  valueIndicatorTextStyle: const TextStyle(color: Colors.white),
+                ),
+                child: Slider(
+                  value: couponsToBuy.value.toDouble(),
+                  min: 1,
+                  max: maxVouchers.toDouble(),
+                  divisions: maxVouchers - 1,
+                  label: '${couponsToBuy.value} bon${couponsToBuy.value > 1 ? 's' : ''}',
+                  onChanged: (value) {
+                    couponsToBuy.value = value.round();
+                  },
+                ),
+              ),
+
+              // Indicateurs des valeurs (dynamiques selon la limite)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(
+                    maxVouchers,
+                    (index) => Text(
+                      '${index + 1}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
         
         const SizedBox(height: 20),
         

@@ -13,6 +13,7 @@ abstract class Routes {
   static const proSells = RoutePaths.proSells;
   static const proPoints = RoutePaths.proPoints;
   static const proRequestOffer = RoutePaths.proRequestOffer;
+  static const bannerSuccess = RoutePaths.bannerSuccess;
   static const profile = RoutePaths.profile;
   static const sponsorship = RoutePaths.sponsorship;
   static const adminUsers = RoutePaths.adminUsers;
@@ -25,6 +26,7 @@ abstract class Routes {
   static const adminEnterpriseCategories = RoutePaths.adminEnterpriseCategories;
   static const adminCommissions = RoutePaths.adminCommissions;
   static const adminOffers = RoutePaths.adminOffers;
+  static const adminQuotes = RoutePaths.adminQuotes;
   static const onboarding = RoutePaths.onboarding;
   static const adminMigration = RoutePaths.adminMigration;
 }
@@ -44,6 +46,7 @@ abstract class RoutePaths {
   static const proSells = '/pro-sells';
   static const proPoints = '/pro-points';
   static const proRequestOffer = '/pro-request-offer';
+  static const bannerSuccess = '/banner-success';
   static const profile = '/profile';
   static const sponsorship = '/sponsorship';
   static const adminUsers = '/admin-users';
@@ -56,6 +59,7 @@ abstract class RoutePaths {
   static const adminEnterpriseCategories = '/admin-enterprise-categories';
   static const adminCommissions = '/admin-commissions';
   static const adminOffers = '/admin-offers';
+  static const adminQuotes = '/admin-quotes';
   static const onboarding = '/onboarding';
   static const adminMigration = '/admin-migration';
 }
