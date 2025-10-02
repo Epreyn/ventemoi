@@ -18,7 +18,6 @@ class CommunicationTeamEmailService {
     try {
       // Ne pas envoyer d'email pour les particuliers
       if (partnerType == 'Particulier') {
-        print('Pas d\'email pour les inscriptions de particuliers');
         return;
       }
 
@@ -92,9 +91,7 @@ class CommunicationTeamEmailService {
         'html': emailContent,
       });
 
-      print('✅ Email envoyé à l\'équipe communication pour le nouveau partenaire: $partnerName');
     } catch (e) {
-      print('❌ Erreur envoi email équipe communication (inscription): $e');
       // Ne pas faire échouer l'inscription si l'email échoue
     }
   }
@@ -181,9 +178,7 @@ class CommunicationTeamEmailService {
         'html': emailContent,
       });
 
-      print('✅ Email envoyé à l\'équipe communication pour la vente de: $partnerName');
     } catch (e) {
-      print('❌ Erreur envoi email équipe communication (vente): $e');
       // Ne pas faire échouer la vente si l'email échoue
     }
   }

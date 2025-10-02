@@ -907,6 +907,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: CustomTheme.lightScheme().error,
+              foregroundColor: Colors.white,
             ),
             child: Text('Continuer la suppression'),
           ),
@@ -1030,6 +1031,7 @@ class ProfileScreenController extends GetxController with ControllerMixin {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: CustomTheme.lightScheme().error,
+                    foregroundColor: Colors.white,
                   ),
                   child: Text('Supprimer'),
                 ),

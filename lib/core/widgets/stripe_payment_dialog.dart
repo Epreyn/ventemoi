@@ -291,7 +291,6 @@ class StripePaymentDialog {
                 if (paymentsQuery.docs.isNotEmpty) {
                   final paymentData = paymentsQuery.docs.first.data();
                   if (paymentData['status'] == 'succeeded') {
-                    // print('✅ Paiement spécifique trouvé pour session $sessionId!');
                     debugStatus.value = '✅ Paiement confirmé !';
                     timer.cancel();
                     onSuccess();
@@ -303,7 +302,6 @@ class StripePaymentDialog {
 
             // Log périodique
             if (attemptCount.value % 5 == 0) {
-              // print('🔍 Tentative ${attemptCount.value} - Pas de paiement trouvé pour session $sessionId');
               debugStatus.value =
                   'Vérification en cours... (${attemptCount.value})';
             }

@@ -45,7 +45,6 @@ class PaymentListenerController extends GetxController {
   }
 
   Future<void> _handlePaymentSession(QuerySnapshot snapshot) async {
-    // print('🔔 PaymentListener: ${snapshot.docChanges.length} changements détectés');
 
     for (final change in snapshot.docChanges) {
       if (change.type == DocumentChangeType.added ||

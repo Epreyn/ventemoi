@@ -316,8 +316,6 @@ class _SpecialOffersBannerState extends State<SpecialOffersBanner> {
                       );
                     },
                     errorBuilder: (context, error, stackTrace) {
-                      print('❌ Erreur image: $error');
-                      print('📍 URL tentée: ${offer.imageUrl}');
                       // Afficher une icône d'image cassée sur le fond coloré
                       return Container(
                         color: bgColor.withOpacity(0.3),

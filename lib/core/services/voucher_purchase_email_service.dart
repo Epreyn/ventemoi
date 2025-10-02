@@ -17,7 +17,6 @@ class VoucherPurchaseEmailService {
       // Récupérer les informations de l'acheteur
       final buyerDoc = await _firestore.collection('users').doc(buyerId).get();
       if (!buyerDoc.exists) {
-        print('Buyer user not found');
         return;
       }
 
@@ -26,7 +25,6 @@ class VoucherPurchaseEmailService {
       final buyerName = buyerData['name'] ?? buyerData['first_name'] ?? buyerData['display_name'] ?? 'Utilisateur';
 
       if (buyerEmail == null || buyerEmail.isEmpty) {
-        print('No email for buyer');
         return;
       }
 
@@ -50,9 +48,7 @@ class VoucherPurchaseEmailService {
           },
         });
 
-        print('✅ Email de confirmation envoyé à $buyerEmail');
       } catch (e) {
-        print('Erreur lors de l\'envoi de l\'email à l\'acheteur: $e');
       }
 
       // Envoyer aussi un email à l'établissement
@@ -85,17 +81,14 @@ class VoucherPurchaseEmailService {
                   },
                 });
 
-                print('✅ Email de notification envoyé à l\'établissement: $establishmentEmail');
               }
             }
           }
         }
       } catch (e) {
-        print('Erreur lors de l\'envoi de l\'email à l\'établissement: $e');
       }
 
     } catch (e) {
-      print('Erreur générale envoi email achat: $e');
     }
   }
 

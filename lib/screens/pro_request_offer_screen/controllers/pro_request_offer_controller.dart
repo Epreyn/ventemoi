@@ -67,7 +67,6 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
         contactPhoneCtrl.text = data['telephone'] ?? '';
       }
     } catch (e) {
-      print('Erreur chargement données: $e');
     }
   }
 
@@ -111,7 +110,6 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
           return bDate.compareTo(aDate);
         });
     } catch (e) {
-      print('Erreur chargement demandes: $e');
       // En cas d'erreur, essayer une méthode encore plus simple
       await _loadRequestsSimple();
     }
@@ -157,9 +155,7 @@ class ProRequestOfferController extends GetxController with ControllerMixin {
           return bDate.compareTo(aDate);
         });
 
-      print('✅ Demandes chargées via méthode simple');
     } catch (e) {
-      print('❌ Erreur finale chargement demandes: $e');
       pendingRequests.value = [];
       approvedOffers.value = [];
     }

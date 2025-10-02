@@ -83,7 +83,6 @@ class _AdminQuoteAssignmentDialogState extends State<AdminQuoteAssignmentDialog>
         isLoading = false;
       });
     } catch (e) {
-      print('Erreur chargement entreprises: $e');
       setState(() {
         isLoading = false;
       });

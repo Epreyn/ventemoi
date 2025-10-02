@@ -466,7 +466,6 @@ Future<void> showCelebrationDialogImproved(
         if (!hasTestNotification) {
           await giftService.markAllAsShown();
         } else {
-          print('🧪 Test notification detected, not marking as shown');
           // Nettoyer les documents de test
           await giftService.cleanTestDocuments();
         }

@@ -93,21 +93,14 @@ class LoginScreenController extends GetxController {
       final savedPassword = storage.read('saved_password');
       final savedRememberMe = storage.read('remember_me') ?? false;
 
-      print('🔐 Loading saved credentials:');
-      print('  - Email: ${savedEmail != null ? '***' : 'null'}');
-      print('  - Password: ${savedPassword != null ? '***' : 'null'}');
-      print('  - Remember Me: $savedRememberMe');
 
       if (savedRememberMe && savedEmail != null && savedPassword != null) {
         emailController.text = savedEmail;
         passwordController.text = savedPassword;
         rememberMe.value = true;
-        print('✅ Credentials loaded successfully');
       } else {
-        print('ℹ️ No saved credentials to load');
       }
     } catch (e) {
-      print('❌ Error loading credentials: $e');
     }
   }
 
@@ -120,7 +113,6 @@ class LoginScreenController extends GetxController {
       final savedPassword = storage.read('saved_password');
 
       if (savedRememberMe && savedEmail != null && savedPassword != null) {
-        print('🔄 Attempting auto-login...');
 
         // Afficher un indicateur de chargement pendant la connexion automatique
         UniquesControllers().data.isInAsyncCall.value = true;
@@ -132,24 +124,20 @@ class LoginScreenController extends GetxController {
         await loginSilent();
       }
     } catch (e) {
-      print('❌ Auto-login failed: $e');
       UniquesControllers().data.isInAsyncCall.value = false;
     }
   }
   
   // Sauvegarder ou supprimer les identifiants selon le choix
   void saveCredentials() {
-    print('💾 Saving credentials - Remember Me: ${rememberMe.value}');
     if (rememberMe.value) {
       storage.write('saved_email', emailController.text);
       storage.write('saved_password', passwordController.text);
       storage.write('remember_me', true);
-      print('✅ Credentials saved to storage');
     } else {
       storage.remove('saved_email');
       storage.remove('saved_password');
       storage.write('remember_me', false);
-      print('🗑️ Credentials removed from storage');
     }
   }
   
@@ -251,7 +239,6 @@ class LoginScreenController extends GetxController {
       final userType = userTypeDoc.data()!['name'] as String;
 
       // Initialiser le service de notifications de cadeaux en parallèle
-      print('🎁 GIFT CHECK: Initializing gift notification service...');
       Future<List<GiftNotification>> giftCheckFuture = Future.value([]);
 
       if (!Get.isRegistered<GiftNotificationServiceSimple>()) {
@@ -261,10 +248,8 @@ class LoginScreenController extends GetxController {
       // Lancer la vérification des cadeaux en arrière-plan (sans await)
       final giftService = Get.find<GiftNotificationServiceSimple>();
       giftCheckFuture = Future(() async {
-        print('🎁 GIFT CHECK: Checking for new gifts in background...');
         await giftService.cleanTestDocuments();
         final gifts = await giftService.checkForNewGiftsSimple();
-        print('🎁 GIFT CHECK: Found ${gifts.length} new gifts/points');
         return gifts;
       });
 
@@ -346,13 +331,10 @@ class LoginScreenController extends GetxController {
           );
         }
       }).catchError((error) {
-        print('🎁 GIFT CHECK ERROR: $error');
       });
 
-      print('🎉 Auto-login successful! Redirecting to: $targetRoute');
 
     } catch (e) {
-      print('❌ Silent login failed: $e');
       UniquesControllers().data.isInAsyncCall.value = false;
       // En cas d'échec de l'auto-connexion, on reste sur la page de login
       // sans afficher de message d'erreur
@@ -505,9 +487,7 @@ class LoginScreenController extends GetxController {
                         throw Exception(result.data['message'] ?? 'Erreur inconnue');
                       }
 
-                      print('✅ Email personnalisé envoyé via Cloud Function');
                     } catch (e) {
-                      print('⚠️ Erreur Cloud Function, fallback sur méthode standard: $e');
                       // Fallback sur la méthode standard si la Cloud Function échoue
                       await user.sendEmailVerification();
                     }
@@ -693,7 +673,6 @@ class LoginScreenController extends GetxController {
       final userType = userTypeDoc.data()!['name'] as String;
 
       // Initialiser le service de notifications de cadeaux en parallèle
-      print('🎁 GIFT CHECK: Initializing gift notification service...');
       Future<List<GiftNotification>> giftCheckFuture = Future.value([]);
 
       if (!Get.isRegistered<GiftNotificationServiceSimple>()) {
@@ -703,12 +682,10 @@ class LoginScreenController extends GetxController {
       // Lancer la vérification des cadeaux en arrière-plan (sans await)
       final giftService = Get.find<GiftNotificationServiceSimple>();
       giftCheckFuture = Future(() async {
-        print('🎁 GIFT CHECK: Checking for new gifts in background...');
         // Nettoyer d'abord les documents de test qui pourraient exister
         await giftService.cleanTestDocuments();
         // Utiliser la vraie méthode maintenant que la collection est correcte
         final gifts = await giftService.checkForNewGiftsSimple();
-        print('🎁 GIFT CHECK: Found ${gifts.length} new gifts/points');
         return gifts;
       });
       
@@ -751,7 +728,6 @@ class LoginScreenController extends GetxController {
             }
           }
         } catch (e) {
-          print('Erreur lors de la vérification de l\'établissement: $e');
         }
         
         // Rediriger vers Explorer si l'établissement est visible, sinon vers le profil
@@ -767,7 +743,6 @@ class LoginScreenController extends GetxController {
       UniquesControllers().data.isInAsyncCall.value = false;
 
       // Naviguer vers la page cible immédiatement
-      print('🎁 GIFT CHECK: Navigating to $targetRoute');
       Get.offAllNamed(targetRoute);
 
       // Afficher les notifications de cadeaux après la navigation (en arrière-plan)
@@ -777,21 +752,15 @@ class LoginScreenController extends GetxController {
           final newGifts = await giftCheckFuture;
 
           if (newGifts.isNotEmpty) {
-            print('🎉 GIFT CHECK: Showing celebration dialog for ${newGifts.length} notifications');
             // Attendre un peu pour que la navigation soit terminée
             await Future.delayed(const Duration(milliseconds: 50));
             if (Get.context != null) {
-              print('🎉 GIFT CHECK: Context available, showing dialog...');
               await showCelebrationDialogImproved(Get.context!, newGifts);
-              print('🎉 GIFT CHECK: Dialog shown and closed');
             } else {
-              print('❌ GIFT CHECK: No context available for showing dialog');
             }
           } else {
-            print('ℹ️ GIFT CHECK: No new gifts to show');
           }
         } catch (e) {
-          print('❌ GIFT CHECK: Error showing gifts: $e');
         }
       });
     } catch (e) {

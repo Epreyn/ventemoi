@@ -84,7 +84,6 @@ class GiftNotificationService extends GetxService {
               senderEmail = senderData['email'] ?? '';
             }
           } catch (e) {
-            print('Error fetching sender info: $e');
           }
           
           notifications.add(GiftNotification(
@@ -99,9 +98,7 @@ class GiftNotificationService extends GetxService {
         }
       } catch (e) {
         // Si l'index n'existe pas ou autre erreur, on continue
-        print('Error checking point transfers: $e');
         if (e.toString().contains('index')) {
-          print('Index manquant pour pointsTransfers. Veuillez créer l\'index via le lien fourni.');
         }
       }
 
@@ -134,7 +131,6 @@ class GiftNotificationService extends GetxService {
               purchaserEmail = purchaserData['email'] ?? '';
             }
           } catch (e) {
-            print('Error fetching purchaser info: $e');
           }
           
           notifications.add(GiftNotification(
@@ -153,16 +149,13 @@ class GiftNotificationService extends GetxService {
         }
       } catch (e) {
         // Si l'index n'existe pas ou autre erreur, on continue
-        print('Error checking voucher purchases: $e');
         if (e.toString().contains('index')) {
-          print('Index manquant pour voucherPurchases. Veuillez créer l\'index via le lien fourni.');
         }
       }
 
       pendingNotifications.value = notifications;
       return notifications;
     } catch (e) {
-      print('Error checking for gifts: $e');
       return [];
     }
   }
@@ -184,7 +177,6 @@ class GiftNotificationService extends GetxService {
             .update({'hasBeenShown': true});
       }
     } catch (e) {
-      print('Error marking notification as shown: $e');
     }
   }
 

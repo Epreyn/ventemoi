@@ -85,7 +85,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         final rawPoints = doc.data()['points'] ?? 0;
         pending += (rawPoints as num).toInt();
       }
-      print('📊 Points en attente (Portefeuille): $pending points');
       pendingPoints.value = pending;
     });
 
@@ -141,11 +140,9 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         final rawPoints = doc.data()['points'] ?? 0;
         pending += (rawPoints as num).toInt();
       }
-      print('📊 Points en attente chargés (Portefeuille): $pending points');
       pendingPoints.value = pending;
 
     } catch (e) {
-      print('Erreur chargement points: $e');
     } finally {
       isLoading.value = false;
     }
@@ -263,7 +260,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
       _calculateStats();
 
     } catch (e) {
-      print('Erreur chargement transactions: $e');
     }
   }
 
@@ -291,7 +287,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
       }).toList();
 
     } catch (e) {
-      print('Erreur chargement bons: $e');
       // Fallback sans orderBy si index manquant
       _loadVouchersSimple();
     }
@@ -327,7 +322,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
 
       vouchers.value = vouchersList.take(50).toList();
     } catch (e) {
-      print('Erreur finale chargement bons: $e');
       vouchers.value = [];
     }
   }
@@ -366,7 +360,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         return bDate.compareTo(aDate);
       });
     } catch (e) {
-      print('Erreur chargement cadeaux: $e');
       receivedGifts.value = [];
     }
   }
@@ -433,7 +426,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
 
       transfers.value = allTransfers;
     } catch (e) {
-      print('Erreur chargement transferts: $e');
       transfers.value = [];
     }
   }
@@ -451,7 +443,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         return doc.data()?['name'] ?? 'Établissement inconnu';
       }
     } catch (e) {
-      print('Erreur récupération nom établissement: $e');
     }
     return 'Établissement';
   }
@@ -475,7 +466,6 @@ class PointsSummaryScreenController extends GetxController with ControllerMixin 
         return data?['email'] ?? 'Utilisateur';
       }
     } catch (e) {
-      print('Erreur récupération nom utilisateur: $e');
     }
     return 'Utilisateur';
   }

@@ -54,7 +54,6 @@ class AssociationWaitlistService {
       // visibles est strictement inférieur au nombre de boutiques
       return visibleAssociations < totalBoutiques;
     } catch (e) {
-      print('Erreur dans canAssociationBeVisible: $e');
       return false;
     }
   }
@@ -69,7 +68,6 @@ class AssociationWaitlistService {
         'processed': false,
       });
     } catch (e) {
-      print('Erreur lors de l\'ajout à la liste d\'attente: $e');
     }
   }
   
@@ -131,7 +129,6 @@ class AssociationWaitlistService {
         await _notifyAssociationActivation(establishmentDoc.id);
       }
     } catch (e) {
-      print('Erreur lors du traitement de la liste d\'attente: $e');
     }
   }
   
@@ -169,7 +166,6 @@ class AssociationWaitlistService {
         ...selectedDoc.data(),
       };
     } catch (e) {
-      print('Erreur lors de la sélection d\'une association aléatoire: $e');
       return null;
     }
   }
@@ -184,7 +180,6 @@ class AssociationWaitlistService {
         'assigned': false,
       });
     } catch (e) {
-      print('Erreur lors de la création d\'un bon en attente: $e');
     }
   }
   
@@ -221,7 +216,6 @@ class AssociationWaitlistService {
         'status': 'assigned',
       });
     } catch (e) {
-      print('Erreur lors du traitement des bons en attente: $e');
     }
   }
   
@@ -264,7 +258,6 @@ class AssociationWaitlistService {
         },
       });
     } catch (e) {
-      print('Erreur lors de la notification d\'activation: $e');
     }
   }
   
@@ -288,7 +281,6 @@ class AssociationWaitlistService {
       
       return 0; // Pas dans la liste d'attente
     } catch (e) {
-      print('Erreur lors de la récupération de la position: $e');
       return 0;
     }
   }

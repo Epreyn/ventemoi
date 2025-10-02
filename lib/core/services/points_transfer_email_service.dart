@@ -12,7 +12,6 @@ class PointsTransferEmailService {
   }) async {
     try {
       if (toEmail.isEmpty) {
-        print('No email provided for recipient');
         return;
       }
 
@@ -74,10 +73,8 @@ class PointsTransferEmailService {
         },
       });
 
-      print('✅ Email de transfert envoyé à $toEmail');
 
     } catch (e) {
-      print('Erreur lors de l\'envoi de l\'email de transfert: $e');
       // Ne pas bloquer le transfert si l'email échoue
     }
   }
@@ -138,9 +135,7 @@ class PointsTransferEmailService {
         },
       });
 
-      print('✅ Email de confirmation envoyé à l\'expéditeur');
     } catch (e) {
-      print('Erreur lors de l\'envoi de la confirmation à l\'expéditeur: $e');
     }
   }
 }

@@ -155,7 +155,6 @@ class AdminQuotesScreenController extends GetxController with ControllerMixin {
       // Précharger les noms des clients
       _preloadUserNames();
     }, onError: (error) {
-      print('Erreur chargement devis: $error');
     });
   }
 

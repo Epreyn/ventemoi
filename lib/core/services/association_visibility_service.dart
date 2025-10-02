@@ -145,7 +145,6 @@ class AssociationVisibilityService {
         });
       }
     } catch (e) {
-      print('Erreur dans checkAndUpdateVisibility: $e');
     }
   }
 

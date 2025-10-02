@@ -548,7 +548,6 @@ class ProSellsScreenController extends GetxController with ControllerMixin {
             }
           }
         } catch (e) {
-          print('Erreur lors de l\'envoi de l\'email à l\'équipe communication: $e');
           // Ne pas faire échouer la validation si l'email échoue
         }
       }

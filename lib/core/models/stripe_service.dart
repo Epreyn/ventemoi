@@ -46,7 +46,6 @@ class StripeService extends GetxService {
     required String cancelUrl,
   }) async {
     try {
-      // print('🔵 Création checkout mensuel pour user: ${_auth.currentUser?.uid}');
 
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
@@ -129,7 +128,6 @@ class StripeService extends GetxService {
     required String cancelUrl,
   }) async {
     try {
-      // print('🔵 Création checkout mensuel avec ID pour user: ${_auth.currentUser?.uid}');
 
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
@@ -225,7 +223,6 @@ class StripeService extends GetxService {
     required String cancelUrl,
   }) async {
     try {
-      // print('🔵 Création checkout annuel avec ID pour user: ${_auth.currentUser?.uid}');
 
       final user = _auth.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
@@ -404,7 +401,6 @@ class StripeService extends GetxService {
           final data = sessionDoc.data()!;
 
           // Debug: afficher les champs disponibles
-          // print('🔍 Tentative ${i + 1}/$maxAttempts - Data: ${data.keys.join(', ')}');
 
           // Vérifier si l'extension a ajouté une erreur
           if (data.containsKey('error')) {
@@ -873,7 +869,6 @@ Vérifiez que:
             .get();
 
         if (!sessionDoc.exists) {
-          // print('❌ Session $sessionId introuvable');
           await Future.delayed(Duration(seconds: 2));
           continue;
         }
@@ -932,7 +927,6 @@ Vérifiez que:
                 invoice != null) &&
             paymentStatus == null &&
             i == maxRetries - 1) {
-          // print('⚠️ Session avec données Stripe mais sans statut - considérée comme réussie');
           return true;
         }
 
@@ -1042,8 +1036,6 @@ Vérifiez que:
       final hasAmountTotal =
           data.containsKey('amount_total') && data['amount_total'] != null;
 
-      // print('   ✓ payment_status: défini');
-      // print('   ✓ amount_total: défini');
 
       // 4. Vérifier l'établissement
       final estabQuery = await _firestore
@@ -1054,16 +1046,12 @@ Vérifiez que:
 
       if (estabQuery.docs.isNotEmpty) {
         final estabData = estabQuery.docs.first.data();
-        // print('   has_active_subscription: défini');
-        // print('   subscription_type: défini');
-        // print('   subscription_end_date: défini');
       } else {}
 
       // 5. Diagnostic
 
       if (hasPaymentStatus && data['payment_status'] == 'paid') {
       } else if (hasPaymentIntent || hasSubscription || hasInvoice) {
-        // print('   ⚠️ Indicateurs de paiement présents mais statut non mis à jour');
       } else if (hasError) {
       } else if (!hasUrl) {
       } else {}

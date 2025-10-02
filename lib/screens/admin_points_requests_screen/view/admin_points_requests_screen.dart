@@ -1554,7 +1554,6 @@ class AdminPointsRequestsScreen extends StatelessWidget {
         }
       }
     } catch (e) {
-      print('Erreur récupération données bancaires: $e');
     }
     return null;
   }
@@ -1573,7 +1572,6 @@ class AdminPointsRequestsScreen extends StatelessWidget {
         return userDoc.data()?['name'] ?? userDoc.data()?['email'] ?? 'Inconnu';
       }
     } catch (e) {
-      print('Erreur récupération nom utilisateur: $e');
     }
     return 'Inconnu';
   }

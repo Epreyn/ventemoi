@@ -118,7 +118,6 @@ class QuotesScreenController extends GetxController with ControllerMixin {
         }
       }
     } catch (e) {
-      print('Erreur vérification admin: $e');
     }
   }
   
@@ -136,7 +135,6 @@ class QuotesScreenController extends GetxController with ControllerMixin {
               try {
                 return QuoteRequest.fromFirestore(doc);
               } catch (e) {
-                print('Erreur parsing devis admin ${doc.id}: $e');
                 return null;
               }
             })
@@ -144,12 +142,9 @@ class QuotesScreenController extends GetxController with ControllerMixin {
             .cast<QuoteRequest>()
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        print('Admin: Chargé ${allQuotes.length} devis au total');
       } catch (e) {
-        print('Erreur chargement tous les devis: $e');
       }
     }, onError: (error) {
-      print('Erreur stream tous les devis: $error');
     });
   }
   
@@ -172,7 +167,6 @@ class QuotesScreenController extends GetxController with ControllerMixin {
               try {
                 return QuoteRequest.fromFirestore(doc);
               } catch (e) {
-                print('Erreur parsing devis ${doc.id}: $e');
                 return null;
               }
             })
@@ -180,12 +174,9 @@ class QuotesScreenController extends GetxController with ControllerMixin {
             .cast<QuoteRequest>()
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        print('Chargé ${userQuotes.length} devis utilisateur pour uid: ${currentUser.uid}');
       } catch (e) {
-        print('Erreur chargement devis utilisateur: $e');
       }
     }, onError: (error) {
-      print('Erreur stream devis utilisateur: $error');
     });
     
     // Si l'utilisateur est une entreprise, charger aussi les devis reçus
@@ -221,7 +212,6 @@ class QuotesScreenController extends GetxController with ControllerMixin {
                 try {
                   return QuoteRequest.fromFirestore(doc);
                 } catch (e) {
-                  print('Erreur parsing devis entreprise ${doc.id}: $e');
                   return null;
                 }
               })
@@ -229,12 +219,9 @@ class QuotesScreenController extends GetxController with ControllerMixin {
               .cast<QuoteRequest>()
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          print('Chargé ${enterpriseQuotes.length} devis entreprise');
         } catch (e) {
-          print('Erreur chargement devis entreprise: $e');
         }
       }, onError: (error) {
-        print('Erreur stream devis entreprise: $error');
       });
     }
   }

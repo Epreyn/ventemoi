@@ -251,7 +251,6 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
           }
         }
       } catch (e) {
-        // print('Erreur lors de la mise à jour des détails du filleul $email: $e');
       }
     }
 

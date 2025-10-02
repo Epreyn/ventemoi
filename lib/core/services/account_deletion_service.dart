@@ -46,7 +46,6 @@ class AccountDeletionService {
       }
 
     } catch (e) {
-      print('Erreur lors de la suppression du compte: $e');
       throw Exception('Erreur lors de la suppression du compte: $e');
     }
   }
@@ -352,13 +351,8 @@ class AccountDeletionService {
       final points = walletData['points'] ?? 0;
       final coupons = walletData['coupons'] ?? 0;
 
-      if (points > 0) {
-        throw Exception('Vous avez encore $points points. Veuillez les utiliser avant de supprimer votre compte.');
-      }
-
-      if (coupons > 0) {
-        throw Exception('Vous avez encore $coupons bons. Veuillez les utiliser avant de supprimer votre compte.');
-      }
+      // Supprimé - ne pas bloquer la suppression pour les points/bons
+      // L'utilisateur peut supprimer son compte même avec des points ou bons
     }
 
     return true;

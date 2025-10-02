@@ -494,7 +494,6 @@ class ShopEstablishmentScreenController extends GetxController
     // Mettre à jour la liste affichée (l'ordre aléatoire est déjà appliqué dans allEstablishments)
     displayedEstablishments.value = List<Establishment>.from(result);
     } catch (e) {
-      print('Error filtering establishments: $e');
     } finally {
       _isFilteringInProgress = false;
     }
@@ -731,7 +730,7 @@ class ShopEstablishmentScreenController extends GetxController
         final shopWalletRef = shopWalletQuery.docs.first.reference;
         batch.update(shopWalletRef, {
           // NE PAS toucher aux points du propriétaire de la boutique !
-          'coupons': FieldValue.increment(couponsToBuy.value), // Créditer les bons à la boutique
+          'coupons': FieldValue.increment(-couponsToBuy.value), // ENLEVER les bons de la boutique (ils sont vendus)
           'last_updated': now,
         });
       }
@@ -1430,7 +1429,6 @@ class ShopEstablishmentScreenController extends GetxController
 
       return {'allowed': true};
     } catch (e) {
-      print('Erreur lors de la vérification des restrictions: $e');
       // En cas d'erreur, on autorise l'achat pour ne pas bloquer l'utilisateur
       return {'allowed': true};
     }
@@ -1465,7 +1463,6 @@ class ShopEstablishmentScreenController extends GetxController
       // Optionnel : Envoyer une notification push si disponible
       // await _sendPushNotification(shopUserId, title, message);
     } catch (e) {
-      print('Erreur lors de l\'envoi de la notification: $e');
     }
   }
   
@@ -1540,7 +1537,6 @@ class ShopEstablishmentScreenController extends GetxController
         }
       }
     } catch (e) {
-      print('Erreur lors de l\'attribution des points de parrainage: $e');
     }
   }
 }

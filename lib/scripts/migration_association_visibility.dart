@@ -27,7 +27,6 @@ class MigrationAssociationVisibility {
           .where('user_type_id', isEqualTo: associationTypeId)
           .get();
 
-      // print('📊 Nombre d\'associations trouvées: ${associationUsersSnap.docs.length}');
 
       WriteBatch batch = _firestore.batch();
       int batchCount = 0;

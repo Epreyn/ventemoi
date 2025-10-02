@@ -7,7 +7,6 @@ import 'dart:io';
 
 void main(List<String> arguments) {
   final isDryRun = arguments.contains('--dry-run');
-  print('🚀 Migration UI - Mode: ${isDryRun ? "DRY RUN" : "RÉEL"}');
   
   final migrations = [
     // CustomTheme.lightScheme() migrations
@@ -188,7 +187,6 @@ void main(List<String> arguments) {
       .where((f) => !f.path.contains('/scripts/')) // Exclure ce script
       .toList();
   
-  print('📁 ${files.length} fichiers Dart trouvés');
   
   int totalChanges = 0;
   final Map<String, int> changesByFile = {};
@@ -234,19 +232,12 @@ void main(List<String> arguments) {
         file.writeAsStringSync(newContent);
       }
       
-      print('✏️  ${file.path}: $fileChanges changements');
     }
   }
   
-  print('\n📊 Résumé de la migration :');
-  print('   Total de changements : $totalChanges');
-  print('   Fichiers modifiés : ${changesByFile.length}');
   
   if (isDryRun) {
-    print('\n⚠️  Mode DRY RUN - Aucun fichier n\'a été modifié');
-    print('   Relancez sans --dry-run pour appliquer les changements');
   } else {
-    print('\n✅ Migration terminée avec succès!');
   }
 }
 

@@ -577,11 +577,7 @@ class ProfileScreen extends StatelessWidget {
                                   index: 4,
                                   child: Center(
                                     child: TextButton(
-                                      onPressed: () => cc.openAlertDialog(
-                                        'Supprimer le compte',
-                                        confirmText: 'Supprimer',
-                                        confirmColor: Colors.red,
-                                      ),
+                                      onPressed: () => cc.deleteAccount(),
                                       style: TextButton.styleFrom(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: UniquesControllers()

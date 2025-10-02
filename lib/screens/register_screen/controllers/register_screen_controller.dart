@@ -879,7 +879,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
           .get();
       
       if (adminsQuery.docs.isEmpty) {
-        print('Aucun admin trouvé pour l\'envoi de notification');
         return;
       }
 
@@ -909,7 +908,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         }
       }
     } catch (e) {
-      print('Erreur envoi notification admins: $e');
     }
   }
 
@@ -973,7 +971,6 @@ class RegisterScreenController extends GetxController with ControllerMixin {
         'status': 'pending',
       });
     } catch (e) {
-      print('Erreur envoi email admin: $e');
     }
   }
 

@@ -1473,7 +1473,6 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         if (paymentOption.isEmpty) {
           final existingData = estabQuery.docs.first.data();
           paymentOption = existingData['payment_option'] ?? 'monthly';
-          // print('⚠️ Option de paiement récupérée depuis Firestore: $paymentOption');
         }
 
 

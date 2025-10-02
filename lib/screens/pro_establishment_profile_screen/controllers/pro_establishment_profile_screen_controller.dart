@@ -159,7 +159,6 @@ class ProEstablishmentProfileScreenController extends GetxController
         if (data['stripe_session_id'] != null &&
             (data['has_accepted_contract'] != true ||
                 data['has_active_subscription'] != true)) {
-          // print('⚠️ Paiement détecté mais activation incomplète. Activation forcée...');
 
           // Forcer l'activation
           await doc.reference.update({
@@ -200,7 +199,6 @@ class ProEstablishmentProfileScreenController extends GetxController
           //     'code': 'WELCOME-${DateTime.now().millisecondsSinceEpoch}',
           //   });
 
-          //   // print('🎁 Bon cadeau de bienvenue créé');
           // }
 
           final walletQuery = await UniquesControllers()
@@ -294,7 +292,6 @@ class ProEstablishmentProfileScreenController extends GetxController
       selectedEnterpriseCategoryIds.addAll(catIds);
       hasModifications.value = false;
 
-      // print('✅ Catégories initialisées: ${selectedEnterpriseCategoryIds.length}');
     }
   }
 

@@ -46,7 +46,6 @@ class CategoryDisplayHelper {
       
       return displayName;
     } catch (e) {
-      print('Erreur lors du formatage de la catégorie: $e');
       return '';
     }
   }

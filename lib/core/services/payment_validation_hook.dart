@@ -86,7 +86,6 @@ class PaymentValidationHook {
 
       // Vérifier si c'est bien un non-particulier pour le parrainage
       if (userType == 'Particulier') {
-        // print('PaymentValidationHook: Utilisateur est un particulier, pas de bonus de parrainage');
         return;
       }
 
@@ -105,7 +104,6 @@ class PaymentValidationHook {
         sponsorshipDocId: sponsorInfo['sponsorship_doc_id'],
       );
 
-      // print('PaymentValidationHook: 50 points attribués au parrain pour $userEmail');
 
       // Marquer dans le profil utilisateur qu'il a validé le paiement/CGU
       await _firestore.collection('users').doc(userId).update({

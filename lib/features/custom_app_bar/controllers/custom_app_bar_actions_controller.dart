@@ -29,9 +29,7 @@ class CustomAppBarActionsController extends GetxController {
     super.onInit();
 
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
-    print('🔵 Init CustomAppBarActionsController pour UID: $uid');
     if (uid == null) {
-      print('❌ Pas d\'utilisateur connecté');
       // CustomAppBarActionsController: uid is null
       return;
     }
@@ -42,7 +40,6 @@ class CustomAppBarActionsController extends GetxController {
 
     // Souscrire aux streams
     _walletSub = _walletStream(uid).listen((pts) {
-      print('📊 Points stream update: $pts points');
       // Points updated: $pts
       realPoints.value = pts;
     });
@@ -79,7 +76,6 @@ class CustomAppBarActionsController extends GetxController {
     final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
     if (uid == null) return;
 
-    print('🔄 Refresh wallet pour UID: $uid');
     // Force refresh wallet for user: $uid
 
     try {
@@ -96,17 +92,14 @@ class CustomAppBarActionsController extends GetxController {
         final data = walletQuery.docs.first.data();
         final points = data['points'] ?? 0;
         final coupons = data['coupons'] ?? 0;
-        print('✅ Wallet trouvé dans refreshWallet: $points points, $coupons bons');
         // Direct wallet data
         realPoints.value = points;
         couponsRestants.value = coupons;
         // Updated: points and coupons
       } else {
-        print('⚠️ Aucun wallet trouvé dans refreshWallet pour UID: $uid');
         // No wallet found in direct query
       }
     } catch (e) {
-      print('❌ Erreur refreshWallet: $e');
       // Error refreshing wallet: $e
     }
   }
@@ -143,7 +136,6 @@ class CustomAppBarActionsController extends GetxController {
     } else if (name == 'sponsor') {
       // Les sponsors sont un type d'utilisateur spécial
       // On s'assure qu'ils peuvent voir leurs points
-      print('🎯 User is a Sponsor');
     }
   }
 
@@ -159,14 +151,12 @@ class CustomAppBarActionsController extends GetxController {
         .map((snap) {
       // Wallet stream - docs found
       if (snap.docs.isEmpty) {
-        print('⚠️ Pas de wallet trouvé pour user: $uid');
         // No wallet found for user
         return 0;
       }
       final data = snap.docs.first.data();
       // Wallet data retrieved
       final points = data['points'] ?? 0;
-      print('💰 Wallet trouvé pour user $uid: $points points');
       // Points in wallet retrieved
       return points;
     });
@@ -188,7 +178,6 @@ class CustomAppBarActionsController extends GetxController {
         final rawPoints = data['points'] ?? 0;
         sum += (rawPoints as num).toInt();
       }
-      print('📊 Points en attente (appBar): $sum points');
       return sum;
     });
   }

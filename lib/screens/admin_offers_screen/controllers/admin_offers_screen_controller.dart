@@ -61,7 +61,6 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
           .get();
       
       if (snap.docs.isEmpty) {
-        print('📝 Création d\'une offre exemple...');
         // Créer une offre exemple
         await UniquesControllers()
             .data
@@ -80,10 +79,8 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
           'created_at': FieldValue.serverTimestamp(),
           'updated_at': FieldValue.serverTimestamp(),
         });
-        print('✅ Offre exemple créée');
       }
     } catch (e) {
-      print('❌ Erreur création offre exemple: $e');
     }
   }
 
@@ -101,21 +98,18 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
   }
 
   void _loadOffers() {
-    print('🔍 Chargement des offres special_offers...');
     _offersSub = UniquesControllers()
         .data
         .firebaseFirestore
         .collection('special_offers')
         .snapshots()
         .listen((snap) {
-          print('📦 Reçu ${snap.docs.length} offres de Firebase');
           
           // Mapper et trier manuellement
           final offers = snap.docs.map((d) {
             try {
               return SpecialOffer.fromDocument(d);
             } catch (e) {
-              print('❌ Erreur parsing offre ${d.id}: $e');
               return null;
             }
           })
@@ -137,29 +131,24 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
           });
           
           allOffers.value = offers;
-          print('✅ ${offers.length} offres chargées et triées');
         }, onError: (error) {
-          print('❌ Erreur chargement offres: $error');
           // Si erreur, essayer sans orderBy
           _loadOffersSimple();
         });
   }
   
   void _loadOffersSimple() {
-    print('🔄 Tentative de chargement simple des offres...');
     UniquesControllers()
         .data
         .firebaseFirestore
         .collection('special_offers')
         .get()
         .then((snap) {
-          print('📦 Reçu ${snap.docs.length} offres (requête simple)');
           
           final offers = snap.docs.map((d) {
             try {
               return SpecialOffer.fromDocument(d);
             } catch (e) {
-              print('❌ Erreur parsing offre ${d.id}: $e');
               return null;
             }
           })
@@ -179,10 +168,8 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
           });
           
           allOffers.value = offers;
-          print('✅ ${offers.length} offres chargées (méthode simple)');
         })
         .catchError((error) {
-          print('❌ Erreur finale chargement offres: $error');
           allOffers.value = [];
         });
   }
@@ -213,14 +200,12 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
           
           pendingRequests.value = requests;
         }, onError: (error) {
-          print('Erreur chargement demandes: $error');
           // Essayer sans le where si erreur d'index
           _loadAllRequestsAndFilter();
         });
   }
 
   void _loadAllRequestsAndFilter() {
-    print('⚠️ Chargement sans filtre (fallback)...');
     UniquesControllers()
         .data
         .firebaseFirestore
@@ -246,9 +231,7 @@ class AdminOffersScreenController extends GetxController with ControllerMixin {
           });
           
           pendingRequests.value = requests;
-          print('✅ ${requests.length} demandes en attente chargées (fallback)');
         }, onError: (error) {
-          print('❌ Erreur finale chargement demandes: $error');
           pendingRequests.value = [];
         });
   }

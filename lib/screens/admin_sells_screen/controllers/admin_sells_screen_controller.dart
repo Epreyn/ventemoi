@@ -210,7 +210,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
       // Combiner les deux listes
       _updateCombinedList(latestPurchasesList, latestVouchersList);
     }, onError: (error) {
-      print('Erreur chargement purchases: $error');
     });
 
     // Stream pour les bons cadeaux (vouchers)
@@ -227,7 +226,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
           final data = doc.data();
           newVouchersList.add(Purchase.fromVoucherDocument(doc.id, data));
         } catch (e) {
-          print('Erreur parsing voucher ${doc.id}: $e');
         }
       }
       latestVouchersList = newVouchersList;
@@ -235,7 +233,6 @@ class AdminSellsScreenController extends GetxController with ControllerMixin {
       // Combiner les deux listes
       _updateCombinedList(latestPurchasesList, latestVouchersList);
     }, onError: (error) {
-      print('Erreur chargement vouchers: $error');
     });
   }
 

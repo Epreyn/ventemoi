@@ -94,9 +94,7 @@ class QuoteEmailService {
         }
       );
 
-      print('✅ Email de nouvelle demande de devis envoyé à ${enterprise.email}');
     } catch (e) {
-      print('Erreur envoi email nouvelle demande de devis: $e');
     }
   }
 
@@ -172,9 +170,7 @@ class QuoteEmailService {
         }
       );
 
-      print('✅ Email de réponse au devis envoyé à $userEmail');
     } catch (e) {
-      print('Erreur envoi email réponse devis: $e');
     }
   }
 
@@ -247,9 +243,7 @@ class QuoteEmailService {
         }
       );
 
-      print('✅ Email de devis accepté envoyé à $enterpriseEmail');
     } catch (e) {
-      print('Erreur envoi email devis accepté: $e');
     }
   }
 
@@ -307,9 +301,7 @@ class QuoteEmailService {
         }
       );
 
-      print('✅ Email de devis refusé envoyé à $enterpriseEmail');
     } catch (e) {
-      print('Erreur envoi email devis refusé: $e');
     }
   }
 
@@ -324,7 +316,6 @@ class QuoteEmailService {
           .get();
       
       if (adminTypeQuery.docs.isEmpty) {
-        print('❌ Aucun type administrateur trouvé');
         return;
       }
       
@@ -337,7 +328,6 @@ class QuoteEmailService {
           .get();
       
       if (adminsQuery.docs.isEmpty) {
-        print('❌ Aucun administrateur trouvé');
         return;
       }
       
@@ -390,11 +380,9 @@ class QuoteEmailService {
               'quoteData': quoteData,
             }
           );
-          print('✅ Email devis envoyé à admin: $adminEmail');
         }
       }
     } catch (e) {
-      print('Erreur envoi email admin: $e');
     }
   }
 
@@ -423,7 +411,6 @@ class QuoteEmailService {
         'status': 'pending',
         'metadata': metadata,
       });
-      print('📧 Email ajouté à la queue');
     }
   }
 }

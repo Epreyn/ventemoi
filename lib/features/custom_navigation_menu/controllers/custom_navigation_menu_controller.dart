@@ -36,7 +36,6 @@ class CustomNavigationMenuController extends GetxController {
     if (items.isEmpty) return;
 
     final currentRoute = Get.currentRoute;
-    print('Current route: $currentRoute');
 
     // Mapping des routes vers les index
     int newIndex = 0; // Par défaut sur Explorer
@@ -125,7 +124,6 @@ class CustomNavigationMenuController extends GetxController {
 
     // Log pour debug
     final itemText = items.length > newIndex ? (items[newIndex].text ?? items[newIndex].tag) : 'none';
-    print('Sync menu: route=$currentRoute, index=$newIndex, item=$itemText');
 
     // Mettre à jour l'index
     UniquesControllers().data.currentNavigationMenuIndex.value = newIndex;

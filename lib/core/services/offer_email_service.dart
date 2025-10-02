@@ -17,7 +17,6 @@ class OfferEmailService {
           .get();
       
       if (!userDoc.exists) {
-        print('Utilisateur non trouvé pour l\'envoi d\'email');
         return;
       }
       
@@ -25,7 +24,6 @@ class OfferEmailService {
       final userName = userDoc.data()?['first_name'] ?? 'Client';
       
       if (userEmail.isEmpty) {
-        print('Email utilisateur non disponible');
         return;
       }
 
@@ -93,9 +91,7 @@ class OfferEmailService {
         html: emailContent,
       );
 
-      print('✅ Email d\'approbation envoyé à $userEmail');
     } catch (e) {
-      print('Erreur envoi email approbation: $e');
     }
   }
 
@@ -114,7 +110,6 @@ class OfferEmailService {
           .get();
       
       if (!userDoc.exists) {
-        print('Utilisateur non trouvé pour l\'envoi d\'email');
         return;
       }
       
@@ -122,7 +117,6 @@ class OfferEmailService {
       final userName = userDoc.data()?['first_name'] ?? 'Client';
       
       if (userEmail.isEmpty) {
-        print('Email utilisateur non disponible');
         return;
       }
 
@@ -190,9 +184,7 @@ class OfferEmailService {
         html: emailContent,
       );
 
-      print('✅ Email de rejet envoyé à $userEmail');
     } catch (e) {
-      print('Erreur envoi email rejet: $e');
     }
   }
 
@@ -226,7 +218,6 @@ class OfferEmailService {
           .get();
       
       if (adminsQuery.docs.isEmpty) {
-        print('Aucun admin trouvé pour l\'envoi d\'email');
         return;
       }
 
@@ -306,11 +297,9 @@ class OfferEmailService {
             subject: '📢 Nouvelle demande d\'offre publicitaire en attente de validation',
             html: emailContent,
           );
-          print('✅ Email envoyé à l\'admin: $adminEmail');
         }
       }
     } catch (e) {
-      print('Erreur envoi email aux admins: $e');
     }
   }
 
@@ -330,7 +319,6 @@ class OfferEmailService {
       });
     } catch (e) {
       // Fallback : ajouter à la queue Firestore pour traitement ultérieur
-      print('Fonction Cloud non disponible, ajout à la queue: $e');
       
       await _firestore.collection('mail').add({
         'to': [to],
@@ -344,7 +332,6 @@ class OfferEmailService {
         'error': null,
       });
       
-      print('Email ajouté à la queue Firestore pour envoi');
     }
   }
 }

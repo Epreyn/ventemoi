@@ -67,7 +67,6 @@ class FirebaseEmailService {
         'status': 'pending',
       });
     } catch (e) {
-      print('Erreur envoi email vérification personnalisé: $e');
     }
   }
 
@@ -133,7 +132,6 @@ class FirebaseEmailService {
         'status': 'pending',
       });
     } catch (e) {
-      print('Erreur envoi email réinitialisation personnalisé: $e');
     }
   }
 
@@ -194,7 +192,6 @@ class FirebaseEmailService {
         'status': 'pending',
       });
     } catch (e) {
-      print('Erreur envoi notification suppression compte: $e');
     }
   }
 

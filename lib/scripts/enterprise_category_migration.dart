@@ -102,7 +102,6 @@ class EnterpriseCategoryMigration {
           });
         }
 
-        // print('✅ ${subcategories.length} sous-catégories créées pour "$mainName"');
       }
     }
   }
@@ -171,7 +170,6 @@ class EnterpriseCategoryMigration {
       await migrateExistingCategories();
 
       // Étape 2: Créer des exemples (optionnel)
-      // print('\nVoulez-vous créer des exemples de sous-catégories ? (Recommandé pour tester)');
       // Dans un vrai script, demander confirmation à l'utilisateur
       // await createSampleSubcategories();
 
