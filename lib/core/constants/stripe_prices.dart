@@ -16,8 +16,8 @@ class StripePrices {
       'price_1S54aeAOsm6ulZWoG5ABnBwQ';
 
   // Sponsors
-  static const String sponsorBronzePriceId = 'price_1S54f2AOsm6ulZWodQHT28kk';
-  static const String sponsorSilverPriceId = 'price_1S54gCAOsm6ulZWoPGzGEfnB';
+  static const String sponsorBronzePriceId = 'price_1SFFYbAOsm6ulZWoJ3gvtYWP';
+  static const String sponsorSilverPriceId = 'price_1SFFdWAOsm6ulZWobgzTpU4V';
 
   // Vidéos Membres
   static const String videoStandardMembrePriceId =
@@ -36,7 +36,7 @@ class StripePrices {
       'price_1S54n5AOsm6ulZWobYpG0zz7';
 
   // Publicité
-  static const String bandeauHebdoPriceId = 'price_1S54nuAOsm6ulZWoFRZUaGy7';
+  static const String bandeauHebdoPriceId = 'price_1SFFeOAOsm6ulZWoL96l8tpm';
 
   // ==================== MONTANTS EN CENTIMES (HT) ====================
 
@@ -49,8 +49,8 @@ class StripePrices {
   static const int slotSupplementaireAmount = 5000; // 50€ HT
 
   // Sponsors
-  static const int sponsorBronzeAmount = 30000; // 300€ HT
-  static const int sponsorSilverAmount = 80000; // 800€ HT
+  static const int sponsorBronzeAmount = 36000;
+  static const int sponsorSilverAmount = 96000;
 
   // Vidéos Membres (avec réduction de 210€)
   static const int videoStandardMembreAmount =
@@ -66,7 +66,7 @@ class StripePrices {
   static const int videoSignaturePublicAmount = 150000; // 1500€ HT
 
   // Publicité
-  static const int bandeauHebdoAmount = 5000; // 50€ HT
+  static const int bandeauHebdoAmount = 6000;
 
   // ==================== MONTANTS TTC (avec TVA 20%) ====================
 

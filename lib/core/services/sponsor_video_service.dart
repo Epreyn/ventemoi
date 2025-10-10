@@ -301,7 +301,7 @@ class SponsorVideoService {
           await StripeService.to.createGenericOneTimeCheckout(
         establishmentId: establishmentId,
         amount: StripePrices.bandeauHebdoAmount,
-        productName: 'Bandeau publicitaire hebdomadaire',
+        productName: 'Bandeau publicitaire',
         description:
             'Affichage dans le bandeau "Offres du moment" pendant 7 jours',
         metadata: {

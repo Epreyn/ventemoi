@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 
 import '../../../core/classes/unique_controllers.dart';
 
@@ -290,6 +291,12 @@ class CustomAppBarActionsController extends GetxController {
 
   // Déconnexion
   void logout() {
+    // Effacer les identifiants sauvegardés pour éviter la reconnexion automatique
+    final storage = GetStorage('Storage');
+    storage.remove('saved_email');
+    storage.remove('saved_password');
+    storage.write('remember_me', false);
+
     UniquesControllers().data.firebaseAuth.signOut();
     Get.offAllNamed('/login');
   }
