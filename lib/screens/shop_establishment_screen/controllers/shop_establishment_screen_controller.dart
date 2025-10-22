@@ -20,7 +20,7 @@ class ShopEstablishmentScreenController extends GetxController
   /// 0 => Partenaires (Entreprises), 1 => Commerces (Boutiques), 2 => Associations, 3 => Sponsors
   RxInt selectedTabIndex = 0.obs;
   Timer? _filterDebounceTimer;
-  bool _isFilteringInProgress = false;
+  // RETIRÉ : _isFilteringInProgress qui pouvait causer des blocages
 
   // Seed aléatoire pour mélanger les cartes (généré une seule fois à l'initialisation)
   final Random _random = Random();
@@ -123,33 +123,15 @@ class ShopEstablishmentScreenController extends GetxController
     // Variable pour stocker l'index précédent
     int previousTabIndex = 0;
 
-    // watchers => refiltre immédiatement sur changement d'onglet
+    // SIMPLIFIÉ : Juste filtrer sur changement d'onglet sans forçage
     ever(selectedTabIndex, (index) {
-      // Sauvegarder la position de scroll de l'onglet qu'on quitte
-      final previousController = scrollControllers[previousTabIndex];
-      if (previousController != null && previousController.hasClients) {
-        scrollPositions[previousTabIndex] = previousController.offset;
-      }
-
       // Annuler tout timer de debounce en cours
       _filterDebounceTimer?.cancel();
 
-      // Forcer un filtrage immédiat
-      _isFilteringInProgress = false;
-      _performFiltering();
+      // Appeler le filtrage normalement (avec debounce)
+      filterEstablishments();
 
-      // Restaurer la position de scroll après un court délai
-      Future.delayed(const Duration(milliseconds: 100), () {
-        final currentController = scrollControllers[index];
-        final savedPosition = scrollPositions[index] ?? 0.0;
-        if (currentController != null &&
-            currentController.hasClients &&
-            savedPosition > 0) {
-          currentController.jumpTo(savedPosition);
-        }
-      });
-
-      // Mettre à jour l'index précédent pour la prochaine fois
+      // Mettre à jour l'index précédent
       previousTabIndex = index;
     });
 
@@ -174,7 +156,6 @@ class ShopEstablishmentScreenController extends GetxController
   @override
   void onClose() {
     // Arrêter tout filtrage en cours
-    _isFilteringInProgress = false;
     _filterDebounceTimer?.cancel();
 
     // Fermer les streams
@@ -379,21 +360,22 @@ class ShopEstablishmentScreenController extends GetxController
   }
 
   // ----------------------------------------------------------------
-  // Filtrage optimisé avec debouncing
+  // Filtrage SIMPLIFIÉ pour éviter les freeze/crash
   // ----------------------------------------------------------------
   void filterEstablishments() {
-    // Annuler le timer précédent s'il existe
+    // CHANGEMENT : Augmenter le debounce à 300ms pour éviter les freeze
+    // et retirer le flag _isFilteringInProgress qui peut bloquer
     _filterDebounceTimer?.cancel();
 
-    // Créer un nouveau timer pour éviter les appels répétitifs
-    _filterDebounceTimer = Timer(const Duration(milliseconds: 100), () {
+    _filterDebounceTimer = Timer(const Duration(milliseconds: 300), () {
       _performFiltering();
     });
   }
 
   void _performFiltering() {
-    if (_isFilteringInProgress) return;
-    _isFilteringInProgress = true;
+    // CHANGEMENT : Retirer le flag qui peut rester bloqué
+    // if (_isFilteringInProgress) return;
+    // _isFilteringInProgress = true;
 
     try {
     final tab = selectedTabIndex.value;
@@ -494,8 +476,7 @@ class ShopEstablishmentScreenController extends GetxController
     // Mettre à jour la liste affichée (l'ordre aléatoire est déjà appliqué dans allEstablishments)
     displayedEstablishments.value = List<Establishment>.from(result);
     } catch (e) {
-    } finally {
-      _isFilteringInProgress = false;
+      // En cas d'erreur, ne rien faire pour éviter les blocages
     }
   }
 
@@ -644,6 +625,42 @@ class ShopEstablishmentScreenController extends GetxController
         return;
       }
 
+      // NOUVELLE VÉRIFICATION : Vérifier la disponibilité des bons en temps réel
+      final shopUserId = selectedEstab.value!.userId;
+      final shopWalletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: shopUserId)
+          .limit(1)
+          .get();
+
+      if (shopWalletQuery.docs.isNotEmpty) {
+        final shopWalletData = shopWalletQuery.docs.first.data() as Map<String, dynamic>;
+        final availableCoupons = shopWalletData['coupons'] ?? 0;
+
+        if (availableCoupons < couponsToBuy.value) {
+          UniquesControllers().data.snackbar(
+            'Stock insuffisant',
+            availableCoupons > 0
+              ? 'Il ne reste que $availableCoupons bon(s) disponible(s) dans cette boutique.'
+              : 'Cette boutique n\'a plus de bons disponibles.',
+            true,
+          );
+          isBuying.value = false;
+          return;
+        }
+      } else {
+        // Pas de wallet trouvé pour la boutique
+        UniquesControllers().data.snackbar(
+          'Erreur',
+          'Impossible de vérifier le stock de cette boutique.',
+          true,
+        );
+        isBuying.value = false;
+        return;
+      }
+
       final batch = UniquesControllers().data.firebaseFirestore.batch();
       final now = FieldValue.serverTimestamp();
       
@@ -717,15 +734,7 @@ class ShopEstablishmentScreenController extends GetxController
       });
 
       // Mettre à jour le wallet du commerce (SEULEMENT les bons, PAS les points!)
-      final shopUserId = selectedEstab.value!.userId;
-      final shopWalletQuery = await UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('wallets')
-          .where('user_id', isEqualTo: shopUserId)
-          .limit(1)
-          .get();
-
+      // Réutiliser shopWalletQuery de la vérification précédente
       if (shopWalletQuery.docs.isNotEmpty) {
         final shopWalletRef = shopWalletQuery.docs.first.reference;
         batch.update(shopWalletRef, {

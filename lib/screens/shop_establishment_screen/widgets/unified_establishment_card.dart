@@ -20,6 +20,7 @@ class UnifiedEstablishmentCard extends StatefulWidget {
   final int index;
   final bool isOwnEstablishment;
   final RxMap<String, String>? enterpriseCategoriesMap;
+  final RxMap<String, String>? categoriesMap;
 
   const UnifiedEstablishmentCard({
     super.key,
@@ -28,6 +29,7 @@ class UnifiedEstablishmentCard extends StatefulWidget {
     required this.index,
     this.isOwnEstablishment = false,
     this.enterpriseCategoriesMap,
+    this.categoriesMap,
   });
 
   @override
@@ -41,6 +43,7 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
   String _sponsorLevel = 'bronze';
   late ScrollController _categoriesScrollController;
   Timer? _autoScrollTimer;
+  int _availableCoupons = 0; // Stocker le nombre de bons
 
   @override
   bool get wantKeepAlive => true;
@@ -51,7 +54,9 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
     _categoriesScrollController = ScrollController();
     _loadUserType();
     _loadSponsorLevel();
-    _startAutoScroll();
+    _loadAvailableCoupons(); // Charger les bons une seule fois
+    // DÉSACTIVÉ : Auto-scroll qui peut causer des crashes
+    // _startAutoScroll();
   }
 
   @override
@@ -108,9 +113,36 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
     }
   }
 
+  Future<void> _loadAvailableCoupons() async {
+    try {
+      final walletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: widget.establishment.userId)
+          .limit(1)
+          .get();
+
+      if (walletQuery.docs.isNotEmpty && mounted) {
+        final data = walletQuery.docs.first.data() as Map<String, dynamic>;
+        setState(() {
+          _availableCoupons = data['coupons'] ?? 0;
+        });
+      }
+    } catch (e) {
+      // En cas d'erreur, on met 0 bons
+      if (mounted) {
+        setState(() {
+          _availableCoupons = 0;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // Réactivation du contrôleur Get
     final cc = Get.put(
       ShopEstablishmentCardController(),
       tag: 'shop-establishment-card-controller-${widget.establishment.id}',
@@ -425,7 +457,7 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
                     ),
                   ),
 
-                // FOOTER avec Bons/Actions en bas
+                // FOOTER avec Bons/Actions - Avec FutureBuilder pour les boutiques
                 Container(
                   padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
                   decoration: BoxDecoration(
@@ -561,174 +593,119 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
   }
 
   Widget _buildCategories(
-    ShopEstablishmentCardController cc,
+    ShopEstablishmentCardController? cc, // rendu nullable pour test
     bool isEnterprise,
     double widthScale,
   ) {
+    // VERSION SIMPLIFIÉE : Affichage statique des catégories
     if (isEnterprise &&
         widget.establishment.enterpriseCategoryIds != null &&
         widget.establishment.enterpriseCategoryIds!.isNotEmpty &&
         widget.enterpriseCategoriesMap != null) {
-      // Mini carousel pour les catégories entreprises
+
       final categories = widget.establishment.enterpriseCategoryIds!;
       final categoryNames = categories
           .map((catId) => widget.enterpriseCategoriesMap![catId] ?? catId)
           .toList();
 
+      // Limiter à 3 catégories max pour éviter les problèmes
+      final displayCategories = categoryNames.take(3).toList();
+      final hasMore = categoryNames.length > 3;
+
       return Container(
-        height: 32 * widthScale,
         margin: EdgeInsets.symmetric(
           horizontal: UniquesControllers().data.baseSpace * 2,
         ),
-        child: Row(
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            // Flèche gauche
-            if (categoryNames.length > 3)
-              GestureDetector(
-                onTap: () {
-                  _autoScrollTimer?.cancel();
-                  _categoriesScrollController.animateTo(
-                    _categoriesScrollController.offset - 100,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                  _startAutoScroll(); // Redémarrer l'auto-scroll après interaction
-                },
-                child: Container(
-                  width: 24,
-                  height: 32 * widthScale,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.chevron_left,
-                      size: 16 * widthScale,
-                      color: CustomTheme.lightScheme().primary,
-                    ),
-                  ),
+            ...displayCategories.map((catName) => Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: UniquesControllers().data.baseSpace * 1.2,
+                vertical: UniquesControllers().data.baseSpace / 2,
+              ),
+              decoration: BoxDecoration(
+                color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(
+                  UniquesControllers().data.baseSpace,
+                ),
+                border: Border.all(
+                  color: CustomTheme.lightScheme().primary.withOpacity(0.2),
+                  width: 1,
                 ),
               ),
-            const SizedBox(width: 4),
-            // Liste des catégories
-            Expanded(
-              child: ListView.builder(
-                controller: _categoriesScrollController,
-                scrollDirection: Axis.horizontal,
-                itemCount: categoryNames.length,
-                padding: EdgeInsets.zero,
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  return Container(
-                    margin: EdgeInsets.only(
-                      right: index < categoryNames.length - 1 ? 8 : 0,
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: UniquesControllers().data.baseSpace * 1.2,
-                      vertical: UniquesControllers().data.baseSpace / 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: CustomTheme.lightScheme().primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(
-                        UniquesControllers().data.baseSpace,
-                      ),
-                      border: Border.all(
-                        color: CustomTheme.lightScheme().primary.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        categoryNames[index],
-                        style: TextStyle(
-                          fontSize: 12 * widthScale,
-                          color: CustomTheme.lightScheme().primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  );
-                },
+              child: Text(
+                catName,
+                style: TextStyle(
+                  fontSize: 12 * widthScale,
+                  color: CustomTheme.lightScheme().primary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            // Flèche droite
-            if (categoryNames.length > 3)
-              GestureDetector(
-                onTap: () {
-                  _autoScrollTimer?.cancel();
-                  _categoriesScrollController.animateTo(
-                    _categoriesScrollController.offset + 100,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                  _startAutoScroll(); // Redémarrer l'auto-scroll après interaction
-                },
-                child: Container(
-                  width: 24,
-                  height: 32 * widthScale,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+            )).toList(),
+            if (hasMore)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: UniquesControllers().data.baseSpace * 1.2,
+                  vertical: UniquesControllers().data.baseSpace / 2,
+                ),
+                decoration: BoxDecoration(
+                  color: CustomTheme.lightScheme().primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(
+                    UniquesControllers().data.baseSpace,
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.chevron_right,
-                      size: 16 * widthScale,
-                      color: CustomTheme.lightScheme().primary,
-                    ),
+                  border: Border.all(
+                    color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  '+${categoryNames.length - 3}',
+                  style: TextStyle(
+                    fontSize: 12 * widthScale,
+                    color: CustomTheme.lightScheme().primary.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
           ],
         ),
       );
-    } else {
-      // Catégorie standard
-      return FutureBuilder<String>(
-        future: cc.getCategoryNameById(widget.establishment.categoryId),
-        builder: (context, snapshot) {
-          final categoryName = snapshot.data ?? 'Chargement...';
-          return Container(
-            margin: EdgeInsets.symmetric(
-              horizontal: UniquesControllers().data.baseSpace * 2,
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: UniquesControllers().data.baseSpace,
-              vertical: UniquesControllers().data.baseSpace / 2,
-            ),
-            decoration: BoxDecoration(
-              color: CustomTheme.lightScheme().primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(
-                UniquesControllers().data.baseSpace,
-              ),
-            ),
-            child: Text(
-              categoryName,
-              style: TextStyle(
-                fontSize: 12 * widthScale,
-                color: CustomTheme.lightScheme().primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          );
-        },
+    } else if (widget.establishment.categoryId.isNotEmpty && widget.categoriesMap != null) {
+      // Affichage pour boutiques et associations
+      final categoryName = widget.categoriesMap![widget.establishment.categoryId] ??
+                          widget.establishment.categoryId;
+
+      return Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: UniquesControllers().data.baseSpace * 2,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: UniquesControllers().data.baseSpace * 1.2,
+          vertical: UniquesControllers().data.baseSpace / 2,
+        ),
+        decoration: BoxDecoration(
+          color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(
+            UniquesControllers().data.baseSpace,
+          ),
+          border: Border.all(
+            color: CustomTheme.lightScheme().primary.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          categoryName,
+          style: TextStyle(
+            fontSize: 12 * widthScale,
+            color: CustomTheme.lightScheme().primary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       );
+    } else {
+      return const SizedBox();
     }
   }
 
@@ -739,84 +716,67 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
     bool isBoutique,
     double widthScale,
   ) {
-    return FutureBuilder<QuerySnapshot>(
-      future: UniquesControllers()
-          .data
-          .firebaseFirestore
-          .collection('wallets')
-          .where('user_id', isEqualTo: widget.establishment.userId)
-          .limit(1)
-          .get(),
-      builder: (context, walletSnap) {
-        if (!walletSnap.hasData || walletSnap.data!.docs.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final data = walletSnap.data!.docs.first.data() as Map<String, dynamic>;
-        final coupons = data['coupons'] ?? 0;
-
-        return Row(
-          children: [
-            // Partie gauche : infos selon le type
-            if (isBoutique) ...[
-              // Bons disponibles pour les commerces
-              Expanded(
-                child: Row(
+    // Utiliser directement la variable d'état au lieu du FutureBuilder
+    return Row(
+      children: [
+        // Partie gauche : infos selon le type
+        if (isBoutique) ...[
+          // Bons disponibles pour les commerces
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(
+                    UniquesControllers().data.baseSpace,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _availableCoupons > 0
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.confirmation_number,
+                    color: _availableCoupons > 0 ? Colors.green : Colors.red,
+                    size: 20 * widthScale,
+                  ),
+                ),
+                SizedBox(width: UniquesControllers().data.baseSpace),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(
-                        UniquesControllers().data.baseSpace,
-                      ),
-                      decoration: BoxDecoration(
-                        color: coupons > 0
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.confirmation_number,
-                        color: coupons > 0 ? Colors.green : Colors.red,
-                        size: 20 * widthScale,
+                    Text(
+                      '$_availableCoupons bons',
+                      style: TextStyle(
+                        fontSize: 16 * widthScale,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(width: UniquesControllers().data.baseSpace),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$coupons bons',
-                          style: TextStyle(
-                            fontSize: 16 * widthScale,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          coupons > 0 ? 'Disponibles' : 'Stock épuisé',
-                          style: TextStyle(
-                            fontSize: 12 * widthScale,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+                    Text(
+                      _availableCoupons > 0 ? 'Disponibles' : 'Stock épuisé',
+                      style: TextStyle(
+                        fontSize: 12 * widthScale,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ] else
-              Expanded(child: Container()),
-
-            // Partie droite : bouton d'action
-            _buildActionButton(
-              isEnterprise,
-              isSponsor,
-              isAssociation,
-              isBoutique,
-              coupons,
-              widthScale,
+              ],
             ),
-          ],
-        );
-      },
+          ),
+        ] else
+          Expanded(child: Container()),
+
+        // Partie droite : bouton d'action
+        _buildActionButton(
+          isEnterprise,
+          isSponsor,
+          isAssociation,
+          isBoutique,
+          _availableCoupons,
+          widthScale,
+        ),
+      ],
     );
   }
 
@@ -874,6 +834,96 @@ class _UnifiedEstablishmentCardState extends State<UnifiedEstablishmentCard>
 
     return ElevatedButton.icon(
       onPressed: isDisabled ? null : widget.onBuy,
+      icon: Icon(
+        isAssociation
+            ? Icons.volunteer_activism
+            : Icons.shopping_cart,
+        size: 20 * widthScale,
+        color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.black,
+      ),
+      label: Text(
+        widget.isOwnEstablishment
+            ? 'Votre établissement'
+            : (isAssociation
+                ? 'Faire un don'
+                : 'Acheter'),
+        style: TextStyle(
+          fontSize: 14 * widthScale,
+          color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.black,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: widget.isOwnEstablishment
+            ? Colors.grey[300]
+            : (isAssociation
+                ? Colors.green
+                : CustomTheme.lightScheme().primary),
+        foregroundColor: widget.isOwnEstablishment ? Colors.grey[600] : Colors.black,
+        padding: EdgeInsets.symmetric(
+          horizontal: UniquesControllers().data.baseSpace * 2,
+          vertical: UniquesControllers().data.baseSpace * 1.5,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            UniquesControllers().data.baseSpace * 3,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // VERSION SIMPLIFIÉE SANS STREAMBUILDER NI FUTUREBUILDER
+  Widget _buildSimpleActionButton(
+    bool isEnterprise,
+    bool isSponsor,
+    bool isAssociation,
+    bool isBoutique,
+    double widthScale,
+  ) {
+    // Bouton "Demander un devis" pour les entreprises
+    if (isEnterprise) {
+      return ElevatedButton.icon(
+        onPressed: widget.isOwnEstablishment ? null : () => _showQuoteForm(context),
+        icon: Icon(
+          Icons.description,
+          size: 20 * widthScale,
+          color: Colors.black,
+        ),
+        label: Text(
+          widget.isOwnEstablishment ? 'Votre entreprise' : 'Demander un devis',
+          style: TextStyle(
+            fontSize: 14 * widthScale,
+            color: Colors.black,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: widget.isOwnEstablishment
+              ? Colors.grey[300]
+              : CustomTheme.lightScheme().primary,
+          foregroundColor: Colors.black,
+          padding: EdgeInsets.symmetric(
+            horizontal: UniquesControllers().data.baseSpace * 2,
+            vertical: UniquesControllers().data.baseSpace * 1.5,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              UniquesControllers().data.baseSpace * 3,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Pour les sponsors, pas de bouton d'action
+    if (isSponsor) {
+      return const SizedBox.shrink();
+    }
+
+    // Autres types (boutiques et associations) - sans vérification des coupons
+    return ElevatedButton.icon(
+      onPressed: widget.isOwnEstablishment ? null : widget.onBuy,
       icon: Icon(
         isAssociation
             ? Icons.volunteer_activism

@@ -16,6 +16,7 @@ class UnifiedMobileCardFixed extends StatefulWidget {
   final VoidCallback? onBuy;
   final int index;
   final RxMap<String, String>? enterpriseCategoriesMap;
+  final RxMap<String, String>? categoriesMap;
 
   const UnifiedMobileCardFixed({
     Key? key,
@@ -24,6 +25,7 @@ class UnifiedMobileCardFixed extends StatefulWidget {
     this.onBuy,
     required this.index,
     this.enterpriseCategoriesMap,
+    this.categoriesMap,
   }) : super(key: key);
 
   @override
@@ -34,11 +36,39 @@ class _UnifiedMobileCardFixedState extends State<UnifiedMobileCardFixed> {
   bool _isExpanded = false;
   String _userTypeName = '';
   String _sponsorLevel = 'bronze';
+  int _availableCoupons = 0; // Stocker le nombre de bons
 
   @override
   void initState() {
     super.initState();
     _loadUserType();
+    _loadAvailableCoupons(); // Charger les bons une seule fois
+  }
+
+  Future<void> _loadAvailableCoupons() async {
+    try {
+      final walletQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('wallets')
+          .where('user_id', isEqualTo: widget.establishment.userId)
+          .limit(1)
+          .get();
+
+      if (walletQuery.docs.isNotEmpty && mounted) {
+        final data = walletQuery.docs.first.data() as Map<String, dynamic>;
+        setState(() {
+          _availableCoupons = data['coupons'] ?? 0;
+        });
+      }
+    } catch (e) {
+      // En cas d'erreur, on garde 0
+      if (mounted) {
+        setState(() {
+          _availableCoupons = 0;
+        });
+      }
+    }
   }
 
   Future<void> _loadUserType() async {
@@ -303,7 +333,7 @@ class _UnifiedMobileCardFixedState extends State<UnifiedMobileCardFixed> {
                           ],
                         ),
                       const SizedBox(height: 12),
-                      // Bouton d'action principal
+                      // Bouton d'action principal - Avec StreamBuilder pour les boutiques
                       _buildActionButton(
                         isEnterprise,
                         isSponsor,
@@ -429,7 +459,7 @@ class _UnifiedMobileCardFixedState extends State<UnifiedMobileCardFixed> {
     bool isAssociation,
     bool isBoutique,
   ) {
-    // Mini affichage pour les catégories d'entreprises
+    // RÉACTIVÉ : Affichage simple des catégories sans réactivité
     if (isEnterprise &&
         widget.establishment.enterpriseCategoryIds != null &&
         widget.establishment.enterpriseCategoryIds!.isNotEmpty &&
@@ -491,7 +521,8 @@ class _UnifiedMobileCardFixedState extends State<UnifiedMobileCardFixed> {
       );
     }
 
-    if (isBoutique) {
+    // STREAMBUILDER COMMENTÉ POUR DEBUG
+    /*if (isBoutique) {
       return StreamBuilder<QuerySnapshot>(
         stream: UniquesControllers()
             .data
@@ -538,6 +569,92 @@ class _UnifiedMobileCardFixedState extends State<UnifiedMobileCardFixed> {
           );
         },
       );
+    }*/
+
+    // Affichage simple pour les boutiques (catégorie + bons disponibles)
+    if (isBoutique) {
+      // Catégorie
+      String categoryDisplay = '';
+      if (widget.categoriesMap != null && widget.establishment.categoryId.isNotEmpty) {
+        categoryDisplay = widget.categoriesMap![widget.establishment.categoryId] ?? 'Commerce';
+      }
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Catégorie
+          if (categoryDisplay.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: CustomTheme.lightScheme().primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                categoryDisplay,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: CustomTheme.lightScheme().primary,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const SizedBox(width: 6),
+          // Bons disponibles (utilisation de la variable d'état)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: _availableCoupons > 0
+                  ? Colors.green.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.confirmation_number,
+                  size: 10,
+                  color: _availableCoupons > 0 ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  '$_availableCoupons',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: _availableCoupons > 0 ? Colors.green : Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Affichage de la catégorie pour les associations
+    if (isAssociation && widget.categoriesMap != null && widget.establishment.categoryId.isNotEmpty) {
+      final categoryName = widget.categoriesMap![widget.establishment.categoryId] ?? 'Association';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          categoryName,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.green[700],
+            fontWeight: FontWeight.w500,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
     }
 
     return const SizedBox();
@@ -566,6 +683,108 @@ class _UnifiedMobileCardFixedState extends State<UnifiedMobileCardFixed> {
     );
   }
 
+  // VERSION SIMPLIFIÉE SANS STREAMBUILDER
+  Widget _buildSimpleActionButton(
+    bool isEnterprise,
+    bool isSponsor,
+    bool isAssociation,
+    bool isBoutique,
+  ) {
+    if (isEnterprise) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: widget.isOwnEstablishment ? null : () => _showQuoteForm(context),
+          icon: Icon(
+            Icons.description,
+            size: 18,
+            color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.white,
+          ),
+          label: Text(
+            widget.isOwnEstablishment ? 'Votre entreprise' : 'Demander un devis',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.white,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.isOwnEstablishment
+                ? Colors.grey[300]
+                : CustomTheme.lightScheme().primary,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+        ),
+      );
+    }
+
+    if (isAssociation) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: widget.isOwnEstablishment ? null : widget.onBuy,
+          icon: Icon(
+            Icons.volunteer_activism,
+            size: 18,
+            color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.white,
+          ),
+          label: Text(
+            widget.isOwnEstablishment ? 'Votre association' : 'Faire un don',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.white,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.isOwnEstablishment ? Colors.grey[300] : Colors.green,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+        ),
+      );
+    }
+
+    // Pour les sponsors, pas de bouton d'action
+    if (isSponsor) {
+      return const SizedBox.shrink();
+    }
+
+    // Pour les boutiques - version simple sans vérification de bons
+    if (isBoutique) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: widget.isOwnEstablishment ? null : widget.onBuy,
+          icon: Icon(
+            Icons.shopping_cart,
+            size: 18,
+            color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.white,
+          ),
+          label: Text(
+            widget.isOwnEstablishment ? 'Votre établissement' : 'Acheter des bons',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: widget.isOwnEstablishment ? Colors.grey[600] : Colors.white,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.isOwnEstablishment
+                ? Colors.grey[300]
+                : CustomTheme.lightScheme().primary,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox();
+  }
+
+  // ANCIENNE VERSION AVEC STREAMBUILDER (GARDÉE POUR RÉFÉRENCE)
   Widget _buildActionButton(
     bool isEnterprise,
     bool isSponsor,
