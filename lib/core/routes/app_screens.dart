@@ -26,6 +26,7 @@ import '../../screens/pro_sells_screen/view/pro_sells_screen.dart';
 import '../../screens/profile_screen/view/profile_screen.dart';
 import '../../screens/register_screen/view/register_screen.dart';
 import '../../screens/shop_establishment_screen/view/shop_establishment_screen.dart';
+import '../../screens/shop_establishment_screen/view/shop_establishment_screen_v2.dart';
 import '../../screens/points_summary_screen/view/points_summary_screen.dart';
 import '../../screens/quotes_screen/view/quotes_screen.dart';
 import 'app_routes.dart';
@@ -59,7 +60,8 @@ class AppScreens {
     ),
     GetPage(
       name: RoutePaths.shopEstablishment,
-      page: () => const ShopEstablishmentScreen(),
+      page: () => const ShopEstablishmentScreenV2(), // V2 - UI/UX épurée
+      // page: () => const ShopEstablishmentScreen(), // V1 - UI originale (commentée)
     ),
     GetPage(
       name: RoutePaths.pointsSummary,

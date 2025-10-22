@@ -9,6 +9,7 @@ class CustomCardAnimation extends StatelessWidget {
   final Widget child;
   final Direction? direction;
   final int? delayGap;
+  final String? refreshKey;
 
   const CustomCardAnimation({
     super.key,
@@ -16,16 +17,21 @@ class CustomCardAnimation extends StatelessWidget {
     required this.child,
     this.direction,
     this.delayGap,
+    this.refreshKey,
   });
 
   @override
   Widget build(BuildContext context) {
     var delayGap = this.delayGap ?? 100;
 
+    // Inclure refreshKey dans le tag pour forcer la recréation de l'animation
+    final uniqueTag = refreshKey != null
+        ? 'card_animation_${refreshKey}_$index'
+        : 'card_animation_$index';
+
     return CustomAnimation(
-      //key: super.key ?? UniqueKey(),
-      key: ValueKey('card_animation_$index'),
-      fixedTag: 'card_animation_$index',
+      key: ValueKey(uniqueTag),
+      fixedTag: uniqueTag,
       delay: Duration(milliseconds: delayGap * index),
       duration: Duration(milliseconds: 6 * delayGap),
       isOpacity: true,

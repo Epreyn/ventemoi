@@ -51,10 +51,19 @@ class SponsorshipScreenController extends GetxController with ControllerMixin {
 
   @override
   void onClose() {
+    // Annuler toutes les souscriptions
     _sponsorshipSub?.cancel();
     _referralsSub?.cancel();
     _sponsorSub?.cancel();
+
+    // Nettoyer les données
+    currentSponsorship.value = null;
+    referralDetails.clear();
+    sponsorInfo.value = null;
+
+    // Disposer les controllers
     emailCtrl.dispose();
+
     super.onClose();
   }
 

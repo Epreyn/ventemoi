@@ -673,7 +673,8 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
                       ? null
                       : () => cc.buyEstablishment(establishment),
                   index: index,
-                  enterpriseCategoriesMap: cc.enterpriseCategoriesMap,
+                  enterpriseCategoriesMap: tName == 'Entreprise' ? cc.enterpriseCategoriesMap : null,
+                  categoriesMap: (tName == 'Boutique' || tName == 'Association') ? cc.categoriesMap : null,
                 ),
               );
             },
@@ -711,7 +712,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
               final isOwnEstablishment =
                   cc.isOwnEstablishment(establishment.userId);
 
-              // Utiliser la carte unifiée pour tous les types
+              // Utiliser la carte unifiée pour desktop/tablet
               return UnifiedEstablishmentCard(
                 key: ValueKey('unified_${establishment.id}'),
                 establishment: establishment,
@@ -721,6 +722,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
                 index: index,
                 isOwnEstablishment: isOwnEstablishment,
                 enterpriseCategoriesMap: tName == 'Entreprise' ? cc.enterpriseCategoriesMap : null,
+                categoriesMap: (tName == 'Boutique' || tName == 'Association') ? cc.categoriesMap : null,
               );
             },
           );

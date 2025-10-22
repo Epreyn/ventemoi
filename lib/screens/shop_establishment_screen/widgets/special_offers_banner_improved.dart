@@ -15,9 +15,44 @@ class SpecialOffersBannerImproved extends StatefulWidget {
   State<SpecialOffersBannerImproved> createState() => _SpecialOffersBannerImprovedState();
 }
 
-class _SpecialOffersBannerImprovedState extends State<SpecialOffersBannerImproved> {
-  final carousel_ctrl.CarouselSliderController _carouselController = carousel_ctrl.CarouselSliderController();
+class _SpecialOffersBannerImprovedState extends State<SpecialOffersBannerImproved> with WidgetsBindingObserver {
+  carousel_ctrl.CarouselSliderController? _carouselController;
   int _currentIndex = 0;
+  bool _isDisposed = false;
+  bool _isPaused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _carouselController = carousel_ctrl.CarouselSliderController();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _isPaused = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _carouselController = null;
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isDisposed) return;
+
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        _isPaused = true;
+        break;
+      case AppLifecycleState.resumed:
+        _isPaused = false;
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,17 +158,30 @@ class _SpecialOffersBannerImprovedState extends State<SpecialOffersBannerImprove
               itemCount: offers.length,
               options: CarouselOptions(
                 height: 140,
-                autoPlay: true,
+                autoPlay: !_isPaused && !_isDisposed,
                 autoPlayInterval: const Duration(seconds: 6),
                 autoPlayAnimationDuration: const Duration(milliseconds: 800),
                 autoPlayCurve: Curves.easeInOutCubic,
                 enlargeCenterPage: true,
                 viewportFraction: 0.92,
                 enableInfiniteScroll: offers.length > 1,
+                pauseAutoPlayOnTouch: true,
+                pauseAutoPlayOnManualNavigate: true,
+                pauseAutoPlayInFiniteScroll: false,
                 onPageChanged: (index, reason) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
+                  // Éviter les updates pendant la destruction
+                  if (_isDisposed || !mounted) return;
+
+                  // Éviter les setState trop fréquents
+                  if (_currentIndex != index) {
+                    Future.microtask(() {
+                      if (!_isDisposed && mounted) {
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                      }
+                    });
+                  }
                 },
               ),
               itemBuilder: (context, index, realIndex) {
@@ -146,7 +194,11 @@ class _SpecialOffersBannerImprovedState extends State<SpecialOffersBannerImprove
                 top: 55,
                 child: _buildNavigationButton(
                   Icons.arrow_back_ios_rounded,
-                  () => _carouselController.previousPage(),
+                  () {
+                    if (!_isDisposed && _carouselController != null) {
+                      _carouselController?.previousPage();
+                    }
+                  },
                 ),
               ),
               Positioned(
@@ -154,7 +206,11 @@ class _SpecialOffersBannerImprovedState extends State<SpecialOffersBannerImprove
                 top: 55,
                 child: _buildNavigationButton(
                   Icons.arrow_forward_ios_rounded,
-                  () => _carouselController.nextPage(),
+                  () {
+                    if (!_isDisposed && _carouselController != null) {
+                      _carouselController?.nextPage();
+                    }
+                  },
                 ),
               ),
             ],
