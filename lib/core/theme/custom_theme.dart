@@ -9,21 +9,21 @@ class CustomTheme {
     return const ColorScheme(
       brightness: Brightness.light,
 
-      // Couleur primaire (teinte dominante)
-      primary: Color(0xfff8b02a),
+      // Couleur primaire (teinte dominante) - Orange du logo (milieu du gradient #ff9500-#ff7a00)
+      primary: Color(0xffff8800),
       // Généralement identique à la couleur primaire pour le Material You
-      surfaceTint: Color(0xfff8b02a),
+      surfaceTint: Color(0xffff8800),
       // Texte sur la couleur primaire
       onPrimary: Color(0xffffffff),
       //onPrimary: Color(0xff000000),
-      primaryContainer: Color(0xfff8b02a),
+      primaryContainer: Color(0xffff8800),
       onPrimaryContainer: Color(0xffffffff),
       //onPrimaryContainer: Color(0xff000000),
 
       // Secondaire : choisi comme noir pour trancher avec la primaire
       secondary: Color(0xff000000),
       onSecondary: Color(0xffffffff),
-      secondaryContainer: Color(0xfff8b02a),
+      secondaryContainer: Color(0xffff8800),
       onSecondaryContainer: Color(0xff000000),
 
       // Tertiaire : également noir pour rester dans la cohérence
@@ -33,7 +33,7 @@ class CustomTheme {
       onTertiaryContainer: Color(0xff000000),
 
       // Error : par défaut on aurait du rouge, mais on garde l'orange (plus proche en intensité)
-      error: Color(0xfff8b02a),
+      error: Color(0xffff8800),
       onError: Color(0xff000000),
       errorContainer: Color(0xffffffff),
       onErrorContainer: Color(0xff000000),
@@ -45,19 +45,19 @@ class CustomTheme {
 
       // Traits et ombres
       outline: Color(0xff000000),
-      outlineVariant: Color(0xfff8b02a),
+      outlineVariant: Color(0xffff8800),
       shadow: Color(0x40000000),
       //shadow: Color(0xff000000),
       scrim: Color(0xff000000),
 
       // Inversion (pour surfaces sombres, etc.)
       inverseSurface: Color(0xff000000),
-      inversePrimary: Color(0xfff8b02a),
+      inversePrimary: Color(0xffff8800),
 
-      // “Fixed” couleurs utilisées par Material 3 (éventuellement pour l'élévation)
+      // "Fixed" couleurs utilisées par Material 3 (éventuellement pour l'élévation)
       primaryFixed: Color(0xffffffff),
       onPrimaryFixed: Color(0xff000000),
-      primaryFixedDim: Color(0xfff8b02a),
+      primaryFixedDim: Color(0xffff8800),
       onPrimaryFixedVariant: Color(0xff000000),
 
       secondaryFixed: Color(0xffffffff),

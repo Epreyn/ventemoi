@@ -21,6 +21,7 @@ class LoginScreen extends StatelessWidget {
     final cc = Get.put(LoginScreenController(), tag: 'login_screen');
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth > 600;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
@@ -61,50 +62,52 @@ class LoginScreen extends StatelessWidget {
             ),
           ),
 
-          // Version badge
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: CustomCardAnimation(
-              index: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: CustomTheme.lightScheme().primary,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: CustomTheme.lightScheme().primary.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.rocket_launch_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'v 2.0.0.7-debug',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+          // Version badge (masqué quand le clavier est visible)
+          if (!isKeyboardVisible)
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: CustomCardAnimation(
+                index: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: CustomTheme.lightScheme().primary,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            CustomTheme.lightScheme().primary.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.rocket_launch_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'v 2.0.1',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -276,149 +279,28 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Se souvenir de moi et Mot de passe oublié
+                // Mot de passe oublié
                 CustomCardAnimation(
-                  key: const Key('remember_forgot_row'),
+                  key: const Key('forgot_password_row'),
                   index: 4,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final bool isSmallScreen = constraints.maxWidth < 400;
-
-                      if (isSmallScreen) {
-                        // Sur petit écran, mettre en colonne
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Checkbox Se souvenir de moi
-                            InkWell(
-                              onTap: cc.toggleRememberMe,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Obx(() => SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: Checkbox(
-                                          value: cc.rememberMe.value,
-                                          onChanged: (_) =>
-                                              cc.toggleRememberMe(),
-                                          activeColor:
-                                              CustomTheme.lightScheme().primary,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          materialTapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                      )),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Se souvenir',
-                                    style: TextStyle(
-                                      color: Colors.grey[700],
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // Mot de passe oublié
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: cc.passwordScreenOnPressed,
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(50, 30),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                  cc.forgotPasswordLabel,
-                                  style: TextStyle(
-                                    color: CustomTheme.lightScheme().primary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      } else {
-                        // Sur grand écran, garder en ligne
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Checkbox Se souvenir de moi
-                            Flexible(
-                              child: InkWell(
-                                onTap: cc.toggleRememberMe,
-                                borderRadius: BorderRadius.circular(8),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Obx(() => SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: Checkbox(
-                                            value: cc.rememberMe.value,
-                                            onChanged: (_) =>
-                                                cc.toggleRememberMe(),
-                                            activeColor:
-                                                CustomTheme.lightScheme()
-                                                    .primary,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            materialTapTargetSize:
-                                                MaterialTapTargetSize
-                                                    .shrinkWrap,
-                                          ),
-                                        )),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        'Se souvenir',
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Mot de passe oublié
-                            TextButton(
-                              onPressed: cc.passwordScreenOnPressed,
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(50, 30),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                cc.forgotPasswordLabel,
-                                style: TextStyle(
-                                  color: CustomTheme.lightScheme().primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-                    },
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: cc.passwordScreenOnPressed,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        cc.forgotPasswordLabel,
+                        style: TextStyle(
+                          color: CustomTheme.lightScheme().primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -450,10 +332,67 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
 
+                // Bouton Google Sign In
+                CustomCardAnimation(
+                  key: const Key('login_screen_google_button'),
+                  index: 7,
+                  child: ReusableButtonX(
+                    tag: 'google-signin-button',
+                    onPressed: cc.signInWithGoogle,
+                    outlined: true,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.grey[700]!,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFF4285F4),
+                                Color(0xFF34A853),
+                                Color(0xFFFBBC05),
+                                Color(0xFFEA4335),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'G',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Continuer avec Google',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
                 // Bouton d'inscription
                 CustomCardAnimation(
                   key: const Key('login_screen_register_button'),
-                  index: 7,
+                  index: 8,
                   child: ReusableButtonX(
                     tag: cc.registerTag,
                     text: cc.registerLabel,

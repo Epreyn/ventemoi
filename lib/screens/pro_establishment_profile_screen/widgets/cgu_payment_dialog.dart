@@ -659,6 +659,24 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
                     }
                     return const SizedBox.shrink();
                   }),
+
+                  // Bouton "Payer plus tard" uniquement sur l'écran de paiement
+                  Obx(() {
+                    if (currentStep.value == 1 && widget.userType != 'Association') {
+                      return TextButton.icon(
+                        onPressed: () async {
+                          await _saveWithoutPayment();
+                        },
+                        icon: const Icon(Icons.schedule),
+                        label: const Text('Payer plus tard'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.orange[700],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }),
+
                   const Spacer(),
                   Obx(() {
                     final bool canProceed =
@@ -1480,6 +1498,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
         final updateData = {
           'has_accepted_contract': true,
           'has_active_subscription': true,
+          'is_visible': true, // IMPORTANT : Rendre visible après paiement
           'subscription_status': paymentOption,
           'subscription_start_date': FieldValue.serverTimestamp(),
           'subscription_end_date':
@@ -1679,6 +1698,7 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
           await doc.reference.update({
             'has_accepted_contract': true,
             'has_active_subscription': true,
+            'is_visible': true, // IMPORTANT : Rendre visible après paiement
             'subscription_status': selectedPaymentOption.value.isNotEmpty
                 ? selectedPaymentOption.value
                 : 'monthly',
@@ -1872,6 +1892,149 @@ Les présentes CGU sont régies par le droit français. Tout litige sera soumis 
       ),
       barrierDismissible: false,
     );
+  }
+
+  // Nouvelle méthode pour sauvegarder sans paiement
+  Future<void> _saveWithoutPayment() async {
+    try {
+      final uid = UniquesControllers().data.firebaseAuth.currentUser?.uid;
+      if (uid == null) {
+        UniquesControllers().data.snackbar(
+          'Erreur',
+          'Utilisateur non connecté',
+          true,
+        );
+        return;
+      }
+
+      // Trouver l'établissement
+      final estabQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('establishments')
+          .where('user_id', isEqualTo: uid)
+          .limit(1)
+          .get();
+
+      if (estabQuery.docs.isNotEmpty) {
+        final docId = estabQuery.docs.first.id;
+
+        // Mettre à jour avec CGU acceptées mais invisible et sans abonnement
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc(docId)
+            .update({
+          'has_accepted_contract': true,
+          'has_active_subscription': false,
+          'is_visible': false, // Reste invisible
+          'pending_payment': true, // Marquer comme en attente de paiement
+          'pending_payment_since': FieldValue.serverTimestamp(),
+          'payment_option': selectedPaymentOption.value,
+        });
+
+        // Fermer le dialogue
+        Get.back();
+
+        // Afficher un message informatif
+        Get.dialog(
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange, size: 28),
+                const SizedBox(width: 12),
+                const Text('Profil enregistré'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Votre établissement a été enregistré avec succès !',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.visibility_off, color: Colors.orange.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Votre établissement n\'est pas encore visible',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.orange.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Pour être visible dans le shop et profiter de tous les avantages, '
+                        'vous devez finaliser votre abonnement.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Vous pourrez finaliser le paiement à tout moment depuis votre profil.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Get.back(); // Fermer la dialog
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Compris',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+      }
+    } catch (e) {
+      UniquesControllers().data.snackbar(
+        'Erreur',
+        'Une erreur est survenue: $e',
+        true,
+      );
+    }
   }
 
   // Méthode pour créditer les points de bienvenue dans le wallet

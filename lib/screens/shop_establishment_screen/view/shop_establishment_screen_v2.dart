@@ -8,9 +8,10 @@ import '../../../core/theme/custom_theme.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../controllers/shop_establishment_screen_controller.dart';
-import '../widgets/unified_establishment_card.dart';
+// import '../widgets/unified_establishment_card.dart'; // V1 - Conservé pour référence
 import '../widgets/unified_mobile_card_fixed.dart'; // V1 - Conservé pour référence
-import '../widgets/unified_mobile_card_v2.dart'; // V2 - Design minimaliste
+import '../widgets/unified_mobile_card_v2.dart'; // V2 - Design minimaliste (mobile)
+import '../widgets/compact_establishment_card_v2.dart'; // V2 - Carte compacte avec popup détaillé
 import '../widgets/empty_state_widget.dart';
 import '../widgets/special_offers_banner_v2.dart';
 
@@ -201,7 +202,7 @@ class _ShopEstablishmentScreenV2State extends State<ShopEstablishmentScreenV2> {
                       child: Obx(() {
                         String hint = 'Rechercher...';
                         if (cc.selectedTabIndex.value == 0) {
-                          hint = 'Partenaires, catégories...';
+                          hint = 'Services, catégories...';
                         } else if (cc.selectedTabIndex.value == 1) {
                           hint = 'Commerces...';
                         } else if (cc.selectedTabIndex.value == 2) {
@@ -314,7 +315,7 @@ class _ShopEstablishmentScreenV2State extends State<ShopEstablishmentScreenV2> {
             return Obx(() {
               return Row(
                 children: [
-                  _buildTabChip(cc, 0, 'Partenaires', Icons.business_rounded, isWideScreen),
+                  _buildTabChip(cc, 0, 'Services', Icons.business_rounded, isWideScreen),
                   const SizedBox(width: 8),
                   _buildTabChip(cc, 1, 'Commerces', Icons.store_rounded, isWideScreen),
                   const SizedBox(width: 8),
@@ -491,21 +492,37 @@ class _ShopEstablishmentScreenV2State extends State<ShopEstablishmentScreenV2> {
             itemBuilder: (context, index) => _buildMobileCard(establishments[index], cc, index, currentTab),
           );
         } else {
-          // Vue grille sur desktop/tablet uniquement
+          // Vue grille V2 - Cartes compactes stylisées
+          // Plus de cartes visibles : 3 colonnes (tablet) → 4-5 colonnes (desktop)
+          final screenWidth = MediaQuery.of(context).size.width;
+          double maxCardWidth;
+          double aspectRatio;
+
+          if (screenWidth < 1024) {
+            // Tablet: 3 colonnes (cartes compactes)
+            maxCardWidth = 320.0;
+            aspectRatio = 0.9;
+          } else if (screenWidth < 1440) {
+            // Small Desktop: 4 colonnes
+            maxCardWidth = 320.0;
+            aspectRatio = 0.85;
+          } else {
+            // Large Desktop: 5 colonnes
+            maxCardWidth = 300.0;
+            aspectRatio = 0.85;
+          }
+
           return GridView.builder(
             key: ValueKey('gridview_$currentTab'), // Force recréation complète du GridView
             controller: _scrollController,
-            padding: EdgeInsets.only(
-              left: UniquesControllers().data.baseSpace * 2,
-              right: UniquesControllers().data.baseSpace * 2,
-              top: UniquesControllers().data.baseSpace,
-              bottom: UniquesControllers().data.baseSpace * 2,
+            padding: EdgeInsets.all(
+              UniquesControllers().data.baseSpace * 3, // 48px padding (3rem)
             ),
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 380,
-              childAspectRatio: 0.75,
-              crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
-              mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
+              maxCrossAxisExtent: maxCardWidth,
+              childAspectRatio: aspectRatio,
+              crossAxisSpacing: 24, // 24px gap (1.5rem) - Standard 2025
+              mainAxisSpacing: 24,
             ),
             itemCount: establishments.length,
             itemBuilder: (context, index) => _buildDesktopCard(establishments[index], cc, index, currentTab),
@@ -539,8 +556,9 @@ class _ShopEstablishmentScreenV2State extends State<ShopEstablishmentScreenV2> {
     final tName = cc.userTypeNameCache[establishment.userId] ?? 'INVISIBLE';
     final isOwnEstablishment = cc.isOwnEstablishment(establishment.userId);
 
-    return UnifiedEstablishmentCard(
-      key: ValueKey('desktop_v2_${currentTab}_${establishment.id}'),
+    // Utiliser la carte compacte V2 avec popup détaillé
+    return CompactEstablishmentCardV2(
+      key: ValueKey('compact_v2_${currentTab}_${establishment.id}'),
       establishment: establishment,
       onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
           ? null

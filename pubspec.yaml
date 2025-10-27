@@ -24,6 +24,7 @@ dependencies:
   url_launcher:
 
   firebase_auth:
+  google_sign_in: ^6.1.5
   cloud_firestore:
   firebase_storage:
   cloud_functions:

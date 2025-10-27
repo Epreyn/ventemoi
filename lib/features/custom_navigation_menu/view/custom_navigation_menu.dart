@@ -101,8 +101,9 @@ class CustomNavigationMenu extends Drawer {
                           padding: EdgeInsets.all(
                               UniquesControllers().data.baseSpace * 3),
                           child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Logo avec effet glassmorphique
+                              // Logo blanc sur fond orange (comme dans l'écran de chargement)
                               Container(
                                 padding: EdgeInsets.all(
                                     UniquesControllers().data.baseSpace * 2),
@@ -111,20 +112,20 @@ class CustomNavigationMenu extends Drawer {
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      Colors.white.withOpacity(0.3),
-                                      Colors.white.withOpacity(0.1),
+                                      CustomTheme.lightScheme().primary,
+                                      CustomTheme.lightScheme().primary.withOpacity(0.9),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(25),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: CustomTheme.lightScheme().primary.withOpacity(0.3),
                                     width: 1.5,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: CustomTheme.lightScheme()
                                           .primary
-                                          .withOpacity(0.2),
+                                          .withOpacity(0.4),
                                       blurRadius: 20,
                                       spreadRadius: 5,
                                     ),
@@ -135,7 +136,9 @@ class CustomNavigationMenu extends Drawer {
                                       UniquesControllers().data.baseSpace * 10,
                                   height:
                                       UniquesControllers().data.baseSpace * 10,
-                                  child: const CustomLogo(),
+                                  child: const CustomLogo(
+                                    color: Colors.white, // Logo blanc
+                                  ),
                                 ),
                               ),
                               SizedBox(

@@ -39,7 +39,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.showDrawerButton = true,
     this.scaffoldKey,
     this.backgroundColor,
-    this.height = 75, // Réduit de 90 à 75
+    this.height = 64, // Standard Material Design
     this.showGreeting = true,
     this.modernStyle = true,
   });
@@ -57,14 +57,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFf2d8a1),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20), // Réduit de 24 à 20
-          bottomRight: Radius.circular(20),
-        ),
+        color: CustomTheme.lightScheme().primary.withOpacity(0.25), // Orange uni plus foncé
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08), // Ombre plus légère
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -90,37 +86,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   // Layout simplifié pour mobile
   Widget _buildMobileLayout(
       CustomAppBarActionsController cc, BuildContext context) {
-    return Row(
-      children: [
-        // Menu button
-        if (showDrawerButton)
-          CustomAnimation(
-            duration: UniquesControllers().data.baseAnimationDuration,
-            delay: UniquesControllers().data.baseAnimationDuration,
-            curve: Curves.easeOutQuart,
-            xStartPosition: -20,
-            isOpacity: true,
-            fixedTag: 'app_bar_menu_button',
-            child: Builder(
-              builder: (context) => IconButton(
-                icon: Icon(
-                  Icons.menu,
-                  color: CustomTheme.lightScheme().primary,
-                  size: 26,
-                ),
-                onPressed: () {
-                  if (scaffoldKey != null) {
-                    scaffoldKey!.currentState?.openDrawer();
-                  } else {
-                    Scaffold.of(context).openDrawer();
-                  }
-                },
-              ),
-            ),
-          ),
+    final screenWidth = MediaQuery.of(context).size.width;
 
-        // Logo/Titre centré comme sur la page login
-        Expanded(
+    return Stack(
+      children: [
+        // Logo/Titre centré par rapport à l'écran avec logo en arrière-plan
+        Positioned.fill(
           child: CustomAnimation(
             duration: UniquesControllers().data.baseAnimationDuration,
             delay: UniquesControllers().data.baseAnimationDuration * 1.2,
@@ -129,17 +100,34 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             isOpacity: true,
             fixedTag: 'app_bar_logo_title',
             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
                 children: [
-                  // Logo
-                  SizedBox(
-                    height: 35,
-                    child: const CustomLogo(),
+                  // Logo en arrière-plan avec ShaderMask pour transparence au centre
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          CustomTheme.lightScheme().primary.withOpacity(0.5),
+                          CustomTheme.lightScheme().primary.withOpacity(0.1),
+                          CustomTheme.lightScheme().primary.withOpacity(0.1),
+                          CustomTheme.lightScheme().primary.withOpacity(0.5),
+                        ],
+                        stops: const [0.0, 0.3, 0.7, 1.0],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: SizedBox(
+                      height: 50,
+                      child: CustomLogo(
+                        color: CustomTheme.lightScheme().primary,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  // Titre
+                  // Titre par-dessus
                   const Text(
                     'VENTE MOI',
                     style: TextStyle(
@@ -155,15 +143,54 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
 
-        // Widget combiné points/user sur mobile
-        CustomAnimation(
-          duration: UniquesControllers().data.baseAnimationDuration,
-          delay: UniquesControllers().data.baseAnimationDuration * 1.5,
-          curve: Curves.easeOutQuart,
-          xStartPosition: 20,
-          isOpacity: true,
-          fixedTag: 'app_bar_mobile_info',
-          child: _buildMobileInfoWidget(cc, context),
+        // Row avec menu et info (centrés verticalement)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Menu button
+            if (showDrawerButton)
+              CustomAnimation(
+                duration: UniquesControllers().data.baseAnimationDuration,
+                delay: UniquesControllers().data.baseAnimationDuration,
+                curve: Curves.easeOutQuart,
+                xStartPosition: -20,
+                isOpacity: true,
+                fixedTag: 'app_bar_menu_button',
+                child: Builder(
+                  builder: (context) => Center(
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.menu,
+                        color: CustomTheme.lightScheme().primary,
+                        size: 26,
+                      ),
+                      onPressed: () {
+                        if (scaffoldKey != null) {
+                          scaffoldKey!.currentState?.openDrawer();
+                        } else {
+                          Scaffold.of(context).openDrawer();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+            const Spacer(),
+
+            // Widget combiné points/user sur mobile
+            CustomAnimation(
+              duration: UniquesControllers().data.baseAnimationDuration,
+              delay: UniquesControllers().data.baseAnimationDuration * 1.5,
+              curve: Curves.easeOutQuart,
+              xStartPosition: 20,
+              isOpacity: true,
+              fixedTag: 'app_bar_mobile_info',
+              child: Center(
+                child: _buildMobileInfoWidget(cc, context),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -501,10 +528,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildDesktopLayout(
       CustomAppBarActionsController cc, BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Partie gauche : Menu + Titre
         Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (showDrawerButton)
               CustomAnimation(
@@ -515,8 +544,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 isOpacity: true,
                 fixedTag: 'app_bar_menu_button_desktop',
                 child: Builder(
-                  builder: (context) => IconButton(
-                    icon: Container(
+                  builder: (context) => InkWell(
+                    onTap: () {
+                      if (scaffoldKey != null) {
+                        scaffoldKey!.currentState?.openDrawer();
+                      } else {
+                        Scaffold.of(context).openDrawer();
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: CustomTheme.lightScheme().primary,
@@ -528,13 +565,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         size: 24,
                       ),
                     ),
-                    onPressed: () {
-                      if (scaffoldKey != null) {
-                        scaffoldKey!.currentState?.openDrawer();
-                      } else {
-                        Scaffold.of(context).openDrawer();
-                      }
-                    },
                   ),
                 ),
               ),

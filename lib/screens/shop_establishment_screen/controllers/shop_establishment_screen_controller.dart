@@ -17,7 +17,7 @@ import '../../../core/services/voucher_purchase_email_service.dart';
 
 class ShopEstablishmentScreenController extends GetxController
     with ControllerMixin {
-  /// 0 => Partenaires (Entreprises), 1 => Commerces (Boutiques), 2 => Associations, 3 => Sponsors
+  /// 0 => Services (Entreprises), 1 => Commerces (Boutiques), 2 => Associations, 3 => Sponsors
   RxInt selectedTabIndex = 0.obs;
   Timer? _filterDebounceTimer;
   // RETIRÉ : _isFilteringInProgress qui pouvait causer des blocages
@@ -28,7 +28,7 @@ class ShopEstablishmentScreenController extends GetxController
 
   // Controllers de scroll pour mémoriser la position de chaque onglet
   final Map<int, ScrollController> scrollControllers = {
-    0: ScrollController(), // Partenaires
+    0: ScrollController(), // Services
     1: ScrollController(), // Commerces
     2: ScrollController(), // Associations
     3: ScrollController(), // Sponsors
@@ -256,6 +256,12 @@ class ShopEstablishmentScreenController extends GetxController
         final tName = userTypeNameCache[est.userId] ?? 'INVISIBLE';
         if (tName == 'INVISIBLE') continue;
 
+        // IMPORTANT : Filtrer les établissements non visibles (is_visible = false)
+        // Cela inclut ceux qui n'ont pas encore payé
+        if (!est.isVisible) {
+          continue;
+        }
+
         // NOUVEAU : Filtrer directement les établissements qui n'ont pas accepté le contrat
         // Sauf pour les associations qui ont leur propre logique de visibilité
         if (!est.hasAcceptedContract && !est.isAssociation) {
@@ -383,7 +389,7 @@ class ShopEstablishmentScreenController extends GetxController
     // Déterminer quel texte de recherche utiliser selon l'onglet
     String lowerSearch = '';
     switch (tab) {
-      case 0: // Partenaires (Entreprises)
+      case 0: // Services (Entreprises)
         lowerSearch = enterpriseSearchText.value.trim().toLowerCase();
         break;
       case 1: // Commerces (Boutiques)
@@ -414,7 +420,7 @@ class ShopEstablishmentScreenController extends GetxController
       final isSponsor = (tName == 'Sponsor');
 
       // Filtrer par tab (nouvel ordre)
-      if (tab == 0 && !isEnt) continue; // Partenaires (Entreprises)
+      if (tab == 0 && !isEnt) continue; // Services (Entreprises)
       if (tab == 1 && !isBoutique) continue; // Commerces (Boutiques)
       if (tab == 2 && !isAsso) continue; // Associations
       if (tab == 3 && !isSponsor) continue; // Sponsors
@@ -444,7 +450,7 @@ class ShopEstablishmentScreenController extends GetxController
 
       // Filtre par catégorie
       switch (tab) {
-        case 0: // Partenaires (Entreprises) - utilisent enterprise_categories
+        case 0: // Services (Entreprises) - utilisent enterprise_categories
           if (selectedEnterpriseCatIds.isNotEmpty) {
             final eCats = e.enterpriseCategoryIds ?? [];
             final hasIntersection = eCats.any(
@@ -486,7 +492,7 @@ class ShopEstablishmentScreenController extends GetxController
   void setSearchText(String val) {
     final tab = selectedTabIndex.value;
     switch (tab) {
-      case 0: // Partenaires (Entreprises)
+      case 0: // Services (Entreprises)
         enterpriseSearchText.value = val;
         break;
       case 1: // Commerces (Boutiques)
@@ -548,7 +554,7 @@ class ShopEstablishmentScreenController extends GetxController
   void variablesToResetToBottomSheet() {
     final tab = selectedTabIndex.value;
     switch (tab) {
-      case 0: // Partenaires (Entreprises)
+      case 0: // Services (Entreprises)
         localSelectedEnterpriseCatIds.value =
             Set<String>.from(selectedEnterpriseCatIds.toList());
         break;
@@ -567,7 +573,7 @@ class ShopEstablishmentScreenController extends GetxController
     // Appeler la méthode appropriée selon le contexte
     if (selectedEstab.value != null) {
       final tName = userTypeNameCache[selectedEstab.value!.userId] ?? 'INVISIBLE';
-      
+
       if (tName == 'Boutique') {
         // Achat de bons pour les commerces
         _performPurchase();
@@ -575,7 +581,38 @@ class ShopEstablishmentScreenController extends GetxController
         // Don pour les associations
         _performDonation();
       }
+    } else {
+      // Si aucun établissement n'est sélectionné, c'est qu'on applique les filtres
+      _applyFilters();
     }
+  }
+
+  void _applyFilters() {
+    // Appliquer les filtres selon l'onglet actif
+    switch (selectedTabIndex.value) {
+      case 0: // Services (Entreprises)
+        selectedEnterpriseCatIds.value = Set<String>.from(localSelectedEnterpriseCatIds.toList());
+        break;
+      case 1: // Boutiques
+        selectedCatIds.value = Set<String>.from(localSelectedCatIds.toList());
+        break;
+      case 2: // Sponsors
+        selectedSponsorCatIds.value = Set<String>.from(localSelectedSponsorCatIds.toList());
+        break;
+      case 3: // Associations
+        selectedCatIds.value = Set<String>.from(localSelectedCatIds.toList());
+        break;
+    }
+
+    // Fermer le bottom sheet
+    Get.back();
+
+    // Afficher un message de confirmation
+    UniquesControllers().data.snackbar(
+      'Filtres appliqués',
+      'Les résultats ont été mis à jour',
+      false,
+    );
   }
   
   void _performPurchase() async {
@@ -1243,11 +1280,11 @@ class ShopEstablishmentScreenController extends GetxController
   
   List<Widget> _buildFilterWidgets() {
     switch (selectedTabIndex.value) {
-      case 0: // Partenaires
+      case 0: // Services
         return _buildCategoryChips(
           enterpriseCategoriesMap,
           localSelectedEnterpriseCatIds,
-          'Catégories d\'entreprises',
+          'Catégories de services',
         );
       case 1: // Commerces
         return _buildCategoryChips(

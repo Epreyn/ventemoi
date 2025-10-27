@@ -9,8 +9,9 @@ import '../../../core/theme/custom_theme.dart';
 import '../../../features/screen_layout/view/screen_layout.dart';
 import '../../../features/custom_app_bar/view/custom_app_bar.dart';
 import '../controllers/shop_establishment_screen_controller.dart';
-import '../widgets/unified_establishment_card.dart';
+// import '../widgets/unified_establishment_card.dart'; // v1 - conservé pour référence
 import '../widgets/unified_mobile_card_fixed.dart';
+import '../widgets/desktop_establishment_card_v2.dart';
 import '../widgets/empty_state_widget.dart';
 import '../widgets/special_offers_banner.dart';
 
@@ -269,7 +270,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
                       )),
                   Row(
                     children: [
-                      _buildResponsiveTabButton(cc, 0, 'Partenaires',
+                      _buildResponsiveTabButton(cc, 0, 'Services',
                           Icons.business, isVerySmallScreen || isSmallScreen),
                       _buildResponsiveTabButton(cc, 1, 'Commerces', Icons.store,
                           isVerySmallScreen || isSmallScreen),
@@ -373,7 +374,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
       Widget richDescription;
 
       switch (cc.selectedTabIndex.value) {
-        case 0: // Partenaires
+        case 0: // Services
           richDescription = RichText(
             text: TextSpan(
               style: TextStyle(
@@ -592,7 +593,7 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
             child: Obx(() {
               int filterCount = 0;
               switch (cc.selectedTabIndex.value) {
-                case 0: // Partenaires
+                case 0: // Services
                   filterCount = cc.selectedEnterpriseCatIds.length;
                   break;
                 case 1: // Commerces
@@ -680,29 +681,37 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
             },
           );
         } else {
-          // Format grille adaptatif avec taille maximale variable selon l'écran
+          // Format grille adaptatif v2 - Basé sur les meilleures pratiques UX/UI 2025
+          // Grille responsive: 2 colonnes (tablet) → 3-4 colonnes (desktop)
           double maxCardWidth;
           double aspectRatio;
+          int crossAxisCount;
 
           if (isTablet) {
-            maxCardWidth = 350.0; // Cartes plus petites sur tablette
-            aspectRatio = 0.8;
+            // Tablet: 2 colonnes, cartes plus compactes
+            maxCardWidth = 380.0;
+            aspectRatio = 0.85;
+            crossAxisCount = 2;
           } else if (isSmallDesktop) {
-            maxCardWidth = 380.0; // Taille moyenne sur petit desktop
-            aspectRatio = 0.75;
+            // Small Desktop: 3 colonnes
+            maxCardWidth = 400.0;
+            aspectRatio = 0.8;
+            crossAxisCount = 3;
           } else {
-            maxCardWidth = 420.0; // Taille max sur grand écran
-            aspectRatio = 0.75;
+            // Large Desktop: 4 colonnes
+            maxCardWidth = 420.0;
+            aspectRatio = 0.8;
+            crossAxisCount = 4;
           }
 
           return GridView.builder(
             controller: cc.getCurrentScrollController(),
-            padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2),
+            padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 3),
             gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: maxCardWidth,
               childAspectRatio: aspectRatio,
-              crossAxisSpacing: UniquesControllers().data.baseSpace * 2,
-              mainAxisSpacing: UniquesControllers().data.baseSpace * 2,
+              crossAxisSpacing: 24, // Espacement cohérent 24px (1.5rem)
+              mainAxisSpacing: 24,
             ),
             itemCount: establishments.length,
             itemBuilder: (context, index) {
@@ -712,9 +721,9 @@ class _ShopEstablishmentScreenState extends State<ShopEstablishmentScreen> {
               final isOwnEstablishment =
                   cc.isOwnEstablishment(establishment.userId);
 
-              // Utiliser la carte unifiée pour desktop/tablet
-              return UnifiedEstablishmentCard(
-                key: ValueKey('unified_${establishment.id}'),
+              // Utiliser la nouvelle carte v2 optimisée pour desktop/tablet
+              return DesktopEstablishmentCardV2(
+                key: ValueKey('desktop_v2_${establishment.id}'),
                 establishment: establishment,
                 onBuy: (isOwnEstablishment || (tName != 'Boutique' && tName != 'Association'))
                     ? null

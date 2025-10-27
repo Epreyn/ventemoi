@@ -628,7 +628,9 @@ class _SpecialOffersBannerImprovedState extends State<SpecialOffersBannerImprove
           height: 8,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4),
-            color: _currentIndex == index ? Colors.orange : Colors.grey.withOpacity(0.3),
+            color: _currentIndex == index
+                ? const Color(0xffff8800) // Nouvel orange
+                : Colors.grey.withOpacity(0.5), // Opacité augmentée pour plus de netteté
           ),
         ),
       ),

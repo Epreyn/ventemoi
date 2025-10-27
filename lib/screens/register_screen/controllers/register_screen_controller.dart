@@ -15,6 +15,7 @@ import '../../../core/services/association_visibility_service.dart';
 import '../../../core/services/association_waitlist_service.dart';
 import '../../../core/services/communication_team_email_service.dart';
 import '../../../core/services/firebase_email_service.dart';
+import '../../../core/services/google_auth_service.dart';
 
 class RegisterScreenController extends GetxController with ControllerMixin {
   String pageTitle = 'Inscription'.toUpperCase();
@@ -128,6 +129,13 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   String registerLabel = 'S\'INSCRIRE';
   IconData registerIconData = Icons.app_registration;
 
+  // Service d'authentification Google
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
+
+  // Variables pour gérer l'inscription Google
+  RxBool isGoogleSignUp = false.obs;
+  Map<String, dynamic>? googleUserData;
+
   @override
   void onInit() {
     super.onInit();
@@ -148,6 +156,21 @@ class RegisterScreenController extends GetxController with ControllerMixin {
     sponsorInfo.value = null;
     hasPendingPoints.value = false;
     pendingPointsAmount.value = 0;
+
+    // Vérifier si l'inscription vient de Google
+    final googleUser = Get.arguments?['googleUser'];
+    if (googleUser != null) {
+      isGoogleSignUp.value = true;
+      googleUserData = googleUser;
+
+      // Pré-remplir les champs
+      if (googleUser['email'] != null) {
+        emailController.text = googleUser['email'];
+      }
+      if (googleUser['displayName'] != null) {
+        nameController.text = googleUser['displayName'];
+      }
+    }
 
     // Vérifier si un code de parrainage est passé en paramètre URL
     final referralCode = Get.parameters['code'];
@@ -442,6 +465,12 @@ class RegisterScreenController extends GetxController with ControllerMixin {
 
   Future<void> register() async {
     if (!formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Si c'est une inscription Google, utiliser la méthode dédiée
+    if (isGoogleSignUp.value && googleUserData != null) {
+      await _completeGoogleRegistration();
       return;
     }
 
@@ -1080,15 +1109,361 @@ class RegisterScreenController extends GetxController with ControllerMixin {
   // Méthode appelée quand le type d'utilisateur change
   void onUserTypeChanged(dynamic userType) {
     currentUserType.value = userType;
-    
+
     // Afficher le champ entreprise si c'est un pro
     if (userType != null && userType.name != null) {
       final typeName = userType.name.toString().toLowerCase();
-      showCompanyField.value = typeName.contains('entreprise') || 
+      showCompanyField.value = typeName.contains('entreprise') ||
                               typeName.contains('boutique') ||
                               typeName.contains('commerçant');
     } else {
       showCompanyField.value = false;
+    }
+  }
+
+  /// Inscription avec Google (déclenchée depuis le bouton)
+  Future<void> signInWithGoogle() async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // Authentification Google
+      final userCredential = await _googleAuthService.signInWithGoogle();
+
+      if (userCredential == null) {
+        // L'utilisateur a annulé
+        UniquesControllers().data.isInAsyncCall.value = false;
+        return;
+      }
+
+      final user = userCredential.user;
+      if (user == null) {
+        throw Exception('Impossible de récupérer les informations utilisateur');
+      }
+
+      // AdditionalUserInfo nous indique si c'est une nouvelle inscription
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+
+      if (!isNewUser) {
+        // Utilisateur existant : vérifier dans Firestore
+        final exists = await _googleAuthService.userExists(user.uid);
+
+        if (exists) {
+          // Compte complet : rediriger vers le login
+          UniquesControllers().data.isInAsyncCall.value = false;
+          Get.offNamed(Routes.login);
+          UniquesControllers().data.snackbar(
+            'Compte existant',
+            'Ce compte Google existe déjà. Utilisez la connexion.',
+            false,
+          );
+          return;
+        }
+        // Sinon, continuer l'inscription (Auth existe mais pas Firestore)
+      }
+
+      // Nouvel utilisateur ou inscription incomplète : préparer l'inscription
+      isGoogleSignUp.value = true;
+      googleUserData = {
+        'uid': user.uid,
+        'email': user.email,
+        'displayName': user.displayName,
+        'photoURL': user.photoURL,
+      };
+
+      // Pré-remplir les champs
+      if (user.email != null) {
+        emailController.text = user.email!;
+      }
+      if (user.displayName != null) {
+        nameController.text = user.displayName!;
+      }
+
+      UniquesControllers().data.isInAsyncCall.value = false;
+
+      // Afficher un message pour inviter à compléter le profil
+      UniquesControllers().data.snackbar(
+        'Bienvenue !',
+        'Veuillez compléter votre profil pour terminer l\'inscription.',
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.isInAsyncCall.value = false;
+      UniquesControllers().data.snackbar(
+        'Erreur Google Sign In',
+        e.toString(),
+        true,
+      );
+    }
+  }
+
+  /// Complète l'inscription Google après que l'utilisateur ait rempli les infos obligatoires
+  Future<void> _completeGoogleRegistration() async {
+    try {
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      if (currentUserType.value == null) {
+        UniquesControllers().data.snackbar(
+          'Type requis',
+          'Veuillez sélectionner votre type de profil',
+          true,
+        );
+        UniquesControllers().data.isInAsyncCall.value = false;
+        return;
+      }
+
+      final uid = googleUserData!['uid'];
+      final email = emailController.text.trim();
+      final name = nameController.text.trim();
+      final photoURL = googleUserData!['photoURL'] ?? '';
+
+      // Vérifier si l'email est dans une liste de parrainage
+      final emailToCheck = email.toLowerCase();
+      Map<String, dynamic>? actualSponsorInfo;
+
+      final sponsorshipQuery = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('sponsorships')
+          .where('sponsored_emails', arrayContains: emailToCheck)
+          .limit(1)
+          .get();
+
+      if (sponsorshipQuery.docs.isNotEmpty) {
+        final sponsorId = sponsorshipQuery.docs.first.data()['user_id'];
+        final sponsorDoc = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('users')
+            .doc(sponsorId)
+            .get();
+
+        if (sponsorDoc.exists) {
+          actualSponsorInfo = sponsorDoc.data();
+          actualSponsorInfo!['id'] = sponsorDoc.id;
+        }
+      } else if (hasValidReferralCode.value && sponsorInfo.value != null) {
+        actualSponsorInfo = sponsorInfo.value;
+      }
+
+      // Créer l'utilisateur dans Firestore via le service
+      await _googleAuthService.createUserInFirestore(
+        uid: uid,
+        email: email,
+        name: name,
+        userTypeId: currentUserType.value!.id,
+        imageUrl: photoURL,
+      );
+
+      // Vérifier et réclamer les points en attente
+      final pendingPoints = await _checkAndClaimPendingPoints(emailToCheck, uid);
+
+      // Créer l'établissement si nécessaire
+      if (currentUserType.value?.name != 'Particulier') {
+        await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .doc()
+            .set({
+          'name': '',
+          'user_id': uid,
+          'description': '',
+          'address': '',
+          'telephone': '',
+          'email': '',
+          'logo_url': '',
+          'banner_url': '',
+          'category_id': '',
+          'enterprise_categories': [],
+          'enterprise_category_slots': 2,
+          'video_url': '',
+          'has_accepted_contract': false,
+        });
+      }
+
+      // Envoyer une notification aux admins
+      await _notifyAdminsOfNewRegistration({
+        'user_id': uid,
+        'name': name,
+        'email': email,
+        'user_type': currentUserType.value?.name ?? '',
+        'created_at': DateTime.now(),
+      });
+
+      // Gérer le parrainage
+      if (actualSponsorInfo != null) {
+        int sponsorPoints = 0;
+        final userTypeName = currentUserType.value?.name ?? '';
+        if (userTypeName == 'Entreprise' ||
+            userTypeName == 'Boutique' ||
+            userTypeName == 'Commerçant') {
+          sponsorPoints = 100;
+        }
+
+        if (sponsorshipQuery.docs.isNotEmpty) {
+          final sponsorshipDoc = sponsorshipQuery.docs.first;
+          final sponsorshipData = sponsorshipDoc.data();
+
+          Map<String, dynamic> sponsorshipDetails = Map<String, dynamic>.from(
+              sponsorshipData['sponsorship_details'] ?? {});
+
+          sponsorshipDetails[emailToCheck] = {
+            'user_id': uid,
+            'user_type': userTypeName,
+            'is_active': true,
+            'total_earnings': sponsorPoints,
+            'join_date': FieldValue.serverTimestamp(),
+            'has_paid': false,
+            'has_accepted_cgu': false,
+            'earnings_history': sponsorPoints > 0
+                ? [
+                    {
+                      'date': FieldValue.serverTimestamp(),
+                      'points': sponsorPoints,
+                      'reason': 'signup_bonus',
+                    }
+                  ]
+                : [],
+          };
+
+          await sponsorshipDoc.reference.update({
+            'sponsored_emails': FieldValue.arrayRemove([emailToCheck]),
+            'sponsorship_details': sponsorshipDetails,
+            'total_earnings': FieldValue.increment(sponsorPoints),
+            'updated_at': FieldValue.serverTimestamp(),
+          });
+        }
+
+        if (sponsorPoints > 0) {
+          await _addReferralPointsToSponsor(actualSponsorInfo['id'], sponsorPoints);
+
+          await sendSponsorshipNotificationEmail(
+            sponsorEmail: actualSponsorInfo['email'],
+            sponsorName: actualSponsorInfo['name'],
+            newUserEmail: email,
+            pointsEarned: sponsorPoints,
+          );
+        }
+      }
+
+      // Gérer l'association sélectionnée
+      if (selectedAssociation.value != null) {
+        final associationId = selectedAssociation.value!['id'];
+
+        final sponsorshipSnap = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('sponsorships')
+            .where('user_id', isEqualTo: associationId)
+            .limit(1)
+            .get();
+
+        if (sponsorshipSnap.docs.isNotEmpty) {
+          await sponsorshipSnap.docs.first.reference.update({
+            'sponsored_emails': FieldValue.arrayUnion([emailToCheck])
+          });
+
+          final establishmentId =
+              await AssociationVisibilityService.getEstablishmentIdByUserId(
+                  associationId);
+
+          if (establishmentId != null) {
+            await AssociationVisibilityService.updateAffiliatesCount(
+                establishmentId);
+          }
+        }
+      }
+
+      // Traiter la liste d'attente des associations si boutique
+      final userTypeName = currentUserType.value?.name ?? '';
+      if (userTypeName == 'Boutique' || userTypeName == 'Commerçant') {
+        await AssociationWaitlistService.processWaitlistOnNewBoutique();
+
+        final randomAssociation =
+            await AssociationWaitlistService.getRandomVisibleAssociation();
+
+        if (randomAssociation != null) {
+          await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('vouchers')
+              .add({
+            'association_id': randomAssociation['id'],
+            'association_user_id': randomAssociation['user_id'],
+            'association_name': randomAssociation['name'],
+            'boutique_id': uid,
+            'boutique_name': name,
+            'boutique_email': email,
+            'points': 50,
+            'status': 'active',
+            'created_at': FieldValue.serverTimestamp(),
+            'type': 'welcome_bonus',
+            'description':
+                'Bon de bienvenue suite à l\'inscription d\'une boutique',
+          });
+
+          await UniquesControllers()
+              .data
+              .firebaseFirestore
+              .collection('points_attributions')
+              .add({
+            'giver_id': 'system',
+            'target_id': randomAssociation['user_id'],
+            'target_email': randomAssociation['email'] ?? '',
+            'date': DateTime.now(),
+            'cost': 0,
+            'points': 50,
+            'commission_percent': 0,
+            'commission_cost': 0,
+            'validated': true,
+            'reason': 'Bon aléatoire pour inscription boutique',
+            'boutique_id': uid,
+          });
+        } else {
+          await AssociationWaitlistService.createPendingVoucher({
+            'boutique_id': uid,
+            'boutique_name': name,
+            'boutique_email': email,
+            'points': 50,
+            'type': 'welcome_bonus',
+            'description': 'Bon de bienvenue en attente d\'attribution',
+          });
+        }
+      }
+
+      UniquesControllers().data.isInAsyncCall.value = false;
+
+      await sendModernWelcomeEmail(email, name);
+
+      // Envoyer un email à l'équipe communication
+      if (currentUserType.value?.name != 'Particulier') {
+        await CommunicationTeamEmailService.sendNewPartnerRegistrationEmail(
+          partnerName: name,
+          partnerEmail: email,
+          partnerType: currentUserType.value?.name ?? '',
+          companyName: showCompanyField.value ? companyController.text.trim() : null,
+        );
+      }
+
+      Get.offAllNamed(Routes.login);
+
+      String successMessage =
+          'Inscription réussie ! Vous pouvez maintenant vous connecter.';
+      if (pendingPoints > 0) {
+        successMessage =
+            'Bienvenue ! Vous avez reçu ${pendingPoints} points qui vous attendaient.';
+      }
+
+      UniquesControllers().data.snackbar(
+        'Inscription réussie',
+        successMessage,
+        false,
+      );
+    } catch (e) {
+      UniquesControllers().data.isInAsyncCall.value = false;
+      UniquesControllers()
+          .data
+          .snackbar('Erreur lors de l\'inscription', e.toString(), true);
     }
   }
 }

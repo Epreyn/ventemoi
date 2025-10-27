@@ -679,6 +679,7 @@ class ProEstablishmentProfileScreenController extends GetxController
         dataToSave['has_accepted_contract'] = false;
         dataToSave['enterprise_category_slots'] = 2;
         dataToSave['max_vouchers_purchase'] = 1;
+        dataToSave['is_visible'] = false; // Invisible par défaut tant qu'il n'a pas payé
 
         await UniquesControllers()
             .data

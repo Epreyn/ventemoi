@@ -107,6 +107,17 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
                           icon: Icons.store_rounded,
                         ),
                         const CustomSpace(heightMultiplier: 2),
+
+                        // Bannière d'alerte si paiement en attente
+                        if (data != null &&
+                            data['pending_payment'] == true &&
+                            data['has_active_subscription'] != true)
+                          _buildPendingPaymentBanner(context, ec, data),
+
+                        if (data != null &&
+                            data['pending_payment'] == true &&
+                            data['has_active_subscription'] != true)
+                          const CustomSpace(heightMultiplier: 2),
                         // Section Logo Améliorée
                         CustomCardAnimation(
                           index: 0,
@@ -1655,6 +1666,182 @@ class ProEstablishmentProfileScreen extends StatelessWidget {
           );
         });
       },
+    );
+  }
+
+  // Widget de bannière pour rappeler le paiement en attente
+  Widget _buildPendingPaymentBanner(
+    BuildContext context,
+    ProEstablishmentProfileScreenController ec,
+    Map<String, dynamic> data,
+  ) {
+    final paymentOption = data['payment_option'] ?? 'monthly';
+    final isAnnual = paymentOption == 'annual';
+
+    return CustomCardAnimation(
+      index: 0,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(UniquesControllers().data.baseSpace * 2.5),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.orange.shade50,
+              Colors.orange.shade100.withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: Colors.orange.shade300,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.orange.shade200.withOpacity(0.5),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.schedule_rounded,
+                    color: Colors.orange.shade700,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Paiement en attente',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Votre établissement n\'est pas encore visible',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.visibility_off,
+                        color: Colors.orange.shade700,
+                        size: 20
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pour être visible dans le shop :',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow('✓ Finalisez votre abonnement'),
+                  _buildInfoRow('✓ Profitez de tous les avantages VenteMoi'),
+                  _buildInfoRow('✓ Recevez un bon cadeau de 50€'),
+                  if (ec.currentUserType.value?.name == 'Commerçant' ||
+                      ec.currentUserType.value?.name == 'Boutique')
+                    _buildInfoRow('✓ Obtenez 16 bons cadeaux de 50€'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Ouvrir directement la dialog de paiement à l'étape 2
+                      final dialog = CGUPaymentDialog(
+                        userType: ec.currentUserType.value?.name ?? 'Boutique',
+                      );
+
+                      // Passer directement à l'étape de paiement
+                      Get.dialog(
+                        dialog,
+                        barrierDismissible: false,
+                      );
+                    },
+                    icon: const Icon(Icons.credit_card, color: Colors.white),
+                    label: Text(
+                      'FINALISER LE PAIEMENT',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'Formule ${isAnnual ? 'annuelle' : 'mensuelle'} sélectionnée',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

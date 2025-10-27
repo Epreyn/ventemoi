@@ -7,6 +7,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:ventemoi/core/theme/custom_theme.dart';
 import 'package:ventemoi/core/services/gift_notification_service_simple.dart';
 import 'package:ventemoi/core/services/firebase_email_service.dart';
+import 'package:ventemoi/core/services/google_auth_service.dart';
 import 'package:ventemoi/widgets/celebration_dialog_improved.dart';
 
 import '../../../core/classes/unique_controllers.dart';
@@ -58,10 +59,13 @@ class LoginScreenController extends GetxController {
 
   // Visibilité du mot de passe
   RxBool isPasswordVisible = false.obs;
-  
-  // Se souvenir de moi
-  RxBool rememberMe = false.obs;
+
+  // Se souvenir de moi (toujours activé par défaut)
+  RxBool rememberMe = true.obs;
   final GetStorage storage = GetStorage('Storage');
+
+  // Service d'authentification Google
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
 
   @override
   void onInit() {
@@ -766,6 +770,224 @@ class LoginScreenController extends GetxController {
     } catch (e) {
       UniquesControllers().data.isInAsyncCall.value = false;
       UniquesControllers().data.snackbar('Erreur', e.toString(), true);
+    }
+  }
+
+  /// Connexion avec Google
+  Future<void> signInWithGoogle() async {
+    try {
+      print('🔵 [Google Login] Début de la connexion Google');
+      UniquesControllers().data.isInAsyncCall.value = true;
+
+      // Authentification Google
+      print('🔵 [Google Login] Appel du service Google Auth');
+      final userCredential = await _googleAuthService.signInWithGoogle();
+
+      if (userCredential == null) {
+        // L'utilisateur a annulé
+        print('⚠️ [Google Login] Utilisateur a annulé');
+        UniquesControllers().data.isInAsyncCall.value = false;
+        return;
+      }
+
+      final user = userCredential.user;
+      if (user == null) {
+        print('❌ [Google Login] User null dans userCredential');
+        throw Exception('Impossible de récupérer les informations utilisateur');
+      }
+
+      print('✅ [Google Login] User récupéré: ${user.uid} - ${user.email}');
+
+      // AdditionalUserInfo nous indique si c'est une nouvelle inscription
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      print('🔵 [Google Login] isNewUser: $isNewUser');
+
+      if (isNewUser) {
+        // Nouvel utilisateur : rediriger vers le formulaire d'inscription
+        print('✅ [Google Login] Nouvel utilisateur détecté, redirection vers inscription');
+        UniquesControllers().data.isInAsyncCall.value = false;
+        Get.offAllNamed(Routes.register, arguments: {
+          'googleUser': {
+            'uid': user.uid,
+            'email': user.email,
+            'displayName': user.displayName,
+            'photoURL': user.photoURL,
+          }
+        });
+      } else {
+        // Utilisateur existant : vérifier dans Firestore puis connecter
+        print('🔵 [Google Login] Utilisateur existant, vérification dans Firestore');
+        final exists = await _googleAuthService.userExists(user.uid);
+        print('🔵 [Google Login] Existe dans Firestore: $exists');
+
+        if (exists) {
+          // Utilisateur existant avec profil complet
+          print('✅ [Google Login] Profil complet trouvé, connexion en cours');
+          await _handleExistingUserLogin(user.uid);
+        } else {
+          // Utilisateur Auth existe mais pas dans Firestore (inscription incomplète)
+          print('⚠️ [Google Login] Auth existe mais pas Firestore, redirection vers inscription');
+          UniquesControllers().data.isInAsyncCall.value = false;
+          Get.offAllNamed(Routes.register, arguments: {
+            'googleUser': {
+              'uid': user.uid,
+              'email': user.email,
+              'displayName': user.displayName,
+              'photoURL': user.photoURL,
+            }
+          });
+        }
+      }
+    } catch (e, stackTrace) {
+      print('❌❌❌ [Google Login] ERREUR FATALE ❌❌❌');
+      print('Erreur: $e');
+      print('StackTrace: $stackTrace');
+      UniquesControllers().data.isInAsyncCall.value = false;
+      UniquesControllers().data.snackbar(
+        'Erreur Google Sign In',
+        e.toString(),
+        true,
+      );
+    }
+  }
+
+  /// Gère la connexion d'un utilisateur existant
+  Future<void> _handleExistingUserLogin(String uid) async {
+    try {
+      UniquesControllers().getStorage.write('currentUserUID', uid);
+
+      final doc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) {
+        throw Exception('Utilisateur introuvable dans la base de données');
+      }
+
+      final data = doc.data()!;
+
+      final bool isEnabled = data['isEnable'] ?? false;
+      if (!isEnabled) {
+        UniquesControllers().data.snackbar(
+          'Compte désactivé',
+          'Veuillez contacter un administrateur pour activer votre compte.',
+          true,
+        );
+        await UniquesControllers().data.firebaseAuth.signOut();
+        UniquesControllers().data.isInAsyncCall.value = false;
+        return;
+      }
+
+      // Vérifier si l'onboarding doit être affiché
+      final shouldShowOnboarding =
+          await OnboardingScreenController.shouldShowOnboarding();
+      if (shouldShowOnboarding) {
+        UniquesControllers().data.isInAsyncCall.value = false;
+        Get.offAllNamed(Routes.onboarding);
+        return;
+      }
+
+      // Récupérer le type d'utilisateur
+      final userTypeID = data['user_type_id'] as String?;
+      final userTypeDoc = await UniquesControllers()
+          .data
+          .firebaseFirestore
+          .collection('user_types')
+          .doc(userTypeID)
+          .get();
+      final userType = userTypeDoc.data()!['name'] as String;
+
+      // Initialiser le service de notifications de cadeaux
+      if (!Get.isRegistered<GiftNotificationServiceSimple>()) {
+        await Get.putAsync(() => GiftNotificationServiceSimple().init());
+      }
+
+      final giftService = Get.find<GiftNotificationServiceSimple>();
+      final giftCheckFuture = Future(() async {
+        await giftService.cleanTestDocuments();
+        final gifts = await giftService.checkForNewGiftsSimple();
+        return gifts;
+      });
+
+      // Déterminer la route cible
+      String targetRoute;
+      bool shouldGoToExplorer = false;
+
+      if (userType == 'Administrateur') {
+        targetRoute = Routes.adminUsers;
+      } else if (userType == 'Particulier') {
+        targetRoute = Routes.shopEstablishment;
+      } else if (userType == 'Boutique' ||
+          userType == 'Entreprise' ||
+          userType == 'Sponsor' ||
+          userType == 'Cine7com' ||
+          userType == 'Association') {
+        final estabQuery = await UniquesControllers()
+            .data
+            .firebaseFirestore
+            .collection('establishments')
+            .where('user_id', isEqualTo: uid)
+            .limit(1)
+            .get();
+
+        if (estabQuery.docs.isNotEmpty) {
+          final estabData = estabQuery.docs.first.data();
+          final isVisible = estabData['is_visible'] ?? false;
+
+          if (!isVisible) {
+            shouldGoToExplorer = true;
+            targetRoute = Routes.shopEstablishment;
+          } else {
+            if (userType == 'Sponsor') {
+              targetRoute = Routes.adminCommissions;
+            } else {
+              targetRoute = Routes.profile;
+            }
+          }
+        } else {
+          targetRoute = Routes.profile;
+        }
+      } else {
+        targetRoute = Routes.shopEstablishment;
+      }
+
+      UniquesControllers().data.isInAsyncCall.value = false;
+      Get.offAllNamed(targetRoute);
+
+      if (shouldGoToExplorer) {
+        await Future.delayed(Duration(milliseconds: 500));
+        Get.snackbar(
+          'Profil en attente',
+          'Votre établissement est en cours de validation. Explorez l\'application en attendant !',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          duration: Duration(seconds: 4),
+          snackPosition: SnackPosition.TOP,
+          margin: EdgeInsets.all(16),
+          borderRadius: 12,
+          icon: Icon(Icons.hourglass_empty, color: Colors.white),
+        );
+      }
+
+      // Vérifier les cadeaux
+      giftCheckFuture.then((gifts) {
+        if (gifts.isNotEmpty) {
+          Get.dialog(
+            CelebrationDialogImproved(
+              notifications: gifts,
+              onClose: () => Get.back(),
+            ),
+            barrierDismissible: false,
+            useSafeArea: true,
+          );
+        }
+      }).catchError((error) {});
+    } catch (e) {
+      UniquesControllers().data.isInAsyncCall.value = false;
+      throw e;
     }
   }
 }

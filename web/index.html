@@ -4,26 +4,29 @@
         <script>
             // CAPTURE D'ERREURS DÈS LE DÉBUT
             window.errorLog = [];
-            window.onerror = function(msg, url, line, col, error) {
-                var errorMsg = msg + ' at ' + url + ':' + line + ':' + col;
-                window.errorLog.push(new Date().toISOString() + ' - ' + errorMsg);
-                console.error('EARLY ERROR:', errorMsg);
+            window.onerror = function (msg, url, line, col, error) {
+                var errorMsg = msg + " at " + url + ":" + line + ":" + col;
+                window.errorLog.push(
+                    new Date().toISOString() + " - " + errorMsg,
+                );
+                console.error("EARLY ERROR:", errorMsg);
 
                 // Afficher directement sur la page
                 try {
-                    var errorDiv = document.getElementById('early-errors');
+                    var errorDiv = document.getElementById("early-errors");
                     if (!errorDiv) {
-                        errorDiv = document.createElement('div');
-                        errorDiv.id = 'early-errors';
-                        errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:999999;font-size:12px;';
+                        errorDiv = document.createElement("div");
+                        errorDiv.id = "early-errors";
+                        errorDiv.style.cssText =
+                            "position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:999999;font-size:12px;";
                         document.body.appendChild(errorDiv);
                     }
-                    errorDiv.innerHTML = 'ERROR: ' + errorMsg;
-                } catch(e) {}
+                    errorDiv.innerHTML = "ERROR: " + errorMsg;
+                } catch (e) {}
 
                 return false;
             };
-            console.log('Early error capture active');
+            console.log("Early error capture active");
         </script>
 
         <base href="$FLUTTER_BASE_HREF" />
@@ -47,6 +50,12 @@
 
         <!-- Favicon -->
         <link rel="icon" type="image/png" href="favicon.png" />
+
+        <!-- Google Sign-In Client ID -->
+        <meta
+            name="google-signin-client_id"
+            content="329287786841-s3klpsf3tlvejv7p6274nteg7pl6p158.apps.googleusercontent.com"
+        />
 
         <title>VenteMoi</title>
         <link rel="manifest" href="manifest.json" />
@@ -198,7 +207,7 @@
                 z-index: 999999;
                 overflow-y: auto;
                 display: none;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             }
             #error-button {
                 position: fixed;
@@ -215,7 +224,7 @@
                 z-index: 999999;
                 cursor: pointer;
                 font-weight: bold;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             }
         </style>
     </head>
@@ -240,7 +249,7 @@
             function logError(msg) {
                 errorCount++;
                 var time = new Date().toLocaleTimeString();
-                errorMessages.push('[' + time + '] ' + msg);
+                errorMessages.push("[" + time + "] " + msg);
 
                 // Garder seulement les 50 dernières erreurs
                 if (errorMessages.length > 50) {
@@ -248,36 +257,46 @@
                 }
 
                 // Afficher le bouton
-                document.getElementById('error-button').style.display = 'flex';
-                document.getElementById('error-button').innerText = errorCount;
+                document.getElementById("error-button").style.display = "flex";
+                document.getElementById("error-button").innerText = errorCount;
 
                 // Mettre à jour la console
-                var consoleDiv = document.getElementById('error-console');
-                consoleDiv.innerHTML = errorMessages.join('<br>');
+                var consoleDiv = document.getElementById("error-console");
+                consoleDiv.innerHTML = errorMessages.join("<br>");
 
-                console.error('CAPTURED:', msg);
+                console.error("CAPTURED:", msg);
             }
 
             function toggleErrorConsole() {
-                var console = document.getElementById('error-console');
-                if (console.style.display === 'none' || console.style.display === '') {
-                    console.style.display = 'block';
+                var console = document.getElementById("error-console");
+                if (
+                    console.style.display === "none" ||
+                    console.style.display === ""
+                ) {
+                    console.style.display = "block";
                 } else {
-                    console.style.display = 'none';
+                    console.style.display = "none";
                 }
             }
 
             // Capturer toutes les erreurs JavaScript
-            window.addEventListener('error', function(e) {
-                logError('JS Error: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+            window.addEventListener("error", function (e) {
+                logError(
+                    "JS Error: " +
+                        e.message +
+                        " at " +
+                        e.filename +
+                        ":" +
+                        e.lineno,
+                );
             });
 
-            window.addEventListener('unhandledrejection', function(e) {
-                logError('Promise rejected: ' + e.reason);
+            window.addEventListener("unhandledrejection", function (e) {
+                logError("Promise rejected: " + e.reason);
             });
 
             // Log pour debug
-            console.log('Error capture initialized');
+            console.log("Error capture initialized");
 
             window.addEventListener("load", function (ev) {
                 // Initialiser Flutter
